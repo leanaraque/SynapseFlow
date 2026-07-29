@@ -69,9 +69,30 @@ packages = ["packages/synapseflow"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 pythonpath = ["packages", "."]
+
+# Un solo event loop para toda la sesión.
+#
+# El cliente de Firestore mantiene canales gRPC atados al loop donde se creó, y
+# `get_client()` lo cachea por proceso a propósito (ver persistence/client.py).
+# Con loops por test, el cliente queda atado a un loop ya cerrado a partir del
+# segundo test. Un loop por sesión reproduce además lo que pasa en Cloud Run:
+# un proceso, un loop, un cliente.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+
 markers = [
     "emulator: requiere el emulador de Firestore corriendo",
     "live_llm: consume cuota real de un proveedor de LLM",
+]
+
+filterwarnings = [
+    "error",
+    # grpc.aio deja calls sin cancelar al cerrar el cliente y su __del__ falla
+    # con AttributeError. Es ruido de teardown de la librería, no del código de
+    # la plataforma, y rompe el reporte de pytest si se trata como error.
+    "default::pytest.PytestUnraisableExceptionWarning",
+    "ignore:coroutine .* was never awaited:RuntimeWarning",
+    "ignore::DeprecationWarning:google.*",
 ]
 
 [tool.ruff]

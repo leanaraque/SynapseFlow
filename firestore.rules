@@ -1,0 +1,69 @@
+rules_version = '2';
+
+// ═════════════════════════════════════════════════════════════════════════════
+// SynapseFlow — reglas de seguridad de Firestore
+//
+// Postura: el cliente web NO habla con Firestore para nada del dominio. Todo
+// pasa por la API en Cloud Run, que corre con la identidad del servicio y
+// aplica el RBAC derivado de la ontología.
+//
+// Estas reglas existen para hacer cumplir esa postura: bloquean el acceso
+// directo desde el cliente. Si mañana alguien agrega una llamada al SDK de
+// Firestore desde el frontend para "resolver algo rápido", falla acá en lugar
+// de saltear silenciosamente la capa de permisos.
+//
+// La cuenta de servicio de la API pasa por encima de estas reglas por diseño:
+// el SDK de administración no las evalúa. Eso es correcto, y es la razón por la
+// que la API tiene que aplicar los permisos ella misma.
+// ═════════════════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Estado interno de la plataforma ──────────────────────────────────────
+    // Checkpoints de LangGraph, memoria de largo plazo, log de auditoría,
+    // consumo y registry de prompts. Nada de esto se lee ni se escribe desde
+    // el cliente, en ningún caso.
+    match /lg_checkpoints/{doc}       { allow read, write: if false; }
+    match /lg_checkpoint_blobs/{doc}  { allow read, write: if false; }
+    match /lg_checkpoint_writes/{doc} { allow read, write: if false; }
+    match /lg_store/{doc}             { allow read, write: if false; }
+    match /llm_usage/{doc}            { allow read, write: if false; }
+    match /prompt_registry/{doc}      { allow read, write: if false; }
+    match /eval_runs/{doc}            { allow read, write: if false; }
+
+    // ── Log de auditoría ─────────────────────────────────────────────────────
+    // Inmutable por contrato. Ni el cliente ni un rol de aplicación pueden
+    // modificar o borrar un registro: un log de auditoría editable no es un log
+    // de auditoría. Solo escribe la API, y solo agrega.
+    match /audit_log/{doc} {
+      allow read, create, update, delete: if false;
+    }
+
+    // ── Datos del dominio ────────────────────────────────────────────────────
+    // La clasificación por rol vive en la ontología y la aplica la API. Acá se
+    // cierra el acceso directo.
+    match /installations/{doc} { allow read, write: if false; }
+    match /assets/{doc}        { allow read, write: if false; }
+    match /inspections/{doc}   { allow read, write: if false; }
+    match /work_orders/{doc}   { allow read, write: if false; }
+
+    // ── Corpus de normativa ──────────────────────────────────────────────────
+    // Contiene vectores de embeddings. Exponerlo permitiría reconstruir el
+    // índice completo, así que también va cerrado.
+    match /corpus_chunks/{doc} { allow read, write: if false; }
+
+    // ── Cola de aprobaciones ─────────────────────────────────────────────────
+    // Podría parecer natural que el cliente lea su bandeja directo de Firestore.
+    // No: decidir si un usuario puede ver una aprobación pendiente requiere
+    // evaluar sus roles contra los approver_roles de la acción, que vive en la
+    // ontología. Esa lógica no se puede replicar acá sin duplicarla, y una
+    // regla duplicada es una regla que se desincroniza.
+    match /approvals/{doc} { allow read, write: if false; }
+
+    // ── Todo lo demás ────────────────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

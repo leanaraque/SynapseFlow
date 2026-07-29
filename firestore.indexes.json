@@ -1,0 +1,147 @@
+{
+  "indexes": [
+    {
+      "//": "RAG: búsqueda vectorial restringida a normativa vigente. El filtro de igualdad va antes del find_nearest, así que el índice tiene que declarar ambos campos en ese orden.",
+      "collectionGroup": "corpus_chunks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "vigencia", "order": "ASCENDING" },
+        { "fieldPath": "embedding", "vectorConfig": { "dimension": 768, "flat": {} } }
+      ]
+    },
+    {
+      "//": "RAG: búsqueda vectorial filtrada por tipo de documento.",
+      "collectionGroup": "corpus_chunks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tipo_documento", "order": "ASCENDING" },
+        { "fieldPath": "embedding", "vectorConfig": { "dimension": 768, "flat": {} } }
+      ]
+    },
+    {
+      "//": "RAG: vigencia + tipo, el caso más restrictivo.",
+      "collectionGroup": "corpus_chunks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "vigencia", "order": "ASCENDING" },
+        { "fieldPath": "tipo_documento", "order": "ASCENDING" },
+        { "fieldPath": "embedding", "vectorConfig": { "dimension": 768, "flat": {} } }
+      ]
+    },
+    {
+      "//": "RAG: búsqueda vectorial sin filtros.",
+      "collectionGroup": "corpus_chunks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "embedding", "vectorConfig": { "dimension": 768, "flat": {} } }
+      ]
+    },
+    {
+      "//": "Checkpointer: último checkpoint de un hilo y recorrido del historial.",
+      "collectionGroup": "lg_checkpoints",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "thread_id", "order": "ASCENDING" },
+        { "fieldPath": "checkpoint_ns", "order": "ASCENDING" },
+        { "fieldPath": "checkpoint_id", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "//": "Checkpointer: filtrado del historial por origen del checkpoint.",
+      "collectionGroup": "lg_checkpoints",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "thread_id", "order": "ASCENDING" },
+        { "fieldPath": "checkpoint_ns", "order": "ASCENDING" },
+        { "fieldPath": "meta_source", "order": "ASCENDING" },
+        { "fieldPath": "checkpoint_id", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "//": "Checkpointer: escrituras pendientes de un checkpoint, en orden de índice. Es lo que devuelve el payload del interrupt().",
+      "collectionGroup": "lg_checkpoint_writes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "thread_id", "order": "ASCENDING" },
+        { "fieldPath": "checkpoint_ns", "order": "ASCENDING" },
+        { "fieldPath": "checkpoint_id", "order": "ASCENDING" },
+        { "fieldPath": "idx", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "//": "Auditoría: traza de un hilo en orden cronológico.",
+      "collectionGroup": "audit_log",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "thread_id", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "//": "Auditoría: qué hizo un usuario, del hecho más reciente hacia atrás.",
+      "collectionGroup": "audit_log",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "user_id", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "//": "Aprobaciones: bandeja de pendientes por rol aprobador.",
+      "collectionGroup": "approvals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "creado_en", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "//": "Activos: listados por instalación y criticidad, el filtro más usado por el agente de datos.",
+      "collectionGroup": "assets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "instalacion", "order": "ASCENDING" },
+        { "fieldPath": "criticidad", "order": "ASCENDING" },
+        { "fieldPath": "tag", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "//": "Activos: por estado y criticidad.",
+      "collectionGroup": "assets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "criticidad", "order": "ASCENDING" },
+        { "fieldPath": "tag", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "//": "Inspecciones: historial de un activo, de la más reciente a la más antigua. Base del cálculo de velocidad de corrosión.",
+      "collectionGroup": "inspections",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "activo", "order": "ASCENDING" },
+        { "fieldPath": "fecha", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "//": "Órdenes de trabajo: por activo y estado.",
+      "collectionGroup": "work_orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "activo", "order": "ASCENDING" },
+        { "fieldPath": "estado", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "//": "Costos: consumo de un hilo para el dashboard.",
+      "collectionGroup": "llm_usage",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "thread_id", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
