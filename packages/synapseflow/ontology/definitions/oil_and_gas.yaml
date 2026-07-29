@@ -1,0 +1,669 @@
+# ═════════════════════════════════════════════════════════════════════════════
+# SynapseFlow · Ontología de dominio
+# Integridad de activos — upstream / midstream de petróleo y gas
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# Este archivo es la única fuente de verdad del dominio. De acá se derivan,
+# en tiempo de arranque y sin escribir código por caso:
+#
+#   1. Los modelos Pydantic de validación de cada entidad.
+#   2. El catálogo de herramientas que ven los agentes (tools de LangChain).
+#   3. Los permisos por rol y los gates de aprobación humana.
+#   4. La clasificación de datos que decide qué se redacta antes de salir
+#      hacia el proveedor de LLM.
+#
+# Cambiar el dominio de la plataforma es cambiar este YAML, no el código.
+# Ver docs/adr/0003-ontologia-declarativa-en-yaml.md
+#
+# Los datos de las instalaciones son sintéticos. Ver docs/00-vision.md §Datos.
+
+version: 1.1.0
+domain: oil_and_gas_asset_integrity
+title: Integridad de Activos — Upstream y Midstream
+description: >
+  Modelo de activos estáticos y rotativos, su historial de inspección y los
+  procesos de mantenimiento asociados, alineado con los marcos de inspección
+  basada en riesgo de API 580/581 y los códigos de inspección en servicio
+  API 510 (equipos a presión), API 570 (cañerías) y API 653 (tanques).
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Niveles de clasificación de datos
+#
+# Gobiernan la redacción y el ruteo de modelos. Un campo marcado como
+# `restricted` nunca viaja íntegro a un proveedor de LLM externo: se
+# tokeniza antes de la llamada y se rehidrata en la respuesta.
+# ─────────────────────────────────────────────────────────────────────────────
+classification_levels:
+  - id: public
+    rank: 0
+    description: Publicable. Normativa técnica de acceso abierto.
+  - id: internal
+    rank: 1
+    description: Interno. Datos operativos sin identificación de personas.
+  - id: confidential
+    rank: 2
+    description: Confidencial. Datos de producción, costos y reservas.
+  - id: restricted
+    rank: 3
+    description: >
+      Restringido. Identifica personas o expone hallazgos de seguridad
+      atribuibles. Se redacta siempre antes de salir del perímetro.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Roles
+#
+# Mínimo privilegio: cada rol declara qué puede leer y qué puede ejecutar.
+# El agente hereda exclusivamente los permisos del usuario que lo invoca,
+# nunca los de la cuenta de servicio.
+# ─────────────────────────────────────────────────────────────────────────────
+roles:
+  - id: consulta
+    title: Consulta
+    description: Lectura de normativa pública. Sin acceso a datos operativos.
+    max_classification: public
+
+  - id: tecnico
+    title: Técnico de mantenimiento
+    description: >
+      Consulta activos y su historial, y solicita órdenes de trabajo que
+      requieren aprobación de un supervisor.
+    max_classification: internal
+
+  - id: inspector
+    title: Inspector de integridad
+    description: >
+      Registra mediciones de espesor y hallazgos de inspección. Puede calcular
+      vida remanente y proponer reclasificación de criticidad.
+    max_classification: confidential
+
+  - id: supervisor_mantenimiento
+    title: Supervisor de mantenimiento
+    description: >
+      Aprueba órdenes de trabajo y paradas de equipo. Es el rol aprobador por
+      defecto de las acciones irreversibles.
+    max_classification: confidential
+
+  - id: auditor
+    title: Auditor
+    description: >
+      Lectura total incluyendo el log de auditoría. Sin capacidad de escritura
+      sobre el dominio: no puede crear ni aprobar nada.
+    max_classification: restricted
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Entidades
+# ─────────────────────────────────────────────────────────────────────────────
+entities:
+  # ── Instalación ────────────────────────────────────────────────────────────
+  - id: installation
+    name: Instalación
+    plural: Instalaciones
+    collection: installations
+    key: codigo
+    classification: internal
+    description: >
+      Unidad geográfica y operativa que agrupa activos: batería, planta de
+      tratamiento, estación de bombeo o cabecera de ducto.
+    properties:
+      - name: codigo
+        type: string
+        required: true
+        description: Código de instalación, por ejemplo BAT-LC-014.
+        example: BAT-LC-014
+      - name: nombre
+        type: string
+        required: true
+        description: Nombre operativo de la instalación.
+        example: Batería Loma Chelena 14
+      - name: tipo
+        type: enum
+        values: [bateria, planta_tratamiento_gas, estacion_bombeo, cabecera_ducto, planta_deshidratacion]
+        required: true
+        description: Tipo de instalación.
+      - name: cuenca
+        type: enum
+        values: [neuquina, golfo_san_jorge, austral, cuyana, noroeste]
+        required: true
+        description: Cuenca sedimentaria donde se ubica.
+      - name: area_clasificada
+        type: enum
+        values: [zona_0, zona_1, zona_2, no_clasificada]
+        required: true
+        description: >
+          Clasificación de área por riesgo de atmósfera explosiva según
+          IEC 60079-10-1. Condiciona qué permisos de trabajo aplican.
+      - name: criticidad_instalacion
+        type: enum
+        values: [alta, media, baja]
+        required: true
+        description: Criticidad agregada, derivada de la de sus activos.
+
+  # ── Activo ─────────────────────────────────────────────────────────────────
+  - id: asset
+    name: Activo
+    plural: Activos
+    collection: assets
+    key: tag
+    classification: internal
+    description: >
+      Equipo individual sujeto a un plan de integridad: estático (tanque,
+      recipiente a presión, cañería) o rotativo (bomba, compresor).
+    properties:
+      - name: tag
+        type: string
+        required: true
+        description: >
+          Identificador funcional del equipo según convención ISA 5.1.
+          Es la clave natural y el término que usan los técnicos en planta.
+        example: P-2101-A
+      - name: descripcion
+        type: string
+        required: true
+        description: Descripción funcional del equipo.
+        example: Bomba centrífuga de transferencia de crudo, tren A
+      - name: clase
+        type: enum
+        values: [bomba_centrifuga, compresor_reciprocante, intercambiador_calor, tanque_almacenamiento, recipiente_presion, canieria_proceso, valvula_seguridad, separador_trifasico]
+        required: true
+        description: Clase de equipo. Determina el código de inspección aplicable.
+      - name: instalacion
+        type: reference
+        target: installation
+        required: true
+        description: Instalación a la que pertenece.
+      - name: criticidad
+        type: enum
+        values: [A, B, C]
+        required: true
+        description: >
+          Criticidad RBI según API 580. A exige inspección más frecuente y
+          habilita escalamiento inmediato ante desvío.
+      - name: fluido
+        type: enum
+        values: [crudo, gas_natural, agua_produccion, glicol, condensado, vapor, aire_instrumentos]
+        required: true
+        description: Fluido de proceso contenido.
+      - name: presion_diseno_kpa
+        type: number
+        unit: kPa
+        required: false
+        description: Presión de diseño.
+      - name: temperatura_diseno_c
+        type: number
+        unit: "°C"
+        required: false
+        description: Temperatura de diseño.
+      - name: espesor_nominal_mm
+        type: number
+        unit: mm
+        required: false
+        description: Espesor de pared nominal de fábrica.
+      - name: espesor_minimo_requerido_mm
+        type: number
+        unit: mm
+        required: false
+        description: >
+          Espesor mínimo requerido por cálculo (t_min). Por debajo de este
+          valor el equipo no puede continuar en servicio.
+      - name: fecha_puesta_servicio
+        type: date
+        required: true
+        description: Fecha de puesta en servicio.
+      - name: estado
+        type: enum
+        values: [en_servicio, fuera_servicio, en_mantenimiento, baja_definitiva]
+        required: true
+        description: Estado operativo actual.
+
+  # ── Inspección ─────────────────────────────────────────────────────────────
+  - id: inspection
+    name: Inspección
+    plural: Inspecciones
+    collection: inspections
+    key: id_inspeccion
+    classification: confidential
+    description: >
+      Evento de inspección sobre un activo, con la medición resultante y el
+      hallazgo del inspector.
+    properties:
+      - name: id_inspeccion
+        type: string
+        required: true
+        description: Identificador de la inspección.
+        example: INS-2026-04412
+      - name: activo
+        type: reference
+        target: asset
+        required: true
+        description: Activo inspeccionado.
+      - name: fecha
+        type: date
+        required: true
+        description: Fecha de ejecución.
+      - name: tecnica
+        type: enum
+        values: [ultrasonido_espesores, inspeccion_visual, particulas_magneticas, tintas_penetrantes, radiografia_industrial, termografia, analisis_vibraciones]
+        required: true
+        description: Técnica de ensayo aplicada.
+      - name: espesor_medido_mm
+        type: number
+        unit: mm
+        required: false
+        description: >
+          Espesor mínimo medido en la campaña. Se compara contra
+          espesor_minimo_requerido_mm para decidir aptitud de servicio.
+      - name: hallazgo
+        type: string
+        required: true
+        description: Descripción del hallazgo.
+      - name: severidad
+        type: enum
+        values: [sin_desvio, observacion, desvio_menor, desvio_mayor, critico]
+        required: true
+        description: >
+          Severidad del hallazgo. Un valor critico en un activo de criticidad A
+          dispara escalamiento automático.
+      - name: inspector_legajo
+        type: string
+        required: true
+        pii: true
+        classification: restricted
+        description: >
+          Legajo del inspector responsable. Identifica a una persona: se
+          redacta antes de cualquier llamada a un modelo externo.
+
+  # ── Orden de trabajo ───────────────────────────────────────────────────────
+  - id: work_order
+    name: Orden de trabajo
+    plural: Órdenes de trabajo
+    collection: work_orders
+    key: id_ot
+    classification: internal
+    description: >
+      Orden de trabajo de mantenimiento correctivo, preventivo o predictivo
+      sobre un activo.
+    properties:
+      - name: id_ot
+        type: string
+        required: true
+        description: Identificador de la orden de trabajo.
+        example: OT-2026-118734
+      - name: activo
+        type: reference
+        target: asset
+        required: true
+        description: Activo sobre el que se ejecuta.
+      - name: tipo
+        type: enum
+        values: [correctivo, preventivo, predictivo, mejora]
+        required: true
+        description: Tipo de mantenimiento.
+      - name: prioridad
+        type: enum
+        values: [emergencia, alta, media, baja]
+        required: true
+        description: >
+          Prioridad de ejecución. El valor emergencia implica intervención
+          sin esperar la ventana de parada programada.
+      - name: descripcion_trabajo
+        type: string
+        required: true
+        description: Alcance del trabajo a ejecutar.
+      - name: estado
+        type: enum
+        values: [borrador, pendiente_aprobacion, aprobada, en_ejecucion, cerrada, rechazada]
+        required: true
+        description: Estado en el flujo de aprobación.
+      - name: permisos_requeridos
+        type: array
+        items: enum
+        values: [trabajo_en_caliente, espacio_confinado, bloqueo_etiquetado, trabajo_en_altura, apertura_linea_proceso]
+        required: false
+        description: >
+          Permisos de trabajo exigidos antes de la ejecución. Se derivan del
+          área clasificada de la instalación y de la clase del activo.
+      - name: inspeccion_origen
+        type: reference
+        target: inspection
+        required: false
+        description: Inspección que originó la orden, si aplica.
+      - name: solicitante
+        type: string
+        required: true
+        pii: true
+        classification: restricted
+        description: Legajo de quien solicita. Se redacta antes de salir del perímetro.
+
+  # ── Documento normativo ────────────────────────────────────────────────────
+  - id: standard_document
+    name: Documento normativo
+    plural: Documentos normativos
+    collection: corpus_chunks
+    key: doc_id
+    classification: public
+    description: >
+      Fragmento indexado de normativa técnica, procedimiento interno o
+      instructivo operativo. Es el cuerpo sobre el que trabaja el RAG.
+    vector_indexed: true
+    properties:
+      - name: doc_id
+        type: string
+        required: true
+        description: Identificador del documento fuente.
+        example: API-570-2016
+      - name: titulo
+        type: string
+        required: true
+        description: Título del documento.
+      - name: seccion
+        type: string
+        required: true
+        description: >
+          Sección o cláusula citada. Es obligatoria en toda cita: sin sección
+          la respuesta se considera no fundamentada.
+        example: "7.4.2"
+      - name: contenido
+        type: string
+        required: true
+        description: Texto del fragmento.
+      - name: tipo_documento
+        type: enum
+        values: [norma_internacional, norma_nacional, procedimiento_interno, instructivo_operativo, hoja_seguridad]
+        required: true
+        description: Naturaleza del documento.
+      - name: vigencia
+        type: enum
+        values: [vigente, derogado, en_revision]
+        required: true
+        description: >
+          Estado de vigencia. Un fragmento derogado nunca se usa como
+          fundamento de una respuesta, solo se cita para contrastar.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Relaciones
+#
+# El grafo de relaciones permite al agente expandir el contexto de una
+# consulta sin que el desarrollador escriba el join a mano.
+# ─────────────────────────────────────────────────────────────────────────────
+relations:
+  - id: asset_en_installation
+    name: se ubica en
+    from: asset
+    to: installation
+    cardinality: many_to_one
+    inverse_name: contiene
+    description: Un activo pertenece a exactamente una instalación.
+
+  - id: inspection_de_asset
+    name: inspecciona a
+    from: inspection
+    to: asset
+    cardinality: many_to_one
+    inverse_name: tiene historial de inspección
+    description: >
+      Historial de integridad del activo. Ordenado por fecha permite calcular
+      velocidad de corrosión y vida remanente.
+
+  - id: work_order_sobre_asset
+    name: interviene
+    from: work_order
+    to: asset
+    cardinality: many_to_one
+    inverse_name: tiene órdenes de trabajo
+    description: Trabajos de mantenimiento asociados al activo.
+
+  - id: work_order_desde_inspection
+    name: se origina en
+    from: work_order
+    to: inspection
+    cardinality: many_to_one
+    inverse_name: origina
+    description: >
+      Trazabilidad entre el hallazgo y la acción correctiva. Es el vínculo que
+      un auditor externo pide primero.
+
+  - id: asset_regido_por
+    name: se rige por
+    from: asset
+    to: standard_document
+    cardinality: many_to_many
+    inverse_name: aplica a
+    description: >
+      Normativa aplicable según la clase del activo. Un recipiente a presión
+      se rige por API 510, una cañería de proceso por API 570.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Acciones
+#
+# Cada acción se materializa como una tool de LangChain. Los campos
+# `reversible` y `requires_approval` no son documentación: el compilador de
+# herramientas los lee y envuelve la acción en un interrupt() de LangGraph.
+# Ver docs/adr/0005-hitl-con-interrupt-de-langgraph.md
+# ─────────────────────────────────────────────────────────────────────────────
+actions:
+  # ── Lectura ────────────────────────────────────────────────────────────────
+  - id: buscar_normativa
+    name: Buscar en normativa técnica
+    effect: read
+    reversible: true
+    requires_approval: false
+    allowed_roles: [consulta, tecnico, inspector, supervisor_mantenimiento, auditor]
+    target_entity: standard_document
+    description: >
+      Busca en el corpus de normativa y procedimientos. Devuelve fragmentos
+      con documento y sección para citar. Usar siempre que la pregunta
+      involucre un requisito, un límite normativo o un procedimiento.
+    parameters:
+      - name: consulta
+        type: string
+        required: true
+        description: Pregunta en lenguaje natural sobre la normativa.
+      - name: tipo_documento
+        type: enum
+        values: [norma_internacional, norma_nacional, procedimiento_interno, instructivo_operativo, hoja_seguridad]
+        required: false
+        description: Filtro opcional por tipo de documento.
+
+  - id: consultar_activo
+    name: Consultar ficha de activo
+    effect: read
+    reversible: true
+    requires_approval: false
+    allowed_roles: [tecnico, inspector, supervisor_mantenimiento, auditor]
+    target_entity: asset
+    description: >
+      Devuelve la ficha técnica de un activo por su TAG, incluyendo criticidad,
+      espesores de diseño y estado operativo.
+    parameters:
+      - name: tag
+        type: string
+        required: true
+        description: TAG del activo, por ejemplo P-2101-A.
+
+  - name: Listar activos por criterio
+    id: listar_activos
+    effect: read
+    reversible: true
+    requires_approval: false
+    allowed_roles: [tecnico, inspector, supervisor_mantenimiento, auditor]
+    target_entity: asset
+    description: >
+      Lista activos filtrando por instalación, clase, criticidad o estado.
+      Usar para preguntas agregadas del tipo cuántos o cuáles.
+    parameters:
+      - name: instalacion
+        type: string
+        required: false
+        description: Código de instalación.
+      - name: clase
+        type: string
+        required: false
+        description: Clase de equipo.
+      - name: criticidad
+        type: enum
+        values: [A, B, C]
+        required: false
+        description: Criticidad RBI.
+      - name: estado
+        type: enum
+        values: [en_servicio, fuera_servicio, en_mantenimiento, baja_definitiva]
+        required: false
+        description: Estado operativo.
+      - name: limite
+        type: integer
+        required: false
+        default: 25
+        description: Máximo de resultados.
+
+  - id: historial_inspecciones
+    name: Consultar historial de inspecciones
+    effect: read
+    reversible: true
+    requires_approval: false
+    allowed_roles: [inspector, supervisor_mantenimiento, auditor]
+    target_entity: inspection
+    description: >
+      Historial de inspecciones de un activo, ordenado de más reciente a más
+      antiguo. Base de cálculo para velocidad de corrosión y vida remanente.
+    parameters:
+      - name: tag
+        type: string
+        required: true
+        description: TAG del activo.
+      - name: limite
+        type: integer
+        required: false
+        default: 10
+        description: Cantidad de inspecciones a devolver.
+
+  - id: calcular_vida_remanente
+    name: Calcular vida remanente
+    effect: compute
+    reversible: true
+    requires_approval: false
+    allowed_roles: [inspector, supervisor_mantenimiento, auditor]
+    target_entity: asset
+    description: >
+      Calcula velocidad de corrosión y vida remanente de un activo a partir de
+      su historial de espesores, según el método de API 570 sección 7.
+      Es un cálculo determinístico en Python: el modelo no estima el número.
+    parameters:
+      - name: tag
+        type: string
+        required: true
+        description: TAG del activo.
+
+  # ── Escritura reversible ───────────────────────────────────────────────────
+  - id: registrar_borrador_ot
+    name: Registrar borrador de orden de trabajo
+    effect: write
+    reversible: true
+    requires_approval: false
+    allowed_roles: [tecnico, inspector, supervisor_mantenimiento]
+    target_entity: work_order
+    description: >
+      Crea una orden de trabajo en estado borrador. No dispara ejecución ni
+      moviliza recursos, por eso no requiere aprobación: es reversible.
+    parameters:
+      - name: tag
+        type: string
+        required: true
+        description: TAG del activo a intervenir.
+      - name: tipo
+        type: enum
+        values: [correctivo, preventivo, predictivo, mejora]
+        required: true
+        description: Tipo de mantenimiento.
+      - name: descripcion_trabajo
+        type: string
+        required: true
+        description: Alcance del trabajo.
+      - name: prioridad
+        type: enum
+        values: [emergencia, alta, media, baja]
+        required: true
+        description: Prioridad propuesta.
+
+  # ── Escritura irreversible: exige aprobación humana ────────────────────────
+  - id: emitir_orden_trabajo
+    name: Emitir orden de trabajo
+    effect: write
+    reversible: false
+    requires_approval: true
+    approver_roles: [supervisor_mantenimiento]
+    allowed_roles: [tecnico, inspector, supervisor_mantenimiento]
+    target_entity: work_order
+    description: >
+      Emite una orden de trabajo a ejecución. Moviliza cuadrilla y materiales,
+      y queda registrada en el sistema de mantenimiento. Requiere aprobación
+      de un supervisor antes de materializarse.
+    parameters:
+      - name: id_ot
+        type: string
+        required: true
+        description: Identificador del borrador a emitir.
+    approval_prompt: >
+      Se va a emitir la orden de trabajo {id_ot} sobre el activo {tag} con
+      prioridad {prioridad}. Esto moviliza cuadrilla y no se puede deshacer
+      desde esta plataforma.
+
+  - id: solicitar_parada_equipo
+    name: Solicitar parada de equipo
+    effect: write
+    reversible: false
+    requires_approval: true
+    approver_roles: [supervisor_mantenimiento]
+    allowed_roles: [inspector, supervisor_mantenimiento]
+    target_entity: asset
+    description: >
+      Solicita la parada de un equipo en servicio por riesgo de integridad.
+      Impacta producción de forma directa. Reservada para desvíos mayores o
+      críticos con fundamento normativo explícito.
+    parameters:
+      - name: tag
+        type: string
+        required: true
+        description: TAG del activo a detener.
+      - name: motivo
+        type: string
+        required: true
+        description: Fundamento técnico de la parada.
+      - name: id_inspeccion
+        type: string
+        required: true
+        description: >
+          Inspección que sustenta la solicitud. Es obligatoria: no se solicita
+          una parada sin un hallazgo trazable que la respalde.
+    approval_prompt: >
+      Se va a solicitar la PARADA del equipo {tag}. Motivo declarado: {motivo}.
+      Fundamento: inspección {id_inspeccion}. Impacta producción y no se puede
+      deshacer desde esta plataforma.
+
+  - id: reclasificar_criticidad
+    name: Reclasificar criticidad de activo
+    effect: write
+    reversible: false
+    requires_approval: true
+    approver_roles: [supervisor_mantenimiento]
+    allowed_roles: [inspector]
+    target_entity: asset
+    description: >
+      Cambia la criticidad RBI de un activo. Altera su plan de inspección y su
+      frecuencia, con efecto sobre el presupuesto de integridad del año.
+    parameters:
+      - name: tag
+        type: string
+        required: true
+        description: TAG del activo.
+      - name: criticidad_nueva
+        type: enum
+        values: [A, B, C]
+        required: true
+        description: Criticidad propuesta.
+      - name: justificacion
+        type: string
+        required: true
+        description: Justificación técnica del cambio.
+    approval_prompt: >
+      Se va a reclasificar el activo {tag} a criticidad {criticidad_nueva}.
+      Esto redefine su plan de inspección. Justificación: {justificacion}.

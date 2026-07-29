@@ -1,0 +1,109 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "synapseflow"
+version = "0.1.0"
+description = "Plataforma de agentes gobernados para industrias reguladas, sobre LangGraph y LangChain."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+authors = [{ name = "Leandro Araque" }]
+keywords = ["langchain", "langgraph", "agents", "rag", "llmops", "governance", "firestore"]
+
+# Versiones verificadas contra PyPI el 2026-07-29 e instaladas y ejercitadas en
+# este repositorio. La línea 1.x de LangChain cambió APIs respecto de 0.3.x:
+# no bajar los pisos sin correr la suite de tests.
+dependencies = [
+    "langchain==1.3.14",
+    "langchain-core==1.5.2",
+    "langgraph==1.2.10",
+    # Retrievers de composición (Ensemble, MultiQuery, ContextualCompression).
+    # En la línea 1.x migraron de `langchain.retrievers` a este paquete.
+    "langchain-classic==1.0.8",
+    "langchain-text-splitters==1.1.2",
+    # Proveedor por defecto del demo.
+    "langchain-google-genai==4.3.2",
+    # Adapters alternativos: OpenAI y Azure OpenAI comparten paquete.
+    "langchain-openai==1.4.1",
+    "langsmith==0.10.12",
+    # Firestore: SDK directo. El paquete langchain-google-firestore todavía
+    # pinnea langchain-core <1.0.0, así que las integraciones son propias.
+    # Ver docs/adr/0002-integraciones-firestore-propias.md
+    "google-cloud-firestore>=2.22.0",
+    "firebase-admin>=7.1.0",
+    # BM25 léxico para el retriever híbrido. Se usa directo en lugar de
+    # langchain-community para no arrastrar todo ese paquete.
+    "rank-bm25>=0.2.2",
+    "fastapi>=0.121.0",
+    "uvicorn[standard]>=0.41.0",
+    "pydantic>=2.12.0",
+    "pydantic-settings>=2.13.0",
+    "python-dotenv>=1.2.0",
+    "pyyaml>=6.0.3",
+    "sse-starlette>=3.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.4.0",
+    "pytest-asyncio>=1.3.0",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.15.0",
+    "mypy>=1.19.0",
+    "types-pyyaml",
+]
+
+[project.urls]
+Homepage = "https://github.com/leanaraque/SynapseFlow"
+Documentation = "https://github.com/leanaraque/SynapseFlow/tree/main/docs"
+
+[project.scripts]
+synapseflow = "synapseflow.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["packages/synapseflow"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+pythonpath = ["packages", "."]
+markers = [
+    "emulator: requiere el emulador de Firestore corriendo",
+    "live_llm: consume cuota real de un proveedor de LLM",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["packages", "services", "evals", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM", "RUF", "ASYNC", "S"]
+ignore = [
+    "E501",    # el formateador ya controla el largo
+    "RUF001",  # los textos en español usan comillas tipográficas a propósito
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]           # assert es el punto de los tests
+"scripts/**" = ["S311"]         # random no criptográfico para datos sintéticos
+"evals/**" = ["S101"]
+
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "packages"
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# Los modelos de las entidades se construyen en runtime desde el YAML de la
+# ontología, así que mypy no puede ver sus campos. Es el costo aceptado en
+# docs/adr/0003-ontologia-declarativa-en-yaml.md
+module = "synapseflow.ontology.compiler"
+disallow_untyped_defs = false

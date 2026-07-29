@@ -1,0 +1,54 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+
+# Entorno y secretos
+.env
+.env.local
+*-service-account.json
+service-account*.json
+!.env.example
+
+# Node / web
+node_modules/
+apps/web/dist/
+.vite/
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Datos generados y artefactos de evaluación
+data/generated/
+evals/results/
+*.local.json
+
+# Sistema operativo / editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Material privado — NUNCA se publica
+#
+# Notas de postulación, preparación de entrevistas y cualquier documento con
+# datos de reclutadores o de terceros. El repositorio es público: esto se queda
+# en la máquina.
+# ─────────────────────────────────────────────────────────────────────────────
+taligent-ai-engineer.md
+*-ai-engineer.md
+docs/_privado/
+notas-entrevista*
+cv/
