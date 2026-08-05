@@ -24,9 +24,15 @@ apps/web/dist/
 
 # Firebase
 .firebase/
-firebase-debug.log
-firestore-debug.log
-ui-debug.log
+*-debug.log
+firebase-debug.*.log
+.runtimeconfig.json
+
+# Instrucciones locales de asistentes de código: no forman parte del proyecto.
+CLAUDE.md
+.claude/
+.cursorrules
+.aider*
 
 # Datos generados y artefactos de evaluación
 data/generated/

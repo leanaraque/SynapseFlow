@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Vulnerabilidad de seguridad
+    url: https://github.com/leanaraque/SynapseFlow/security/advisories/new
+    about: Reportala en privado, no como issue público.
+  - name: Cómo contribuir
+    url: https://github.com/leanaraque/SynapseFlow/blob/main/CONTRIBUTING.md
+    about: Preparar el entorno, correr los tests y convenciones del proyecto.

@@ -9,7 +9,7 @@ Ver docs/adr/0005-hitl-con-interrupt-de-langgraph.md
 
 from __future__ import annotations
 
-from typing import Annotated, Any, TypedDict
+from typing import Any, TypedDict
 
 import pytest
 from langgraph.graph import END, START, StateGraph
@@ -25,9 +25,7 @@ pytestmark = pytest.mark.emulator
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-async def test_put_y_get_devuelven_el_mismo_estado(
-    saver: FirestoreSaver, thread_id: str
-) -> None:
+async def test_put_y_get_devuelven_el_mismo_estado(saver: FirestoreSaver, thread_id: str) -> None:
     config = {"configurable": {"thread_id": thread_id, "checkpoint_ns": ""}}
     checkpoint = {
         "v": 4,
@@ -40,7 +38,9 @@ async def test_put_y_get_devuelven_el_mismo_estado(
     }
     metadata = {"source": "loop", "step": 1, "parents": {}}
 
-    nuevo_config = await saver.aput(config, checkpoint, metadata, {"mensajes": "1", "contador": "1"})
+    nuevo_config = await saver.aput(
+        config, checkpoint, metadata, {"mensajes": "1", "contador": "1"}
+    )
     assert nuevo_config["configurable"]["checkpoint_id"] == checkpoint["id"]
 
     tupla = await saver.aget_tuple(nuevo_config)
@@ -115,9 +115,7 @@ async def test_alist_ordena_del_mas_reciente_al_mas_antiguo(
     assert len(limitados) == 2
 
 
-async def test_adelete_thread_borra_todo_el_estado(
-    saver: FirestoreSaver, thread_id: str
-) -> None:
+async def test_adelete_thread_borra_todo_el_estado(saver: FirestoreSaver, thread_id: str) -> None:
     config = {"configurable": {"thread_id": thread_id, "checkpoint_ns": ""}}
     ckpt_id = "1f000000-0000-6000-8000-0000000000ff"
     nuevo = await saver.aput(
@@ -217,8 +215,9 @@ async def test_hitl_sobrevive_a_la_muerte_del_proceso(
     # ── Vida 1: corre hasta el gate y se interrumpe ──────────────────────────
     saver_1 = FirestoreSaver()
     grafo_1 = _construir_grafo(saver_1)
-    resultado = await grafo_1.ainvoke({"tag": "", "motivo": "", "aprobado": None,
-                                       "ejecutado": None}, config)
+    resultado = await grafo_1.ainvoke(
+        {"tag": "", "motivo": "", "aprobado": None, "ejecutado": None}, config
+    )
 
     assert "__interrupt__" in resultado, "el grafo no se detuvo en el gate"
     payload = resultado["__interrupt__"][0].value
@@ -245,17 +244,13 @@ async def test_hitl_sobrevive_a_la_muerte_del_proceso(
     assert final["ejecutado"]["motivo"] == motivo_propuesto
 
 
-async def test_el_rechazo_no_ejecuta_la_accion(
-    requiere_emulador: None, thread_id: str
-) -> None:
+async def test_el_rechazo_no_ejecuta_la_accion(requiere_emulador: None, thread_id: str) -> None:
     """Rechazar tiene que dejar el efecto sin materializar."""
     config = {"configurable": {"thread_id": thread_id}}
     saver = FirestoreSaver()
     grafo = _construir_grafo(saver)
 
-    await grafo.ainvoke(
-        {"tag": "", "motivo": "", "aprobado": None, "ejecutado": None}, config
-    )
+    await grafo.ainvoke({"tag": "", "motivo": "", "aprobado": None, "ejecutado": None}, config)
     final = await grafo.ainvoke(Command(resume={"aprobado": False}), config)
 
     assert final["ejecutado"] is None, "se ejecutó una acción rechazada"
@@ -274,9 +269,7 @@ async def test_el_historial_reconstruye_el_camino_a_la_propuesta(
     saver = FirestoreSaver()
     grafo = _construir_grafo(saver)
 
-    await grafo.ainvoke(
-        {"tag": "", "motivo": "", "aprobado": None, "ejecutado": None}, config
-    )
+    await grafo.ainvoke({"tag": "", "motivo": "", "aprobado": None, "ejecutado": None}, config)
     await grafo.ainvoke(Command(resume={"aprobado": True}), config)
 
     historial = [t async for t in saver.alist(config)]

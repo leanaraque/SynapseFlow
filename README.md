@@ -4,15 +4,28 @@
 
 **Plataforma de agentes gobernados para industrias reguladas.**
 
-Construida sobre LangGraph y LangChain, desplegada en Firebase.
+Sobre LangGraph y LangChain 1.x · desplegada en Firebase
 
-[Arquitectura](docs/01-arquitectura.md) ·
-[Gobernanza](docs/03-gobernanza-data-first.md) ·
-[LLMOps](docs/04-llmops.md) ·
-[Decisiones de arquitectura](docs/adr) ·
-[Runbook](docs/05-runbook.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg?logo=python&logoColor=white)](pyproject.toml)
+[![LangChain 1.3](https://img.shields.io/badge/LangChain-1.3-1C3C3C.svg)](pyproject.toml)
+[![LangGraph 1.2](https://img.shields.io/badge/LangGraph-1.2-1C3C3C.svg)](pyproject.toml)
+[![CI](https://github.com/leanaraque/SynapseFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/leanaraque/SynapseFlow/actions/workflows/ci.yml)
+
+[Arquitectura](#arquitectura) ·
+[Decisiones de diseño](#las-cinco-decisiones-que-definen-el-proyecto) ·
+[Estado](#estado-del-proyecto) ·
+[Empezar](#empezar) ·
+[ADRs](docs/adr)
 
 </div>
+
+> [!NOTE]
+> **Proyecto en construcción.** La capa de ontología y la de persistencia están
+> implementadas y con tests. El grafo de agentes, la API y la consola web están
+> en curso. El [estado del proyecto](#estado-del-proyecto) dice exactamente qué
+> corre hoy y qué no — y la sección [Empezar](#empezar) solo documenta comandos
+> que funcionan de verdad.
 
 ---
 
@@ -28,7 +41,7 @@ sobre un equipo en servicio enfrenta preguntas que un notebook no responde:
   de la cuenta de servicio?
 - ¿Qué fragmento exacto de qué norma sostiene esa respuesta? ¿Y si la norma
   está derogada?
-- ¿Salió un legajo de una persona hacia un proveedor de LLM externo?
+- ¿Salió el legajo de una persona hacia un proveedor de LLM externo?
 - ¿Quién aprobó la parada del equipo? ¿Queda registro de que fue un humano?
 - Cuando el prompt cambie el mes que viene, ¿cómo sabés que no empeoró?
 
@@ -42,6 +55,8 @@ El dominio implementado es **integridad de activos de petróleo y gas**: un
 asistente que responde sobre normativa de inspección, consulta el historial de
 un equipo, calcula vida remanente y —con aprobación humana explícita— emite
 órdenes de trabajo o solicita la parada de un activo.
+
+El comportamiento objetivo del sistema completo:
 
 ```
 Usuario: El P-2101-A midió 6,8 mm en la última inspección. ¿Sigue apto?
@@ -69,6 +84,11 @@ SynapseFlow:
 
 El agente no ejecuta la parada. La propone, la fundamenta y espera a un humano.
 
+> Este es el diseño objetivo, no una sesión capturada: el grafo de agentes está
+> en construcción. Lo que sí está implementado y verificado hoy es el catálogo
+> de herramientas que se ve arriba —derivado de la ontología, filtrado por rol—
+> y el mecanismo de aprobación que sostiene ese último bloque.
+
 ## Arquitectura
 
 ```mermaid
@@ -91,7 +111,7 @@ flowchart TB
         HITL{"interrupt()<br/>acción irreversible"}
     end
 
-    subgraph gov["Capa de gobernanza"]
+    subgraph gov["Capa de gobernanza · AgentMiddleware"]
         PII["Redacción de PII"]
         POL["Política zero-training"]
         AUDIT["Log de auditoría inmutable"]
@@ -126,11 +146,9 @@ flowchart TB
     core -.->|traces| LS["LangSmith"]
 ```
 
-Detalle y justificación en [`docs/01-arquitectura.md`](docs/01-arquitectura.md).
-
 ## Las cinco decisiones que definen el proyecto
 
-**1. La ontología es declarativa, no código.**
+**1. La ontología es declarativa, no código.** ✅ implementado
 Entidades, relaciones y acciones viven en
 [`oil_and_gas.yaml`](packages/synapseflow/ontology/definitions/oil_and_gas.yaml).
 De ese archivo se derivan en tiempo de arranque los modelos de validación, el
@@ -138,79 +156,165 @@ catálogo de herramientas que ven los agentes, los permisos por rol y la
 clasificación de datos. Cambiar de dominio es cambiar el YAML.
 → [ADR-0003](docs/adr/0003-ontologia-declarativa-en-yaml.md)
 
-**2. La reversibilidad es un atributo del dominio, no un `if` en el código.**
+**2. La reversibilidad es un atributo del dominio, no un `if` en el código.** ✅ implementado
 Cada acción declara `reversible` y `requires_approval`. El compilador de
-herramientas lee esos campos y envuelve la acción en un `interrupt()` de
-LangGraph. Un desarrollador no puede olvidarse de poner el gate: si la acción
-es irreversible, el gate existe.
+herramientas lee esos campos y produce la configuración del gate de aprobación.
+Un desarrollador no puede olvidarse de poner el gate: si la acción es
+irreversible, el gate existe.
 → [ADR-0005](docs/adr/0005-hitl-con-interrupt-de-langgraph.md)
 
-**3. El modelo no calcula números.**
+**3. El modelo no calcula números.** 🚧 en curso
 Velocidad de corrosión y vida remanente se computan en Python determinístico y
 se le entregan al modelo como hecho. El LLM redacta y fundamenta; no estima
 magnitudes que después firma un ingeniero.
 
-**4. Sin cita no hay respuesta.**
+**4. Sin cita no hay respuesta.** 🚧 en curso
 El agente de normativa está obligado a devolver documento y sección. Un nodo
 verificador comprueba que cada afirmación tenga respaldo en el contexto
 recuperado antes de emitir. Si no lo tiene, el sistema dice que no sabe.
 
-**5. Los datos sensibles no salen del perímetro.**
+**5. Los datos sensibles no salen del perímetro.** 🚧 en curso
 Los campos marcados `pii` o `restricted` en la ontología se tokenizan antes de
 la llamada al proveedor y se rehidratan en la respuesta. El modelo externo ve
-`«INSPECTOR_1»`, nunca un legajo.
+`«INSPECTOR_1»`, nunca un legajo. La derivación de esos campos desde la
+ontología ya funciona; falta cablearla al gateway.
 → [ADR-0004](docs/adr/0004-gateway-provider-agnostic.md)
+
+## Estado del proyecto
+
+| Componente | Estado | Verificación |
+|---|---|---|
+| Ontología: meta-esquema y validación | ✅ | invariantes de gobernanza forzadas al cargar |
+| Ontología: compilador a herramientas de LangChain | ✅ | 9 acciones, schemas con enums, filtrado por rol |
+| Ontología: RBAC y campos PII derivados | ✅ | `consulta` ve 1 herramienta, `auditor` no escribe |
+| `FirestoreSaver` — checkpointer de LangGraph | ✅ | 8 tests contra el emulador |
+| `FirestoreVectorStore` — `find_nearest` nativo | ✅ | implementado; tests de integración pendientes |
+| CLI de inspección | ✅ | `synapseflow ontology validate` |
+| Reglas e índices de Firestore | ✅ | declarados y versionados |
+| Gateway de LLM multi-proveedor | 🚧 | catálogo de modelos y precios definido |
+| Middlewares de gobernanza | 📋 | diseño cerrado sobre `AgentMiddleware` de LC 1.x |
+| RAG híbrido con citas | 📋 | |
+| Grafo de agentes | 📋 | |
+| API en Cloud Run | 📋 | |
+| Consola web | 📋 | |
+| Suite de evals y CI de regresión | 📋 | |
+
+✅ implementado y verificado · 🚧 en curso · 📋 planificado
+
+## Empezar
+
+Todo lo de esta sección funciona hoy. No necesita API key, ni Firebase, ni red.
+
+```bash
+git clone https://github.com/leanaraque/SynapseFlow.git
+cd SynapseFlow
+
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+```
+
+### Inspeccionar el dominio
+
+```bash
+# Valida la ontología y reporta las invariantes de gobernanza
+synapseflow ontology validate
+
+# Mínimo privilegio: qué herramientas ve cada rol
+synapseflow ontology tools --role tecnico
+synapseflow ontology tools --role auditor
+
+# Alcance de cada rol, de un vistazo
+synapseflow ontology roles
+
+# Diagrama de entidades en Mermaid, listo para pegar
+synapseflow ontology graph
+```
+
+`synapseflow ontology tools --role tecnico` produce:
+
+```
+Rol        tecnico — Técnico de mantenimiento
+Clasif.    hasta 'internal'
+Ve         5 de 9 acciones del dominio
+
+HERRAMIENTA            EFECTO  PARÁMETROS                                      GATE
+─────────────────────  ──────  ──────────────────────────────────────────────  ────────────────────
+buscar_normativa       read    consulta, tipo_documento
+consultar_activo       read    tag
+listar_activos         read    instalacion, clase, criticidad, estado, limite
+registrar_borrador_ot  write   tag, tipo, descripcion_trabajo, prioridad       escritura reversible
+emitir_orden_trabajo   write   id_ot                                           requiere aprobación
+```
+
+### Tests
+
+```bash
+# Unitarios: no necesitan nada externo
+pytest -m "not emulator"
+
+# Integración: necesitan el emulador de Firestore en otra terminal
+firebase emulators:start --only firestore --project synapseflow-lean
+pytest
+```
+
+El test que más importa es
+[`test_hitl_sobrevive_a_la_muerte_del_proceso`](tests/persistence/test_checkpointer.py):
+corre el grafo hasta el gate de aprobación, **descarta el grafo y el saver**,
+los reconstruye desde cero y reanuda con `Command(resume=...)`, verificando que
+la acción ejecutada tenga los argumentos idénticos a los propuestos. Es la
+promesa del human-in-the-loop asincrónico, demostrada en lugar de afirmada.
+
+## Estructura del repositorio
+
+```
+packages/synapseflow/
+  config.py              toda la configuración ambiental, en un solo lugar
+  cli.py                 inspección del dominio sin credenciales
+  ontology/
+    definitions/*.yaml   el dominio como dato: entidades, relaciones, acciones
+    schema.py            meta-esquema Pydantic estricto
+    loader.py            carga y validación con errores accionables
+    compiler.py          YAML → herramientas de LangChain + gates + RBAC
+  persistence/
+    client.py            cliente de Firestore compartido por proceso
+    vectorstore.py       VectorStore sobre find_nearest nativo
+    checkpointer.py      BaseCheckpointSaver de LangGraph
+  llm/
+    models.yaml          catálogo de modelos, perfiles de tarea y precios
+docs/adr/                decisiones de arquitectura, con sus alternativas
+tests/                   contrato de la persistencia y de la ontología
+firestore.rules          el cliente no habla con Firestore; la API aplica RBAC
+firestore.indexes.json   índices vectoriales y compuestos
+```
 
 ## Stack
 
 | Capa | Tecnología |
 |---|---|
 | Orquestación de agentes | LangGraph — supervisor, subgrafos, `interrupt()`, checkpointing |
-| Composición y modelos | LangChain — LCEL, tool calling, structured output |
+| Composición y middlewares | LangChain 1.x — `create_agent`, `AgentMiddleware`, tool calling |
 | Recuperación | RAG híbrido: `FirestoreVectorStore` + BM25 vía `EnsembleRetriever` |
 | Persistencia de estado | `BaseCheckpointSaver` propio sobre Firestore |
-| Memoria de largo plazo | `BaseStore` propio sobre Firestore |
 | Observabilidad | LangSmith — tracing, datasets, experiments |
-| Contabilidad de costos | `BaseCallbackHandler` propio → Firestore |
 | Modelos | Gemini (default) · OpenAI · Azure OpenAI, detrás de un gateway |
 | API | FastAPI en Cloud Run, streaming por SSE |
 | Frontend | React + Vite en Firebase Hosting |
-| Datos | Firestore (vector search nativo) · Cloud Storage |
+| Datos | Firestore con búsqueda vectorial nativa · Cloud Storage |
 | Identidad | Firebase Auth → RBAC derivado de la ontología |
 
-## Cómo correrlo
+## Decisiones de arquitectura
 
-```bash
-git clone https://github.com/leanaraque/SynapseFlow.git
-cd SynapseFlow
+Cada decisión no trivial está documentada con su contexto, las alternativas que
+se descartaron y por qué, las consecuencias en contra y cómo se verifica.
 
-python -m venv .venv && .venv/Scripts/activate   # Windows
-pip install -e ".[dev]"
-
-cp .env.example .env        # completar GOOGLE_API_KEY
-python -m scripts.seed      # genera e indexa el corpus sintético
-
-uvicorn services.api.main:app --reload            # API
-cd apps/web && npm install && npm run dev         # consola
-```
-
-Detalle completo, incluyendo emulador de Firestore y despliegue, en el
-[runbook](docs/05-runbook.md).
-
-## Evaluación
-
-El repositorio incluye un golden dataset del dominio y evaluadores propios.
-Las evals corren en CI y bloquean el merge ante regresión.
-
-```bash
-python -m evals.run --suite normativa
-python -m evals.run --suite all --compare-baseline
-```
-
-Métricas: fidelidad a las fuentes, precisión de citas, corrección del rechazo
-—que el sistema se niegue a responder cuando no tiene fundamento es una
-métrica, no un fallo—, latencia p95 y costo por consulta.
-Ver [`docs/04-llmops.md`](docs/04-llmops.md).
+| ADR | Decisión |
+|---|---|
+| [0001](docs/adr/0001-langgraph-como-motor-de-orquestacion.md) | LangGraph como motor de orquestación |
+| [0002](docs/adr/0002-integraciones-firestore-propias.md) | Integraciones de Firestore propias, no el paquete oficial |
+| [0003](docs/adr/0003-ontologia-declarativa-en-yaml.md) | La ontología del dominio es declarativa y vive fuera del código |
+| [0004](docs/adr/0004-gateway-provider-agnostic.md) | Gateway de modelos con frontera de datos explícita |
+| [0005](docs/adr/0005-hitl-con-interrupt-de-langgraph.md) | Los gates de aprobación usan `interrupt()` de LangGraph |
 
 ## Alcance y honestidad
 
@@ -223,11 +327,15 @@ Conviene ser explícito sobre qué es y qué no es esto.
   parafrasean la estructura y el criterio técnico de los códigos de inspección
   en servicio de API, pero no reproducen su contenido, que es material con
   derechos. Sirven para ejercitar el RAG con la forma real del problema.
-- **Es una implementación de referencia,** no un producto en operación. Está
-  desplegada y funciona de punta a punta; no atiende una carga productiva.
+- **Es una implementación de referencia,** no un producto en operación.
 - El objetivo es demostrar la arquitectura y las prácticas de ingeniería que
   requiere llevar agentes a producción en un entorno regulado.
 
+## Contribuir
+
+Ver [CONTRIBUTING.md](CONTRIBUTING.md). Para reportar una vulnerabilidad, ver
+[SECURITY.md](SECURITY.md).
+
 ## Licencia
 
-MIT. Ver [LICENSE](LICENSE).
+MIT — ver [LICENSE](LICENSE).

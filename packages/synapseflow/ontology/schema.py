@@ -417,15 +417,16 @@ def _validar_placeholders(accion: Action) -> None:
     justo en el momento más sensible del flujo: cuando un supervisor tiene que
     decidir si autoriza la parada de un equipo.
     """
-    assert accion.approval_prompt is not None
+    plantilla = accion.approval_prompt
+    if not plantilla:
+        return
+
     declarados = {p.name for p in accion.parameters}
     # La entidad objetivo aporta su clave natural y algunos campos de contexto
     # que el gate puede querer mostrar aunque no sean parámetros de la acción.
     contexto_permitido = {"tag", "prioridad", "id_ot", "criticidad_nueva", "motivo"}
     permitidos = declarados | contexto_permitido
-    usados = {
-        campo for _, campo, _, _ in string.Formatter().parse(accion.approval_prompt) if campo
-    }
+    usados = {campo for _, campo, _, _ in string.Formatter().parse(plantilla) if campo}
     desconocidos = usados - permitidos
     if desconocidos:
         raise ValueError(

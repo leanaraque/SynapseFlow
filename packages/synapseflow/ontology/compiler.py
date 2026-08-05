@@ -120,7 +120,7 @@ def _anotacion(param: Parameter) -> Any:
     """
     if param.type is PropertyType.ENUM:
         valores = param.values or []
-        return Literal[tuple(valores)]  # type: ignore[return-value]
+        return Literal[tuple(valores)]
 
     if param.type is PropertyType.ARRAY:
         interno = param.items or PropertyType.STRING

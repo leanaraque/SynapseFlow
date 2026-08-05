@@ -79,7 +79,7 @@ def thread_id() -> str:
 
 
 @pytest.fixture(scope="session")
-async def saver(requiere_emulador: None) -> AsyncIterator["object"]:
+async def saver(requiere_emulador: None) -> AsyncIterator[object]:
     """Un único saver para la sesión.
 
     De sesión y no por test porque comparte el cliente cacheado de Firestore, que

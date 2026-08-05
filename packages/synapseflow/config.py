@@ -39,9 +39,7 @@ class Settings(BaseSettings):
 
     azure_openai_api_key: str | None = Field(default=None, alias="AZURE_OPENAI_API_KEY")
     azure_openai_endpoint: str | None = Field(default=None, alias="AZURE_OPENAI_ENDPOINT")
-    azure_openai_api_version: str = Field(
-        default="2024-10-21", alias="AZURE_OPENAI_API_VERSION"
-    )
+    azure_openai_api_version: str = Field(default="2024-10-21", alias="AZURE_OPENAI_API_VERSION")
     azure_openai_chat_deployment: str | None = Field(
         default=None, alias="AZURE_OPENAI_CHAT_DEPLOYMENT"
     )
@@ -60,9 +58,7 @@ class Settings(BaseSettings):
     langsmith_project: str = Field(default="synapseflow-dev", alias="LANGSMITH_PROJECT")
 
     # ── Política de gobernanza ───────────────────────────────────────────────
-    enforce_zero_training: bool = Field(
-        default=True, alias="SYNAPSEFLOW_ENFORCE_ZERO_TRAINING"
-    )
+    enforce_zero_training: bool = Field(default=True, alias="SYNAPSEFLOW_ENFORCE_ZERO_TRAINING")
     redact_pii: bool = Field(default=True, alias="SYNAPSEFLOW_REDACT_PII")
     require_approval: bool = Field(default=True, alias="SYNAPSEFLOW_REQUIRE_APPROVAL")
 
@@ -121,7 +117,7 @@ class Settings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Configuración del proceso, resuelta una sola vez."""
-    return Settings()  # type: ignore[call-arg]
+    return Settings()
 
 
 def reset_settings_cache() -> None:

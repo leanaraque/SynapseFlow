@@ -100,11 +100,15 @@ class FirestoreVectorStore(VectorStore):
         vectores = await self._embedding.aembed_documents(textos)
         self._validar_dimensiones(vectores)
 
-        identificadores = ids or [_id_por_contenido(t, m) for t, m in zip(textos, metas)]
+        identificadores = ids or [
+            _id_por_contenido(t, m) for t, m in zip(textos, metas, strict=True)
+        ]
 
         # Firestore admite hasta 500 operaciones por batch. Los corpus de
         # normativa superan ese número con facilidad.
-        for lote in _en_lotes(list(zip(identificadores, textos, metas, vectores)), 400):
+        for lote in _en_lotes(
+            list(zip(identificadores, textos, metas, vectores, strict=True)), 400
+        ):
             batch = self._client.batch()
             for doc_id, texto, meta, vector in lote:
                 batch.set(
@@ -148,9 +152,7 @@ class FirestoreVectorStore(VectorStore):
 
     # ── Lectura ──────────────────────────────────────────────────────────────
 
-    async def asimilarity_search(
-        self, query: str, k: int = 4, **kwargs: Any
-    ) -> list[Document]:
+    async def asimilarity_search(self, query: str, k: int = 4, **kwargs: Any) -> list[Document]:
         con_puntaje = await self.asimilarity_search_with_score(query, k, **kwargs)
         return [doc for doc, _ in con_puntaje]
 
@@ -203,9 +205,14 @@ class FirestoreVectorStore(VectorStore):
         )
 
     async def aget_by_ids(self, ids: Sequence[str], /) -> list[Document]:
+        # `get_all` del cliente async devuelve un generador asincrónico, no un
+        # awaitable: hay que iterarlo con `async for`.
         refs = [self._collection.document(i) for i in ids]
-        snapshots = await self._client.get_all(refs)
-        return [_a_documento(s)[0] for s in snapshots if s.exists]
+        documentos: list[Document] = []
+        async for snapshot in self._client.get_all(refs):
+            if snapshot.exists:
+                documentos.append(_a_documento(snapshot)[0])
+        return documentos
 
     async def acount(self, filtros: dict[str, Any] | None = None) -> int:
         """Cantidad de fragmentos indexados. Lo usa el script de ingesta para
@@ -242,9 +249,7 @@ class FirestoreVectorStore(VectorStore):
         ids: list[str] | None = None,
         **kwargs: Any,
     ) -> FirestoreVectorStore:
-        raise NotImplementedError(
-            "FirestoreVectorStore es async: usar `afrom_texts`."
-        )
+        raise NotImplementedError("FirestoreVectorStore es async: usar `afrom_texts`.")
 
     # ── Interno ──────────────────────────────────────────────────────────────
 

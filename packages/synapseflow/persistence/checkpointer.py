@@ -99,7 +99,9 @@ class FirestoreSaver(BaseCheckpointSaver[str]):
         self,
         config: RunnableConfig | None,
         *,
-        filter: dict[str, Any] | None = None,  # noqa: A002 - firma de la interfaz
+        # `filter` sombrea un builtin: es la firma de BaseCheckpointSaver y no
+        # se puede cambiar sin romper el contrato con LangGraph.
+        filter: dict[str, Any] | None = None,
         before: RunnableConfig | None = None,
         limit: int | None = None,
     ) -> AsyncIterator[CheckpointTuple]:
@@ -360,11 +362,11 @@ class FirestoreSaver(BaseCheckpointSaver[str]):
     def get_tuple(self, config: RunnableConfig) -> CheckpointTuple | None:
         raise NotImplementedError(_MENSAJE_SYNC)
 
-    def list(  # noqa: A003 - firma de la interfaz
+    def list(
         self,
         config: RunnableConfig | None,
         *,
-        filter: dict[str, Any] | None = None,  # noqa: A002
+        filter: dict[str, Any] | None = None,
         before: RunnableConfig | None = None,
         limit: int | None = None,
     ) -> Iterator[CheckpointTuple]:

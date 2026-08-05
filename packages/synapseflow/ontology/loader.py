@@ -52,8 +52,7 @@ def load_ontology_from_path(path: Path) -> Ontology:
 
     if not isinstance(crudo, dict):
         raise OntologyError(
-            f"'{path.name}' debe contener un mapeo en la raíz, "
-            f"pero contiene {type(crudo).__name__}"
+            f"'{path.name}' debe contener un mapeo en la raíz, pero contiene {type(crudo).__name__}"
         )
 
     try:

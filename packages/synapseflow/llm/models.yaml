@@ -1,0 +1,155 @@
+# ═════════════════════════════════════════════════════════════════════════════
+# Catálogo de modelos y precios
+#
+# El código pide un PERFIL de tarea, nunca un nombre de modelo. Este archivo
+# resuelve perfil + proveedor → modelo concreto. Cambiar la política de costos
+# de toda la plataforma es editar acá. Ver docs/adr/0004-gateway-provider-agnostic.md
+#
+# ⚠ LOS PRECIOS SE DESACTUALIZAN.
+#
+# `verified_on` es la fecha en que se contrastaron contra la página de precios
+# del proveedor. `tests/llm/test_pricing_freshness.py` falla cuando pasan más de
+# 90 días, para que la contabilidad de costos no mienta en silencio.
+#
+# Los precios son por millón de tokens, en dólares.
+# ═════════════════════════════════════════════════════════════════════════════
+
+verified_on: 2026-07-29
+
+# Dimensión del índice vectorial declarado en firestore.indexes.json.
+#
+# Es un acoplamiento real y vale la pena que esté explícito: un índice vectorial
+# de Firestore fija su dimensión al crearse. Cambiar de modelo de embeddings a
+# uno con otra dimensión obliga a reindexar el corpus completo y a recrear el
+# índice. El gateway valida esto al arrancar en lugar de dejar que falle a mitad
+# de una ingesta.
+vector_index_dimensions: 768
+
+providers:
+  # ── Gemini · proveedor por defecto del demo ────────────────────────────────
+  gemini:
+    zero_training: true
+    zero_training_note: >
+      La API de pago de Gemini no usa los datos para entrenar. El tier gratuito
+      SÍ los usa: si SYNAPSEFLOW_ENFORCE_ZERO_TRAINING está activo y el proyecto
+      no tiene facturación habilitada, la política se está incumpliendo aunque
+      esta bandera diga lo contrario. Es la clase de detalle que en un cliente
+      regulado hay que verificar en el contrato, no en la documentación.
+    profiles:
+      router:
+        model: gemini-2.5-flash
+        input_per_1m: 0.30
+        output_per_1m: 2.50
+        context_window: 1048576
+        note: Clasificación y ruteo. Es la llamada más frecuente del sistema.
+      synthesis:
+        model: gemini-2.5-pro
+        input_per_1m: 1.25
+        output_per_1m: 10.00
+        context_window: 1048576
+        note: Redacción fundamentada con citas. La llamada que define la calidad.
+      verifier:
+        model: gemini-2.5-flash
+        input_per_1m: 0.30
+        output_per_1m: 2.50
+        context_window: 1048576
+        note: Chequeo de groundedness con salida estructurada.
+      embedding:
+        model: text-embedding-004
+        input_per_1m: 0.00
+        output_per_1m: 0.00
+        dimensions: 768
+        note: >
+          768 dimensiones, que es lo que declara el índice vectorial. Cambiar
+          este modelo obliga a reindexar.
+
+  # ── OpenAI ─────────────────────────────────────────────────────────────────
+  openai:
+    zero_training: true
+    zero_training_note: >
+      La API de OpenAI no entrena con datos de clientes por defecto desde 2023.
+      Para un cliente regulado conviene además pedir Zero Data Retention.
+    profiles:
+      router:
+        model: gpt-4.1-mini
+        input_per_1m: 0.40
+        output_per_1m: 1.60
+        context_window: 1047576
+      synthesis:
+        model: gpt-4.1
+        input_per_1m: 2.00
+        output_per_1m: 8.00
+        context_window: 1047576
+      verifier:
+        model: gpt-4.1-mini
+        input_per_1m: 0.40
+        output_per_1m: 1.60
+        context_window: 1047576
+      embedding:
+        model: text-embedding-3-small
+        input_per_1m: 0.02
+        output_per_1m: 0.00
+        dimensions: 1536
+        note: >
+          1536 dimensiones. NO coincide con el índice vectorial declarado.
+          Usar OpenAI para embeddings exige recrear el índice con dimension 1536
+          y reindexar el corpus. El gateway lo detecta y falla al arrancar.
+
+  # ── Azure OpenAI ───────────────────────────────────────────────────────────
+  # Los modelos se resuelven por nombre de *deployment*, que lo define quien
+  # administra el recurso de Azure, no el catálogo. Por eso los ids salen del
+  # entorno. Los precios son los de la familia subyacente.
+  azure_openai:
+    zero_training: true
+    zero_training_note: >
+      Azure OpenAI no comparte datos con OpenAI ni los usa para entrenar, y
+      permite desactivar el almacenamiento para abuse monitoring. Es la
+      configuración que suele exigir un corporativo regulado.
+    deployment_from_env: true
+    profiles:
+      router:
+        model: null
+        env: AZURE_OPENAI_CHAT_DEPLOYMENT
+        input_per_1m: 0.40
+        output_per_1m: 1.60
+      synthesis:
+        model: null
+        env: AZURE_OPENAI_CHAT_DEPLOYMENT
+        input_per_1m: 2.00
+        output_per_1m: 8.00
+      verifier:
+        model: null
+        env: AZURE_OPENAI_CHAT_DEPLOYMENT
+        input_per_1m: 0.40
+        output_per_1m: 1.60
+      embedding:
+        model: null
+        env: AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT
+        input_per_1m: 0.02
+        output_per_1m: 0.00
+        dimensions: 1536
+
+  # ── Anthropic ──────────────────────────────────────────────────────────────
+  # Sin modelo de embeddings propio: si se elige este proveedor, los embeddings
+  # siguen saliendo de Gemini. El gateway lo resuelve solo.
+  anthropic:
+    zero_training: true
+    zero_training_note: >
+      La API de Anthropic no entrena con datos de clientes.
+    embedding_fallback: gemini
+    profiles:
+      router:
+        model: claude-haiku-4-5-20251001
+        input_per_1m: 1.00
+        output_per_1m: 5.00
+        context_window: 200000
+      synthesis:
+        model: claude-sonnet-5
+        input_per_1m: 3.00
+        output_per_1m: 15.00
+        context_window: 200000
+      verifier:
+        model: claude-haiku-4-5-20251001
+        input_per_1m: 1.00
+        output_per_1m: 5.00
+        context_window: 200000
