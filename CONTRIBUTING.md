@@ -59,6 +59,31 @@ Convenciones del proyecto:
   línea que tiene debajo, sobra.
 - Type hints en todo lo público. `from __future__ import annotations` arriba.
 
+## README bilingüe
+
+El README existe en dos idiomas: [`README.md`](README.md) en inglés, que es el
+que GitHub muestra por defecto, y [`README.es.md`](README.es.md) en español.
+
+- **`README.md` es la fuente de verdad.** Ante una discrepancia, vale el inglés.
+- **Los dos se actualizan en el mismo PR.** Hay un job de CI que falla si tocás
+  uno solo.
+- **Los comandos y las salidas no se traducen nunca.** Un `pytest -m "not
+  emulator"` o la salida de la CLI son idénticos en los dos archivos. Si alguna
+  vez difieren, uno de los dos está mintiendo sobre lo que hace el proyecto.
+- **Sí se traduce la prosa que vive dentro de los bloques**: comentarios,
+  etiquetas del diagrama Mermaid y las descripciones del árbol de directorios.
+  Un diagrama con etiquetas en español dentro del README en inglés se lee mal.
+  Lo que no cambia son las rutas, los nombres de archivo y los comandos.
+- **La estructura de secciones y las tablas se mantienen en el mismo orden.** Es
+  lo que hace que la desincronización se vea a simple vista al comparar los dos
+  archivos.
+- Los enlaces internos usan anclas propias de cada archivo, porque los títulos
+  difieren entre idiomas.
+
+El resto de la documentación —ADRs, este archivo, `SECURITY.md`— está solo en
+español a propósito. Traducir todo se desincroniza al segundo cambio; el README
+es la puerta de entrada y es lo único que justifica el costo.
+
 ## Modificar la ontología
 
 La ontología del dominio

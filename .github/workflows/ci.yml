@@ -78,6 +78,41 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+  traducciones:
+    name: READMEs sincronizados
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # El README bilingüe no falla al traducirse: falla al desincronizarse seis
+      # meses después, cuando alguien actualiza uno solo y nadie lo nota. Este
+      # job convierte ese olvido silencioso en un check rojo.
+      - name: Verificar que ambos READMEs cambien juntos
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          cambios=$(git diff --name-only "$BASE" "$HEAD")
+          toca_en=$(printf '%s\n' "$cambios" | grep -Fxq 'README.md' && echo 1 || echo 0)
+          toca_es=$(printf '%s\n' "$cambios" | grep -Fxq 'README.es.md' && echo 1 || echo 0)
+
+          if [ "$toca_en" = "$toca_es" ]; then
+            echo "READMEs coherentes (ambos modificados, o ninguno)."
+            exit 0
+          fi
+
+          if [ "$toca_en" = "1" ]; then
+            faltante="README.es.md"; modificado="README.md"
+          else
+            faltante="README.md"; modificado="README.es.md"
+          fi
+
+          echo "::error file=$faltante::Se modificó $modificado pero no $faltante. Los dos READMEs se mantienen sincronizados: actualizá también la otra versión. README.md (inglés) es la fuente de verdad."
+          exit 1
+
   tests:
     name: Tests
     runs-on: ubuntu-latest
