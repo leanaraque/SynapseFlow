@@ -134,12 +134,12 @@
       ]
     },
     {
-      "//": "Costos: consumo de un hilo para el dashboard.",
+      "//": "Costos: consumo de un hilo para el dashboard. El campo es 'momento' porque es el que escribe llm/callbacks.py; decia 'ts' y ningun documento lo tenia.",
       "collectionGroup": "llm_usage",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "thread_id", "order": "ASCENDING" },
-        { "fieldPath": "ts", "order": "ASCENDING" }
+        { "fieldPath": "momento", "order": "ASCENDING" }
       ]
     }
   ],
