@@ -16,6 +16,7 @@ invariante de gobernanza editando el YAML del dominio, el build falla.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import sys
 from collections.abc import Sequence
 from typing import TextIO
@@ -29,9 +30,35 @@ from synapseflow.ontology import (
     interrupt_config,
 )
 
+
+def _preparar_salida() -> bool:
+    """Deja la salida en UTF-8 si se puede, y dice si admite Unicode.
+
+    En Windows, `sys.stdout` usa cp1252 cuando no es una consola —redirigido a
+    un archivo, entubado, capturado por CI—. Los caracteres de dibujo de las
+    tablas no se pueden codificar ahí, así que `synapseflow ontology validate >
+    salida.txt` terminaba en UnicodeEncodeError con código 1 y la salida
+    truncada a la mitad.
+
+    Es el comando que el README ofrece como lo primero que funciona después de
+    clonar, y el que corre en el job de gobernanza del CI volcando su salida al
+    resumen del build. `scripts/estado.py` ya tenía esta defensa; la CLI no.
+
+    Si no se puede reconfigurar —stdout sustituido por un test, por ejemplo— se
+    cae a símbolos ASCII en lugar de fallar.
+    """
+    with contextlib.suppress(AttributeError, OSError, ValueError):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+    return "utf" in (getattr(sys.stdout, "encoding", "") or "").lower()
+
+
+UNICODE = _preparar_salida()
+
 # Se evita cualquier dependencia de color: la salida tiene que ser legible
 # cuando se redirige a un archivo o se lee en el log de CI.
-_SEP = "─" * 72
+_RAYA = "─" if UNICODE else "-"
+_SEP = _RAYA * 72
+_OK = "✓" if UNICODE else "[OK]"
 
 
 def _print_tabla(filas: Sequence[Sequence[str]], encabezados: Sequence[str], out: TextIO) -> None:
@@ -41,7 +68,7 @@ def _print_tabla(filas: Sequence[Sequence[str]], encabezados: Sequence[str], out
             anchos[i] = max(anchos[i], len(celda))
     linea = "  ".join(h.ljust(anchos[i]) for i, h in enumerate(encabezados))
     print(linea.rstrip(), file=out)
-    print("  ".join("─" * a for a in anchos), file=out)
+    print("  ".join(_RAYA * a for a in anchos), file=out)
     for fila in filas:
         print("  ".join(c.ljust(anchos[i]) for i, c in enumerate(fila)).rstrip(), file=out)
 
@@ -94,7 +121,7 @@ def cmd_validate(onto: Ontology, out: TextIO) -> int:
             out,
         )
     print(file=out)
-    print("✓ la ontología es válida y las invariantes de gobernanza se sostienen", file=out)
+    print(f"{_OK} la ontología es válida y las invariantes de gobernanza se sostienen", file=out)
     return 0
 
 

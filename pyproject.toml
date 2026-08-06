@@ -112,8 +112,11 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # assert es el punto de los tests; random no criptográfico es el punto de los
 # datos sintéticos, que los tests de coherencia generan en proceso porque
-# data/generado/ no existe en un clon limpio.
-"tests/**" = ["S101", "S311"]
+# data/generado/ no existe en un clon limpio; y S603 porque los tests de la CLI
+# la corren en un subproceso a propósito —el bug de codificación que verifican
+# depende de cómo Python resuelve `sys.stdout` al arrancar— con argumentos
+# literales escritos en el propio test, no con entrada de nadie.
+"tests/**" = ["S101", "S311", "S603"]
 "scripts/**" = ["S311"]
 "evals/**" = ["S101"]
 
