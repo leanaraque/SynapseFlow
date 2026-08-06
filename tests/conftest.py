@@ -10,13 +10,16 @@ timeout de gRPC que no dice nada.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import socket
 import uuid
 from collections.abc import AsyncIterator, Iterator
+from pathlib import Path
 
 import pytest
 
+RAIZ = Path(__file__).resolve().parent.parent
 EMULATOR_HOST = os.environ.get("FIRESTORE_EMULATOR_HOST", "localhost:8080")
 PROYECTO_TEST = "synapseflow-5fc52"
 
@@ -40,6 +43,21 @@ def _entorno_de_test() -> Iterator[None]:
     que solo se descubre mirando la factura.
     """
     previo = dict(os.environ)
+
+    # El .env se carga ANTES de la clave de mentira. Las variables de entorno
+    # tienen prioridad sobre el .env en pydantic-settings, así que el
+    # `setdefault` de abajo estaba pisando la credencial real: los tests
+    # `live_llm` recibían "clave-de-test" y morían con API_KEY_INVALID tras
+    # catorce minutos de reintentos. El marcador existía en las convenciones y
+    # era estructuralmente inservible.
+    with contextlib.suppress(ImportError):
+        from dotenv import load_dotenv
+
+        load_dotenv(RAIZ / ".env")
+
+    # El destino de Firestore se fuerza igual: un test que escriba en la base
+    # real por heredar el .env es un accidente que solo se descubre en la
+    # factura.
     os.environ["FIRESTORE_EMULATOR_HOST"] = EMULATOR_HOST
     os.environ["GOOGLE_CLOUD_PROJECT"] = PROYECTO_TEST
     os.environ.setdefault("GOOGLE_API_KEY", "clave-de-test")
