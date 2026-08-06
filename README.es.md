@@ -204,6 +204,8 @@ ontología ya funciona; falta cablearla al gateway.
 | Tests de coherencia de los datos | ✅ | 45 tests sobre tres semillas |
 | Registry de modelos: perfil + proveedor → modelo | ✅ | un modelo de embeddings que no coincide con el índice vectorial no se puede resolver |
 | Gateway de LLM multi-proveedor | ✅ | cuatro adapters detrás de un único punto de salida; se pide un perfil de tarea, nunca un nombre de modelo |
+| Las nueve acciones del dominio, implementadas | ✅ | el catálogo completo compila para todos los roles — antes se negaba |
+| Cálculo determinístico de vida remanente | ✅ | API 570 §7, velocidades de largo y corto plazo, gobierna la mayor |
 | Política de zero-training aplicada en el gateway | ✅ | un proveedor que el catálogo no respalda se rechaza al arrancar |
 | Un solo camino de salida, garantizado por estructura | ✅ | se recorre el AST de cada módulo; un segundo camino rompe el build |
 | Contabilidad de costo por llamada | ✅ | se tarifa por el modelo que corrió de verdad, no por el perfil pedido |
@@ -291,14 +293,14 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> La suite tiene 247 tests. **205 no necesitan nada instalado —ni API key, ni
+> La suite tiene 308 tests. **248 no necesitan nada instalado —ni API key, ni
 > red—:** 45 verifican propiedades de los datos generados y del corpus de
 > normativa, 92 cubren el gateway de LLM, el registry de modelos, el modelo
-> falso y la contabilidad de costo, 35 la ontología y la CLI, 16 el cálculo
-> determinístico de vida remanente, y 17 que el plan de trabajo sea seguible. De
-> los demás, 37 corren contra el emulador de Firestore y 5 llaman a un proveedor
-> real — estos últimos llevan `live_llm` y **no** entran en la corrida por
-> defecto del CI.
+> falso y la contabilidad de costo, 59 el cálculo determinístico y el catálogo
+> de herramientas compilado, 35 la ontología y la CLI, y 17 que el plan de
+> trabajo sea seguible. De los demás, 55 corren contra el emulador de Firestore
+> y 5 llaman a un proveedor real — estos últimos llevan `live_llm` y **no**
+> entran en la corrida por defecto del CI.
 
 Cuatro de los tests de ontología corren un **agente real** —`create_agent` con
 `HumanInTheLoopMiddleware`— contra los gates derivados del YAML, gobernado por

@@ -186,6 +186,26 @@ no una convención escrita en un README.
   reconstruye el caso `P-2101-A` con las constantes del generador y verifica que
   reproduce los 0,21 mm/año y los −1,43 años que publica el README.
 
+- `packages/synapseflow/domain/escrituras.py`: las cuatro acciones de escritura.
+  **No implementan el gate de aprobación**, y no es un olvido: se escriben como
+  si la aprobación ya hubiera ocurrido, y el freno lo pone el grafo en F5 desde
+  la ontología. Un chequeo acá duplicaría la lógica donde se puede olvidar y
+  crearía la ilusión de dos barreras cuando la que vale es una.
+- Emitir una orden que no está en borrador no vuelve a emitirla: sin eso, un
+  reintento tras un timeout movilizaría la cuadrilla dos veces. Una parada de
+  equipo verifica que la inspección que la sustenta exista y que sea del mismo
+  activo. Ninguna acción borra estado: la parada deja el estado anterior y la
+  reclasificación deja la criticidad previa.
+- `tests/domain/test_catalogo.py` certifica que **F2 terminó**: `compile_tools`
+  ya no lanza `CompilationError` para ningún rol. Verifica el puente YAML ↔
+  código en las dos direcciones —ninguna acción declarada sin implementar,
+  ninguna implementación huérfana— y el contrato de cada implementación: que sea
+  async, que devuelva `ToolResult`, que reciba `ctx` como keyword-only y que su
+  firma cubra todos los parámetros del YAML.
+
+**Fase F2 completa.** Las nueve acciones del dominio tienen implementación y el
+catálogo compila para los cinco roles.
+
 ### Corregido
 
 - El índice de `llm_usage` en `firestore.indexes.json` declaraba el campo `ts` y

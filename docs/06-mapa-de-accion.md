@@ -48,13 +48,14 @@ packages/synapseflow/
   ontology/            ✅  schema · loader · compiler · oil_and_gas.yaml
   persistence/         ✅  client · vectorstore · checkpointer
   llm/                 ✅  registry · gateway · callbacks · fake · models.yaml
+  domain/              ✅  contexto · repository · lecturas · calculos · escrituras
 scripts/               ✅  estado.py · generar_datos.py · seed.py
 data/corpus/           ✅  seis documentos de normativa, uno derogado
-tests/                 ✅  204 tests; 189 sin dependencia externa
+tests/                 ✅  308 tests; 248 sin dependencia externa
 ```
 
-No existen todavía: `domain/`, `rag/`, `governance/`, `agents/`,
-`services/api/`, `apps/web/`, `evals/`.
+No existen todavía: `rag/`, `governance/`, `agents/`, `services/api/`,
+`apps/web/`, `evals/`.
 
 > Esta sección afirmaba hasta el 2026-08-06 que `llm/` tenía «solo models.yaml,
 > sin código», que la suite tenía 70 tests y que la capa de ontología no tenía
