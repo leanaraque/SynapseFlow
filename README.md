@@ -202,7 +202,7 @@ already works; wiring it into the gateway is pending.
 | Idempotent Firestore seeding | ✅ | loaded twice against the emulator, counts unchanged |
 | Data coherence tests | ✅ | 45 tests over three seeds |
 | Model registry: profile + provider → model | ✅ | an embeddings model that does not match the vector index cannot be resolved |
-| Multi-provider LLM gateway | 🚧 | registry and pricing done; adapters and cost accounting pending |
+| Multi-provider LLM gateway | 🚧 | registry done; `gateway.py` and `callbacks.py` still to be written |
 | Governance middleware | 📋 | design settled on LangChain 1.x `AgentMiddleware` |
 | Hybrid RAG with citations | 📋 | |
 | Agent graph | 📋 | |

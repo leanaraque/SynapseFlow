@@ -198,7 +198,7 @@ ontología ya funciona; falta cablearla al gateway.
 | Carga idempotente a Firestore | ✅ | cargado dos veces contra el emulador, el conteo no cambia |
 | Tests de coherencia de los datos | ✅ | 45 tests sobre tres semillas |
 | Registry de modelos: perfil + proveedor → modelo | ✅ | un modelo de embeddings que no coincide con el índice vectorial no se puede resolver |
-| Gateway de LLM multi-proveedor | 🚧 | registry y precios listos; faltan adapters y contabilidad de costo |
+| Gateway de LLM multi-proveedor | 🚧 | registry listo; falta escribir `gateway.py` y `callbacks.py` |
 | Middlewares de gobernanza | 📋 | diseño cerrado sobre `AgentMiddleware` de LC 1.x |
 | RAG híbrido con citas | 📋 | |
 | Grafo de agentes | 📋 | |
