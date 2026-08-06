@@ -203,6 +203,11 @@ ontología ya funciona; falta cablearla al gateway.
 
 ✅ implementado y verificado · 🚧 en curso · 📋 planificado
 
+El [mapa de acción](docs/06-mapa-de-accion.md) desglosa el trabajo restante en
+ocho fases, cada una con sus dependencias, sus entregables y —sobre todo— cómo se
+verifica. Además lleva la cuenta de cuáles de los cinco compromisos de diseño del
+proyecto están operativos y cuáles siguen solamente declarados.
+
 ## Empezar
 
 Todo lo de esta sección funciona hoy. No necesita API key, ni Firebase, ni red.
@@ -252,13 +257,15 @@ emitir_orden_trabajo   write   id_ot                                           r
 ### Tests
 
 ```bash
-# Unitarios: no necesitan nada externo
-pytest -m "not emulator"
-
-# Integración: necesitan el emulador de Firestore en otra terminal
+# La suite completa. Necesita el emulador de Firestore en otra terminal.
 firebase emulators:start --only firestore --project synapseflow-lean
 pytest
 ```
+
+> Los 8 tests están marcados `emulator`, así que `pytest -m "not emulator"`
+> los deselecciona a todos y no ejecuta ninguno. Todavía no hay tests que corran
+> sin el emulador. Lo que sí se puede ejercitar sin ninguna dependencia externa
+> son los comandos de la CLI de arriba.
 
 El test que más importa es
 [`test_hitl_sobrevive_a_la_muerte_del_proceso`](tests/persistence/test_checkpointer.py):

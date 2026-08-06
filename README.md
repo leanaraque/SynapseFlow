@@ -207,6 +207,11 @@ already works; wiring it into the gateway is pending.
 
 ✅ implemented and verified · 🚧 in progress · 📋 planned
 
+The [action map](docs/06-mapa-de-accion.md) breaks the remaining work into eight
+phases, each with its dependencies, deliverables and — most importantly — how it
+gets verified. It also tracks which of the project's five design commitments are
+actually operative and which are still just declared.
+
 ## Getting started
 
 Everything in this section works today. No API key, no Firebase, no network
@@ -257,13 +262,15 @@ emitir_orden_trabajo   write   id_ot                                           r
 ### Tests
 
 ```bash
-# Unit tests: no external dependencies
-pytest -m "not emulator"
-
-# Integration: needs the Firestore emulator in another terminal
+# The whole suite. Needs the Firestore emulator in another terminal.
 firebase emulators:start --only firestore --project synapseflow-lean
 pytest
 ```
+
+> All 8 tests are currently marked `emulator`, so `pytest -m "not emulator"`
+> deselects every one of them and runs nothing. There are no emulator-free tests
+> yet. The parts you *can* exercise with no external dependency are the CLI
+> commands above.
 
 The test that matters most is
 [`test_hitl_sobrevive_a_la_muerte_del_proceso`](tests/persistence/test_checkpointer.py)
