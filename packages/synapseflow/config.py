@@ -11,8 +11,17 @@ from __future__ import annotations
 from enum import StrEnum
 from functools import lru_cache
 
-from pydantic import Field, model_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class CredencialesFaltantesError(RuntimeError):
+    """El proveedor de LLM activo no tiene credenciales en el entorno.
+
+    Tipo propio y no `ValueError` para que quien la reciba pueda distinguirla de
+    cualquier otro error de configuración y responder con un mensaje útil en
+    lugar de un traceback.
+    """
 
 
 class Provider(StrEnum):
@@ -74,12 +83,23 @@ class Settings(BaseSettings):
     # Cuántos candidatos trae cada retriever antes de fusionar y comprimir.
     retrieval_fetch_k: int = Field(default=20, alias="SYNAPSEFLOW_RETRIEVAL_FETCH_K")
 
-    @model_validator(mode="after")
-    def _el_proveedor_activo_tiene_credenciales(self) -> Settings:
-        """Falla al arrancar si el proveedor elegido no tiene con qué autenticar.
+    def verificar_credenciales_del_proveedor(self) -> None:
+        """Falla si el proveedor activo no tiene con qué autenticar.
 
-        Sin esto, el error aparece recién en la primera llamada al modelo, con el
-        usuario esperando y el traceback enterrado en el streaming.
+        La llama el gateway de LLM al construirse, que es el único punto por el
+        que sale una llamada a un modelo (ver ADR-0004). Al arrancar la API eso
+        ocurre en el startup, así que la garantía es la misma que antes: el
+        error aparece ahí y no en la primera llamada, con el usuario esperando y
+        el traceback enterrado en el streaming.
+
+        **No es un validador de `Settings`.** Lo fue, y eso ataba toda la
+        configuración —proyecto de GCP, emulador, política de gobernanza— a
+        tener credenciales de un proveedor de LLM. Consecuencia concreta:
+        `scripts/seed.py`, que carga datos sintéticos en el emulador y no invoca
+        ningún modelo, no podía construir `Settings` sin una `GOOGLE_API_KEY`.
+        El plan de trabajo promete que todas las fases se pueden escribir y
+        testear sin esa clave, así que la validación no puede vivir en el
+        constructor.
         """
         faltante: list[str] = []
         match self.provider:
@@ -103,11 +123,10 @@ class Settings(BaseSettings):
                 faltante = []
 
         if faltante:
-            raise ValueError(
+            raise CredencialesFaltantesError(
                 f"SYNAPSEFLOW_PROVIDER={self.provider.value} requiere "
                 f"{', '.join(faltante)} en el entorno. Ver .env.example"
             )
-        return self
 
     @property
     def using_emulator(self) -> bool:

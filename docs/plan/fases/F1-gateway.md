@@ -115,6 +115,14 @@ Adapters: Gemini (`langchain_google_genai`), OpenAI y Azure OpenAI
   `embedding_fallback: gemini` y el gateway lo resuelve solo.
 - Usar `with_fallbacks()` de LangChain para degradar a un proveedor alternativo.
 - Cuando `settings.provider` es el de tests, devolver `FakeChatModel`.
+- **`Gateway.__init__` llama a `settings.verificar_credenciales_del_proveedor()`.**
+  Esa comprobación vivía en un validador de `Settings` y se movió acá: atada al
+  constructor, obligaba a tener una `GOOGLE_API_KEY` para leer la configuración
+  de Firestore, y dejaba a `scripts/seed.py` sin poder correr contra el
+  emulador. El gateway es el único punto por el que sale una llamada a un
+  modelo, así que es donde corresponde exigir la credencial. Si no se llama acá,
+  el error vuelve a aparecer recién en la primera llamada al modelo, con el
+  usuario esperando.
 
 **Verificar:** `pytest tests/llm/test_gateway.py -v`
 
