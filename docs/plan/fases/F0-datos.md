@@ -122,12 +122,25 @@ async def cargar(dry_run: bool = False) -> ResumenDeCarga: ...
 
 - `--dry-run` reporta qué escribiría sin escribir nada. Es lo que permite
   revisar antes de tocar la base.
-- **Idempotente**: correrlo dos veces deja la misma cantidad de documentos. Para
-  el corpus, `FirestoreVectorStore.aadd_texts` ya deriva el id del contenido; para
-  el dominio, usar la clave natural de cada entidad (`tag`, `id_ot`, etc.).
+- **Idempotente**: correrlo dos veces deja la misma cantidad de documentos. Se
+  usa la clave natural de cada entidad (`tag`, `id_ot`, etc.) como id de
+  documento, y la ontología ya la declara en `Entity.key`.
 - Respeta `FIRESTORE_EMULATOR_HOST`: por defecto debe apuntar al emulador, no a
   producción. **Escribir en la base real por accidente es el modo de falla más
-  caro de este script.**
+  caro de este script.** No alcanza con documentarlo: si la variable no está
+  definida, el script se niega a correr salvo que se pase
+  `--permitir-produccion`.
+
+> **El corpus no se carga en esta fase.** Una versión anterior de este documento
+> decía que `seed.py` indexara `data/corpus/` con
+> `FirestoreVectorStore.aadd_texts`. No se puede: `aadd_texts` necesita un modelo
+> de embeddings, y el gateway que lo provee es F1. Además el corpus hay que
+> trocearlo antes, conservando `doc_id`, `seccion` y `vigencia`, que es
+> exactamente lo que hace **F3.1**. `seed.py` carga las cuatro colecciones del
+> dominio y reporta `corpus_chunks` como pendiente.
+>
+> La dependencia ya estaba declarada en el grafo de fases —F3 depende de F0 y de
+> F1—; lo que no cerraba era el reparto de trabajo dentro de F0.3.
 
 **Verificar:** `python -m scripts.seed --dry-run`
 
