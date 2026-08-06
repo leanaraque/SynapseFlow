@@ -99,11 +99,37 @@ El proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   proceso: con él, un corpus indexado en una corrida no sería recuperable en la
   siguiente.
 - 28 tests del gateway, ninguno con red.
+- `packages/synapseflow/llm/callbacks.py`: `ContabilidadDeCosto` registra
+  tokens, modelo, perfil, latencia y costo de cada llamada, y los vuelca a
+  `llm_usage`. **El precio sale del modelo que se ejecutó, no del perfil que se
+  pidió**: con un respaldo configurado, `synthesis` puede terminar corriendo en
+  el modelo de otro proveedor, y cobrarle el precio del primero produciría un
+  panel que miente justo cuando algo salió mal.
+- Un modelo que no está en el catálogo se marca `modelo_no_catalogado` en lugar
+  de sumar cero. Un costo cero indistinguible de uno real es peor que un hueco
+  visible.
+- La contabilidad no hace I/O durante la ejecución: acumula y vuelca en lote.
+  Un grafo con supervisor y tres especialistas hace del orden de diez llamadas
+  por turno, y escribir un documento por llamada agregaría latencia a lo que el
+  usuario está esperando. El id del documento es el `run_id`, así que reintentar
+  un volcado sobreescribe en lugar de inflar la factura reportada.
+- 16 tests de contabilidad, 14 sin dependencias y 2 contra el emulador.
+
+### Corregido
+
+- **`gemini-3.5-flash-lite` ignora `temperature`.** Es el modelo de los perfiles
+  `router` y `verifier`, y avisa por `UserWarning` que usa sampling fijo. El
+  gateway sigue pidiendo temperatura cero porque los modelos que la respetan la
+  necesitan, pero el determinismo de esos dos perfiles depende del proveedor y
+  no de la configuración. El test que lo cubre dice ahora que verifica que se
+  *pide*, no que se obtenga; medirlo de verdad es trabajo de las evals de F8.
+- El modelo falso no publicaba nombre de modelo en `invocation_params`, así que
+  la contabilidad de costo no habría podido testearse sin salir a la red — la
+  pieza que existe para testear quedaba fuera del alcance de sus propios tests.
 
 ### En curso
 
-- Fase F1: falta la contabilidad de tokens y costo, y el test estructural de la
-  frontera de datos.
+- Fase F1: falta el test estructural de la frontera de datos.
 
 **Gobernanza de la ontología — deuda saldada**
 

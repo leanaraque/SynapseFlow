@@ -113,9 +113,20 @@ class FakeChatModel(BaseChatModel):
     # Cola de objetos que devuelve `with_structured_output`.
     estructurados: list[Any] = Field(default_factory=list)
 
+    # Nombre que el modelo reporta a los callbacks. Sin esto, `invocation_params`
+    # no lleva `model` y la contabilidad de costo no puede saber qué se ejecutó:
+    # el modelo falso quedaría fuera del alcance de sus propios tests, que es
+    # justo lo que no puede pasar con la pieza que existe para testear.
+    modelo: str = "fake-router"
+
     @property
     def _llm_type(self) -> str:
         return "synapseflow-fake"
+
+    @property
+    def _identifying_params(self) -> dict[str, Any]:
+        """Lo que LangChain publica en `invocation_params` de cada llamada."""
+        return {"model": self.modelo}
 
     # ── Generación ───────────────────────────────────────────────────────────
 

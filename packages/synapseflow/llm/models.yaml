@@ -54,6 +54,10 @@ providers:
         note: >
           Clasificación y ruteo. Es la llamada más frecuente del sistema, así
           que va el modelo más barato que sostenga tool calling confiable.
+          ⚠ Este modelo usa sampling fijo e IGNORA `temperature`: avisa por
+          UserWarning al invocarlo. El gateway la pide igual, pero el
+          determinismo de este perfil depende del proveedor. Verificado el
+          2026-08-06.
       synthesis:
         model: gemini-3.5-flash
         input_per_1m: 0.30

@@ -285,11 +285,11 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> La suite tiene 177 tests. 169 no necesitan nada instalado —ni API key, ni
+> La suite tiene 193 tests. 183 no necesitan nada instalado —ni API key, ni
 > red—: 45 verifican propiedades de los datos generados y del corpus de
-> normativa, 72 cubren el registry de modelos, el gateway y el modelo falso, 35
-> la ontología y la CLI, y 17 que el plan de trabajo sea seguible. Los 8
-> restantes ejercitan el checkpointer contra el emulador de Firestore.
+> normativa, 86 cubren el registry de modelos, el gateway, el modelo falso y la
+> contabilidad de costo, 35 la ontología y la CLI, y 17 que el plan de trabajo
+> sea seguible. Los 10 restantes corren contra el emulador de Firestore.
 
 Cuatro de los tests de ontología corren un **agente real** —`create_agent` con
 `HumanInTheLoopMiddleware`— contra los gates derivados del YAML, gobernado por

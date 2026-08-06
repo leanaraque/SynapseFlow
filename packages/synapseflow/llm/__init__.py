@@ -6,13 +6,12 @@ todo lo demás, el proveedor es invisible. Que haya un solo camino de salida es 
 que hace verificable la promesa sobre los datos sensibles, y hay un test
 estructural que lo comprueba (`tests/llm/test_frontera.py`).
 
-Falta la contabilidad que persiste el consumo (F1.4).
-
 La decisión de diseño —por qué el código pide un perfil y nunca un nombre de
 modelo, y por qué el gateway es el único punto donde el texto cruza el perímetro
 de datos— está en docs/adr/0004-gateway-provider-agnostic.md
 """
 
+from synapseflow.llm.callbacks import Consumo, ContabilidadDeCosto
 from synapseflow.llm.fake import (
     FakeChatModel,
     FakeChatModelError,
@@ -41,6 +40,8 @@ from synapseflow.llm.registry import (
 __all__ = [
     "PERFILES",
     "PERFILES_DE_CHAT",
+    "Consumo",
+    "ContabilidadDeCosto",
     "FakeChatModel",
     "FakeChatModelError",
     "FakeEmbeddings",

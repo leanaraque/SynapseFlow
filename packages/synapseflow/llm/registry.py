@@ -255,6 +255,35 @@ def resolver(proveedor: Provider | str, perfil: str) -> ModelSpec:
     return spec
 
 
+def spec_por_modelo(nombre: str) -> ModelSpec | None:
+    """Busca en el catálogo el modelo que se invocó de verdad.
+
+    La contabilidad de costo no puede resolver el precio por perfil. Con un
+    respaldo configurado, el perfil `synthesis` puede terminar ejecutándose en el
+    modelo de otro proveedor, y cobrarle el precio del primero produce un panel
+    de costos que miente justo cuando algo salió mal.
+
+    Devuelve `None` si el modelo no está en el catálogo, en lugar de inventar un
+    precio: quien contabiliza tiene que poder marcar la fila como no catalogada.
+    Un costo cero indistinguible de un costo real es peor que un hueco visible.
+    """
+    for proveedor, definicion in _catalogo().providers.items():
+        for perfil, crudo in definicion.profiles.items():
+            if crudo.model == nombre:
+                return ModelSpec(
+                    proveedor=proveedor,
+                    perfil=perfil,
+                    modelo=nombre,
+                    entrada_por_1m=crudo.input_per_1m,
+                    salida_por_1m=crudo.output_per_1m,
+                    ventana_contexto=crudo.context_window,
+                    dimensiones=crudo.dimensions,
+                    dimensionalidad_pedida=crudo.output_dimensionality,
+                    nota=crudo.note,
+                )
+    return None
+
+
 def _nombre_del_modelo(proveedor: str, perfil: str, crudo: _PerfilCrudo) -> str:
     """Resuelve el id del modelo, que en Azure sale del entorno.
 

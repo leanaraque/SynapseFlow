@@ -70,9 +70,16 @@ PERFILES_DE_CHAT: tuple[str, ...] = ("router", "synthesis", "verifier")
 #
 # La tentación es dar algo de temperatura a `synthesis` para que el texto no
 # suene mecánico. Acá no corresponde: la respuesta cita normativa que un
-# ingeniero firma, y dos corridas de la misma pregunta tienen que decir lo mismo.
+# ingeniero firma, y dos corridas de la misma pregunta deberían decir lo mismo.
 # Además la suite de evals de F8 mide regresión entre corridas, y con temperatura
 # el ruido del muestreo se confunde con el efecto de un cambio de prompt.
+#
+# ⚠ PEDIRLA NO ES OBTENERLA. Verificado el 2026-08-06: `gemini-3.5-flash-lite`
+# —el modelo de los perfiles `router` y `verifier`— avisa por `UserWarning` que
+# usa sampling fijo y que **ignora** el parámetro. Se sigue pasando porque los
+# modelos que sí lo respetan lo necesitan, pero el determinismo de esos dos
+# perfiles depende del proveedor y no de esta constante. Cualquier eval que
+# asuma reproducibilidad exacta tiene que medirlo, no darlo por hecho.
 TEMPERATURA = 0.0
 
 # Paquete de PyPI que provee cada adapter. Se usa para que un proveedor sin su

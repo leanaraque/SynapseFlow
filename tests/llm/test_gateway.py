@@ -108,9 +108,14 @@ def test_la_temperatura_es_cero_en_todos_los_perfiles() -> None:
     """Incluido el de redacción.
 
     La respuesta cita normativa que un ingeniero firma: dos corridas de la misma
-    pregunta tienen que decir lo mismo. Además la suite de evals de F8 mide
+    pregunta deberían decir lo mismo. Además la suite de evals de F8 mide
     regresión entre corridas, y con temperatura el ruido del muestreo se
     confundiría con el efecto de un cambio de prompt.
+
+    **Lo que este test verifica es que se pide, no que se obtenga.**
+    `gemini-3.5-flash-lite` avisa por `UserWarning` que usa sampling fijo y que
+    ignora el parámetro. No hay forma de verificar el determinismo desde acá sin
+    salir a la red; se mide en las evals de F8.
     """
     gateway = Gateway(Provider.GEMINI, settings=settings_de())
     for perfil in PERFILES_DE_CHAT:
