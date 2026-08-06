@@ -338,7 +338,42 @@ class Ontology(StrictModel):
             if accion.approval_prompt:
                 _validar_placeholders(accion)
 
+        self._validar_clasificacion_de_las_acciones()
         return self
+
+    def _validar_clasificacion_de_las_acciones(self) -> None:
+        """Ningún rol puede ejecutar una acción sobre datos que no puede leer.
+
+        Es la invariante que el ADR-0003 declara verificada y que faltaba. Sin
+        ella, `allowed_roles` y `max_classification` son dos mecanismos de
+        permisos que se contradicen en silencio: el catálogo de herramientas se
+        arma con el primero, así que un rol de clasificación `public` podía
+        recibir una herramienta que devuelve datos `confidential` y el sistema
+        no tenía forma de notarlo.
+
+        Se corre después de la integridad referencial porque presupone que los
+        roles, las entidades y las clasificaciones existen.
+        """
+        violaciones: list[str] = []
+
+        for accion in self.actions:
+            rango_entidad = self.classification_rank(
+                self.entity(accion.target_entity).classification
+            )
+            for rol_id in accion.allowed_roles:
+                rango_rol = self.max_classification_for_role(rol_id)
+                if rango_entidad > rango_rol:
+                    violaciones.append(
+                        f"'{rol_id}' (hasta '{self.role(rol_id).max_classification}') "
+                        f"puede ejecutar '{accion.id}' sobre '{accion.target_entity}', "
+                        f"que es '{self.entity(accion.target_entity).classification}'"
+                    )
+
+        if violaciones:
+            raise ValueError(
+                "hay acciones que exponen datos por encima de la clasificación del rol:\n  "
+                + "\n  ".join(violaciones)
+            )
 
     # ── Accesores ────────────────────────────────────────────────────────────
 
@@ -385,17 +420,26 @@ class Ontology(StrictModel):
     def pii_fields(self) -> dict[str, list[str]]:
         """Campos que nunca salen en claro del perímetro, por entidad.
 
-        Lo consume el redactor del gateway. Incluye los marcados `pii` y los que
-        tienen clasificación `restricted` o superior.
+        Lo consume el redactor del gateway. Incluye los marcados `pii`, los que
+        declaran clasificación `restricted` o superior, y **todos los de una
+        entidad cuya clasificación de entidad ya alcanza ese umbral**.
+
+        Ese último caso importa: una propiedad hereda la clasificación de su
+        entidad cuando no declara la propia. Sin contemplarlo, marcar una
+        entidad entera como `restricted` no redactaría ninguno de sus campos
+        —solo los marcados uno por uno— que es la falla más silenciosa posible
+        para una política de datos.
         """
         umbral = self.classification_rank("restricted")
         resultado: dict[str, list[str]] = {}
         for entidad in self.entities:
+            entidad_restringida = self.classification_rank(entidad.classification) >= umbral
             campos = [
                 p.name
                 for p in entidad.properties
                 if p.pii
                 or (p.classification and self.classification_rank(p.classification) >= umbral)
+                or (entidad_restringida and p.classification is None)
             ]
             if campos:
                 resultado[entidad.id] = campos
