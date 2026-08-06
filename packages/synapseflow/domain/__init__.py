@@ -19,7 +19,7 @@ secundario.
 Ver docs/plan/fases/F2-dominio.md
 """
 
-from synapseflow.domain import calculos, lecturas  # noqa: F401
+from synapseflow.domain import calculos, escrituras, lecturas  # noqa: F401
 from synapseflow.domain.contexto import (
     ContextoRequeridoError,
     ExecutionContext,
