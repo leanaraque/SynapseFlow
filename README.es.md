@@ -193,6 +193,9 @@ ontología ya funciona; falta cablearla al gateway.
 | `FirestoreVectorStore` — `find_nearest` nativo | ✅ | implementado; tests de integración pendientes |
 | CLI de inspección | ✅ | `synapseflow ontology validate` |
 | Reglas e índices de Firestore | ✅ | declarados y versionados |
+| Datos sintéticos del dominio | ✅ | 60 activos y 292 inspecciones, reproducibles por semilla |
+| Corpus de normativa | ✅ | 6 documentos, 42 secciones citables, uno derogado |
+| Carga a Firestore y tests de los datos | 🚧 | resto de F0 |
 | Gateway de LLM multi-proveedor | 🚧 | catálogo de modelos y precios definido |
 | Middlewares de gobernanza | 📋 | diseño cerrado sobre `AgentMiddleware` de LC 1.x |
 | RAG híbrido con citas | 📋 | |
@@ -270,15 +273,18 @@ emitir_orden_trabajo   write   id_ot                                           r
 ### Tests
 
 ```bash
+# Sin dependencias externas: consistencia del plan de trabajo.
+pytest -m "not emulator"
+
 # La suite completa. Necesita el emulador de Firestore en otra terminal.
 firebase emulators:start --only firestore --project synapseflow-lean
 pytest
 ```
 
-> Los 8 tests están marcados `emulator`, así que `pytest -m "not emulator"`
-> los deselecciona a todos y no ejecuta ninguno. Todavía no hay tests que corran
-> sin el emulador. Lo que sí se puede ejercitar sin ninguna dependencia externa
-> son los comandos de la CLI de arriba.
+> La suite tiene 25 tests: 17 verifican que el plan de trabajo sea seguible y
+> corren sin nada instalado, y 8 ejercitan el checkpointer contra el emulador.
+> **La capa de ontología todavía no tiene tests propios**, pese a figurar como
+> verificada en la tabla de arriba: el primero que la ejercita es `F2.5`.
 
 El test que más importa es
 [`test_hitl_sobrevive_a_la_muerte_del_proceso`](tests/persistence/test_checkpointer.py):
@@ -304,8 +310,13 @@ packages/synapseflow/
     checkpointer.py      BaseCheckpointSaver de LangGraph
   llm/
     models.yaml          catálogo de modelos, perfiles de tarea y precios
+data/corpus/*.md         corpus de normativa, versionado: es fuente, no derivado
+scripts/
+  estado.py              detector de la fase actual, derivada del código
+  generar_datos.py       datos sintéticos reproducibles por semilla
 docs/adr/                decisiones de arquitectura, con sus alternativas
-tests/                   contrato de la persistencia y de la ontología
+docs/plan/               el plan commit a commit, con sus convenciones
+tests/                   contrato de la persistencia y consistencia del plan
 firestore.rules          el cliente no habla con Firestore; la API aplica RBAC
 firestore.indexes.json   índices vectoriales y compuestos
 ```

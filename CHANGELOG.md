@@ -5,10 +5,48 @@ El proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+### Agregado
+
+**Datos del dominio — fase F0, en curso**
+
+- `scripts/generar_datos.py`: generador de instalaciones, activos, inspecciones
+  y órdenes de trabajo. Reproducible por semilla —dos corridas con la misma
+  semilla producen archivos idénticos byte a byte— y con coherencia temporal:
+  los espesores de un activo decrecen a una velocidad de corrosión propia de su
+  fluido de proceso. Valida su propia salida contra la ontología antes de
+  escribir, de modo que una divergencia futura entre el YAML y el generador
+  falle en la corrida y no en la ejecución de un agente.
+- El caso `P-2101-A` está fijo y no depende de la semilla: cuatro mediciones
+  entre 2019 y 2026, `t_min` 7,1 mm, última medición 6,8 mm, velocidad
+  0,21 mm/año y vida remanente −1,43 años. Reproduce exactamente los números
+  que publica la transcripción del README.
+- `data/corpus/`: seis documentos de normativa con 42 secciones citables.
+  Parafrasean la estructura y el criterio de los códigos de inspección en
+  servicio de API sin reproducir su texto. Incluye `PROC-INT-009`, marcado
+  `derogado`, que contradice al procedimiento vigente en el criterio de
+  aceptación: es lo que permite que el test de vigencia de F3.5 pruebe algo.
+
+### Corregido
+
+- La nota de la sección de tests de ambos READMEs afirmaba que no existían tests
+  ejecutables sin el emulador. Dejó de ser cierto al incorporarse los 17 tests
+  de consistencia del plan.
+- `.gitignore` ignoraba `data/generated/`, ruta en inglés que no correspondía a
+  ninguna carpeta real; el generador escribe en `data/generado/`.
+
 ### En curso
 
+- Fase F0: falta la carga idempotente a Firestore y los tests de coherencia de
+  los datos generados.
 - Gateway de LLM multi-proveedor: catálogo de modelos, perfiles de tarea y
   precios definidos en `packages/synapseflow/llm/models.yaml`.
+
+### Deuda declarada
+
+- La capa de ontología figura como verificada en la tabla de estado y no tiene
+  tests propios. El primer commit del plan que la ejercita es `F2.5`.
+- El ADR-0002 declara `FirestoreStore` entre las integraciones implementadas.
+  No existe, y ningún commit del plan lo produce.
 
 ## [0.1.0] — 2026-07-29
 

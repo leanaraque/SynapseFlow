@@ -16,7 +16,7 @@ proyecto: **qué falta**, **en qué orden** y **cómo se sabe que una fase termi
 > ```
 
 - **Estado del documento:** vigente
-- **Última revisión:** 2026-08-06
+- **Última revisión:** 2026-08-06 (F0.1 y F0.2 cerrados)
 
 ---
 
@@ -48,11 +48,18 @@ packages/synapseflow/
   ontology/            ✅  schema · loader · compiler · oil_and_gas.yaml
   persistence/         ✅  client · vectorstore · checkpointer
   llm/                 ◐   solo models.yaml, sin código
-tests/                 ✅  8 tests del checkpointer contra el emulador
+scripts/               ◐   estado.py · generar_datos.py; falta seed.py
+data/corpus/           ✅  seis documentos de normativa, uno derogado
+tests/                 ◐   8 del checkpointer + 17 de consistencia del plan
 ```
 
 No existen todavía: `llm/gateway.py`, `domain/`, `rag/`, `governance/`,
-`agents/`, `services/api/`, `apps/web/`, `evals/`, `scripts/`.
+`agents/`, `services/api/`, `apps/web/`, `evals/`.
+
+**La capa de ontología no tiene tests propios**, pese a figurar como verificada
+en la tabla de estado de los READMEs. El primer commit del plan que la ejercita
+es `F2.5`, y ningún commit crea `tests/ontology/`. Es deuda visible, igual que
+un compromiso declarado y no implementado.
 
 ## 3 · Dependencias entre fases
 

@@ -197,6 +197,9 @@ already works; wiring it into the gateway is pending.
 | `FirestoreVectorStore` — native `find_nearest` | ✅ | implemented; integration tests pending |
 | Inspection CLI | ✅ | `synapseflow ontology validate` |
 | Firestore rules and indexes | ✅ | declared and versioned |
+| Synthetic domain data | ✅ | 60 assets and 292 inspections, reproducible from a seed |
+| Standards corpus | ✅ | 6 documents, 42 citable clauses, one superseded |
+| Firestore seeding and data tests | 🚧 | rest of F0 |
 | Multi-provider LLM gateway | 🚧 | model and pricing catalogue defined |
 | Governance middleware | 📋 | design settled on LangChain 1.x `AgentMiddleware` |
 | Hybrid RAG with citations | 📋 | |
@@ -274,15 +277,18 @@ emitir_orden_trabajo   write   id_ot                                           r
 ### Tests
 
 ```bash
+# No external dependencies: work-plan consistency.
+pytest -m "not emulator"
+
 # The whole suite. Needs the Firestore emulator in another terminal.
 firebase emulators:start --only firestore --project synapseflow-lean
 pytest
 ```
 
-> All 8 tests are currently marked `emulator`, so `pytest -m "not emulator"`
-> deselects every one of them and runs nothing. There are no emulator-free tests
-> yet. The parts you *can* exercise with no external dependency are the CLI
-> commands above.
+> The suite has 25 tests: 17 check that the work plan is followable and run with
+> nothing installed, and 8 exercise the checkpointer against the emulator.
+> **The ontology layer still has no tests of its own**, despite showing as
+> verified in the table above: the first one to exercise it is `F2.5`.
 
 The test that matters most is
 [`test_hitl_sobrevive_a_la_muerte_del_proceso`](tests/persistence/test_checkpointer.py)
@@ -309,8 +315,13 @@ packages/synapseflow/
     checkpointer.py      LangGraph BaseCheckpointSaver
   llm/
     models.yaml          model catalogue, task profiles and pricing
+data/corpus/*.md         standards corpus, versioned: it is source, not derived
+scripts/
+  estado.py              current-phase detector, derived from the code
+  generar_datos.py       synthetic data, reproducible from a seed
 docs/adr/                architecture decisions, with their alternatives
-tests/                   persistence and ontology contract tests
+docs/plan/               the commit-by-commit plan and its conventions
+tests/                   persistence contract and work-plan consistency
 firestore.rules          the client never talks to Firestore; the API applies RBAC
 firestore.indexes.json   vector and composite indexes
 ```

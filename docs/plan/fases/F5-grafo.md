@@ -117,9 +117,9 @@ supervisor tiene que orquestar: datos → cálculo → normativa → verificador
 
 ```python
 def construir_grafo(onto: Ontology, ctx: ExecutionContext) -> CompiledStateGraph:
-    grafo = StateGraph(AgentState)
-    ...
-    return grafo.compile(
+    return create_agent(
+        model=gateway.chat("synthesis"),
+        tools=compile_tools(onto, ctx.rol, context=ctx),
         checkpointer=FirestoreSaver(),
         # los gates NO se escriben a mano:
         middleware=[
@@ -128,6 +128,17 @@ def construir_grafo(onto: Ontology, ctx: ExecutionContext) -> CompiledStateGraph
         ],
     )
 ```
+
+> **`middleware` es parámetro de `create_agent`, no de `StateGraph.compile()`.**
+> Una versión anterior de este documento lo pasaba a `compile()`, que acepta
+> `checkpointer`, `cache`, `store`, `interrupt_before`, `interrupt_after`,
+> `debug`, `name` y `transformers` — y nada más: escrito así, lanza `TypeError`.
+> Es el Hallazgo 3 de [las convenciones](../00-convenciones.md), verificado por
+> introspección contra `langchain` 1.3.14.
+>
+> Si el supervisor necesita control de flujo que `create_agent` no expresa, el
+> camino es un `StateGraph` que tenga a los agentes creados con `create_agent`
+> como nodos: el middleware vive en cada agente, no en la compilación del grafo.
 
 **La línea que cierra el compromiso 2** es la del `HumanInTheLoopMiddleware`. Su
 configuración sale de `interrupt_config(ontology, role)`, que **ya está
