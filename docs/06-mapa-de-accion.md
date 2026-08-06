@@ -7,6 +7,14 @@ de punta a punta.
 Este documento existe para responder tres preguntas en cualquier momento del
 proyecto: **qué falta**, **en qué orden** y **cómo se sabe que una fase terminó**.
 
+> **¿Vas a escribir código?** Este documento da la vista general. El desglose
+> ejecutable —commit por commit, con instrucciones y verificación— está en
+> [`docs/plan/`](plan/), y el punto de entrada obligatorio es:
+>
+> ```bash
+> python -m scripts.estado
+> ```
+
 - **Estado del documento:** vigente
 - **Última revisión:** 2026-08-06
 

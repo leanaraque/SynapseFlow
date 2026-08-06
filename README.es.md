@@ -208,6 +208,19 @@ ocho fases, cada una con sus dependencias, sus entregables y —sobre todo— c�
 verifica. Además lleva la cuenta de cuáles de los cinco compromisos de diseño del
 proyecto están operativos y cuáles siguen solamente declarados.
 
+**Si vas a retomar el desarrollo**, empezá por [`docs/plan/`](docs/plan/), que
+tiene el mismo mapa desglosado commit por commit. No adivines en qué estado está
+el proyecto: preguntáselo.
+
+```bash
+python -m scripts.estado
+```
+
+Ese comando inspecciona el repositorio y reporta la fase actual, el commit
+siguiente, qué falta exactamente para darlo por hecho y cómo verificarlo. El
+estado se deriva del código y no se mantiene a mano, así que no se puede
+desincronizar.
+
 ## Empezar
 
 Todo lo de esta sección funciona hoy. No necesita API key, ni Firebase, ni red.

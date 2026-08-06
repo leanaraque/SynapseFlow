@@ -212,6 +212,18 @@ phases, each with its dependencies, deliverables and — most importantly — ho
 gets verified. It also tracks which of the project's five design commitments are
 actually operative and which are still just declared.
 
+**If you're picking up development**, start at [`docs/plan/`](docs/plan/), which
+holds the same roadmap broken down commit by commit. Don't guess where the
+project stands — ask it:
+
+```bash
+python -m scripts.estado
+```
+
+That command inspects the repository and reports the current phase, the next
+commit, what exactly is missing for it, and how to verify it. The state is
+derived from the code, never kept by hand, so it cannot drift.
+
 ## Getting started
 
 Everything in this section works today. No API key, no Firebase, no network
