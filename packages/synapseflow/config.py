@@ -29,6 +29,12 @@ class Provider(StrEnum):
     OPENAI = "openai"
     AZURE_OPENAI = "azure_openai"
     ANTHROPIC = "anthropic"
+    # Proveedor de mentira: el gateway devuelve `FakeChatModel` y no sale ni una
+    # llamada a la red. Es un valor de `SYNAPSEFLOW_PROVIDER` y no una bandera
+    # aparte para que el camino que ejercitan los tests sea *el mismo* que el de
+    # producción hasta el último punto posible. Con una bandera, el gateway
+    # tendría dos ramas y la ejercitada nunca sería la que se despliega.
+    FAKE = "fake"
 
 
 class Settings(BaseSettings):
@@ -41,6 +47,13 @@ class Settings(BaseSettings):
 
     # ── Proveedor de LLM ─────────────────────────────────────────────────────
     provider: Provider = Field(default=Provider.GEMINI, alias="SYNAPSEFLOW_PROVIDER")
+
+    # Proveedor al que degradar cuando el activo falla. Vacío significa sin
+    # respaldo, que es el default deliberado: un respaldo silencioso manda el
+    # texto a un proveedor que el usuario no eligió, y en un cliente regulado
+    # *qué proveedor recibe qué dato* es una decisión con dueño (ADR-0004). Se
+    # activa nombrándolo, no por omisión.
+    fallback_provider: Provider | None = Field(default=None, alias="SYNAPSEFLOW_FALLBACK_PROVIDER")
 
     google_api_key: str | None = Field(default=None, alias="GOOGLE_API_KEY")
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
@@ -101,16 +114,31 @@ class Settings(BaseSettings):
         testear sin esa clave, así que la validación no puede vivir en el
         constructor.
         """
-        faltante: list[str] = []
-        match self.provider:
+        faltante = self.credenciales_faltantes(self.provider)
+        if faltante:
+            raise CredencialesFaltantesError(
+                f"SYNAPSEFLOW_PROVIDER={self.provider.value} requiere "
+                f"{', '.join(faltante)} en el entorno. Ver .env.example"
+            )
+
+    def credenciales_faltantes(self, proveedor: Provider) -> list[str]:
+        """Variables de entorno que le faltan a un proveedor para autenticar.
+
+        Recibe el proveedor en lugar de mirar `self.provider` porque el gateway
+        también necesita preguntar por el proveedor de **respaldo**: si el
+        respaldo no tiene con qué autenticar, encadenarlo produce una degradación
+        que falla igual que el original, y el usuario ve un error del respaldo
+        en lugar del real.
+        """
+        match proveedor:
             case Provider.GEMINI if not self.google_api_key:
-                faltante = ["GOOGLE_API_KEY"]
+                return ["GOOGLE_API_KEY"]
             case Provider.OPENAI if not self.openai_api_key:
-                faltante = ["OPENAI_API_KEY"]
+                return ["OPENAI_API_KEY"]
             case Provider.ANTHROPIC if not self.anthropic_api_key:
-                faltante = ["ANTHROPIC_API_KEY"]
+                return ["ANTHROPIC_API_KEY"]
             case Provider.AZURE_OPENAI:
-                faltante = [
+                return [
                     nombre
                     for nombre, valor in (
                         ("AZURE_OPENAI_API_KEY", self.azure_openai_api_key),
@@ -120,13 +148,9 @@ class Settings(BaseSettings):
                     if not valor
                 ]
             case _:
-                faltante = []
-
-        if faltante:
-            raise CredencialesFaltantesError(
-                f"SYNAPSEFLOW_PROVIDER={self.provider.value} requiere "
-                f"{', '.join(faltante)} en el entorno. Ver .env.example"
-            )
+                # Incluye Provider.FAKE, que no sale del proceso y por lo tanto
+                # no tiene nada que autenticar.
+                return []
 
     @property
     def using_emulator(self) -> bool:

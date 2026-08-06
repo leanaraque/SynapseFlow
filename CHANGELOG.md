@@ -69,11 +69,41 @@ El proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - `tests/llm/test_pricing_freshness.py` falla cuando los precios llevan más de
   noventa días sin verificarse contra el proveedor. Va a fallar solo, y es
   intencional: un catálogo viejo no rompe nada visible, sigue calculando mal.
+- `packages/synapseflow/llm/gateway.py`: el único punto por donde el texto sale
+  hacia un proveedor. Adapters para Gemini, OpenAI, Azure OpenAI y Anthropic
+  detrás de `BaseChatModel`; el código pide un perfil de tarea y nunca un nombre
+  de modelo. Los imports de cada SDK son perezosos, así que usar un proveedor no
+  obliga a tener instalados los otros tres: Anthropic, que no es dependencia del
+  proyecto, falla diciendo qué paquete instalar en lugar de un `ImportError`.
+- **`SYNAPSEFLOW_ENFORCE_ZERO_TRAINING` dejó de ser una bandera inerte.** Existía
+  desde el primer commit sin que ningún código la leyera. El gateway ahora
+  rechaza al construirse un proveedor que el catálogo no declare como
+  zero-training. Una bandera de gobernanza que no se aplica es peor que no
+  tenerla: alguien la ve en `true` y concluye que la garantía está.
+- Las dos verificaciones —credenciales y política— ocurren **en el constructor**
+  del gateway. Al arrancar la API eso pasa en el startup, con el error visible,
+  y no en la primera llamada con el usuario esperando.
+- `SYNAPSEFLOW_FALLBACK_PROVIDER` permite degradar a otro proveedor con
+  `with_fallbacks()`. Vacío por defecto a propósito: un respaldo silencioso manda
+  el texto a un proveedor que nadie eligió. Un respaldo sin credenciales se
+  descarta en lugar de encadenarse, porque encadenarlo falla igual y hace que el
+  usuario vea el error del respaldo en vez del real.
+- `SYNAPSEFLOW_PROVIDER=fake` levanta la plataforma entera sin credenciales de
+  ningún proveedor. Es un valor del enum y no una bandera aparte para que el
+  camino que ejercitan los tests sea el mismo que el de producción; el proveedor
+  falso está en `models.yaml` y se resuelve por el registry como cualquier otro.
+- `FakeEmbeddings` con similitud léxica real, por *hashing trick* y no por hash
+  del texto entero. Es lo que va a permitir que los tests de recuperación de F3
+  afirmen que el fragmento pertinente sale primero, en lugar de solo que la
+  ingesta escribió algo. Usa `hashlib` y no `hash()`, que está salteado por
+  proceso: con él, un corpus indexado en una corrida no sería recuperable en la
+  siguiente.
+- 28 tests del gateway, ninguno con red.
 
 ### En curso
 
-- Fase F1: faltan el modelo falso para tests, los adapters por proveedor y la
-  contabilidad de tokens y costo.
+- Fase F1: falta la contabilidad de tokens y costo, y el test estructural de la
+  frontera de datos.
 
 **Gobernanza de la ontología — deuda saldada**
 

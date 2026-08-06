@@ -18,11 +18,19 @@ nivel del repositorio; no la cambies.
 Verificación antes de pushear:
 
 ```bash
-git log --format="%B" | grep -iE "co-authored|claude|anthropic|generated with"
+git log --format="%B" | grep -iE "co-authored-by|generated with|assisted by"
+git log --format="%an <%ae>" | sort -u    # un solo autor
 ```
 
-Si devuelve algo, el historial está contaminado y hay que corregirlo antes de
-publicar.
+Si la primera devuelve algo, el historial está contaminado y hay que corregirlo
+antes de publicar.
+
+> El patrón incluía antes `claude|anthropic`. Daba tres falsos positivos, todos
+> por la palabra «Anthropic» usada como **nombre de proveedor** en el cuerpo de
+> commits que hablan del catálogo de modelos. Un chequeo que grita en falso se
+> termina ignorando, y entonces deja de proteger de lo que existía para
+> proteger. Se busca el trailer, que es lo que efectivamente contamina la
+> autoría, y se contrasta la lista de autores, que es lo que se quería garantizar.
 
 ## 2 · Idioma
 
@@ -276,6 +284,54 @@ Ya está implementado, pero si necesitás tocarlo:
   `WRITES_IDX_MAP`; `__interrupt__` es uno de ellos y es donde aterriza el payload
   de una pausa
 - Existe el helper `get_checkpoint_metadata(config, metadata)`
+
+## Hallazgo 7 · `with_fallbacks()` y qué acepta `create_agent`
+
+Verificado por ejecución el **2026-08-06**.
+
+`Runnable.with_fallbacks()` devuelve un `RunnableWithFallbacks`, que **no es un
+`BaseChatModel`**:
+
+```python
+conf = modelo.with_fallbacks([respaldo])
+isinstance(conf, BaseChatModel)  # False
+```
+
+`create_agent` anota `model: str | BaseChatModel`, así que la lectura obvia es
+que el envoltorio no sirve para armar un agente. **Es falsa.** Se comprobó
+ejecutando el agente completo —con `bind_tools` y una invocación de herramienta—
+y funciona: la resolución es por duck-typing, no por el tipo declarado.
+
+Consecuencia para este repositorio: `Gateway.chat()` no puede anotar
+`BaseChatModel`, porque con respaldo configurado devuelve otra cosa. Anota
+`ModeloDeChat = Runnable[LanguageModelInput, BaseMessage]`, que es el supertipo
+que ambos satisfacen. **Sin respaldo devuelve un `BaseChatModel` de verdad**, y
+hay un test que lo fija.
+
+## Hallazgo 8 · Las clases de un mismo paquete no aceptan los mismos argumentos
+
+`ChatGoogleGenerativeAI` y `GoogleGenerativeAIEmbeddings` están las dos en
+`langchain-google-genai` y difieren:
+
+| Clase | Campo | Alias |
+|---|---|---|
+| `ChatGoogleGenerativeAI` | `google_api_key` | — |
+| `GoogleGenerativeAIEmbeddings` | `google_api_key` | `api_key` |
+
+En runtime las dos aceptan `google_api_key=` porque declaran
+`populate_by_name=True`, pero **`mypy` solo conoce el alias** y rechaza la
+segunda. Lo mismo con `ChatOpenAI`, cuyo campo es `model_name` con alias `model`,
+y `AzureChatOpenAI`, con `deployment_name`/`azure_deployment` y
+`openai_api_version`/`api_version`.
+
+Además las claves se declaran como `SecretStr`, no `str`: es deliberado del lado
+de LangChain, para que un `repr()` accidental en un log o un traceback no
+imprima la credencial. El gateway las envuelve con `_secreto()` en lugar de
+silenciar el tipo.
+
+**Regla:** antes de pasar un argumento a un adapter, mirar `model_fields` y usar
+el alias. Escribir el nombre «obvio» produce código que corre y que `mypy`
+rechaza, o —peor— que `mypy` acepta y el adapter ignora en silencio.
 
 ---
 

@@ -203,7 +203,8 @@ already works; wiring it into the gateway is pending.
 | Idempotent Firestore seeding | ✅ | loaded twice against the emulator, counts unchanged |
 | Data coherence tests | ✅ | 45 tests over three seeds |
 | Model registry: profile + provider → model | ✅ | an embeddings model that does not match the vector index cannot be resolved |
-| Multi-provider LLM gateway | 🚧 | registry done; `gateway.py` and `callbacks.py` still to be written |
+| Multi-provider LLM gateway | 🚧 | four adapters behind one exit point; cost accounting still to be written |
+| Zero-training policy enforced at the gateway | ✅ | a provider the catalogue does not vouch for is rejected at startup |
 | Governance middleware | 📋 | design settled on LangChain 1.x `AgentMiddleware` |
 | Hybrid RAG with citations | 📋 | |
 | Agent graph | 📋 | |
@@ -288,11 +289,11 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> The suite has 149 tests. 141 need nothing installed — no API key, no network:
-> 45 assert properties of the generated data and the standards corpus, 44 cover
-> the model registry and the fake model, 35 cover the ontology and the CLI, and
-> 17 check that the work plan is followable. The remaining 8 exercise the
-> checkpointer against the Firestore emulator.
+> The suite has 177 tests. 169 need nothing installed — no API key, no network:
+> 45 assert properties of the generated data and the standards corpus, 72 cover
+> the model registry, the gateway and the fake model, 35 cover the ontology and
+> the CLI, and 17 check that the work plan is followable. The remaining 8
+> exercise the checkpointer against the Firestore emulator.
 
 Four of the ontology tests run a **real agent** — `create_agent` with
 `HumanInTheLoopMiddleware` — against gates derived from the YAML, driven by a

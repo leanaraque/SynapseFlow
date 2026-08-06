@@ -36,11 +36,14 @@ Ver docs/plan/fases/F1-gateway.md § F1.2
 
 from __future__ import annotations
 
+import hashlib
+import math
 import re
 from collections.abc import Sequence
 from typing import Any
 
 from langchain_core.callbacks import AsyncCallbackManagerForLLMRun, CallbackManagerForLLMRun
+from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.messages.ai import UsageMetadata
@@ -282,6 +285,72 @@ class FakeChatModel(BaseChatModel):
         cruzó hacia el proveedor.
         """
         return "\n".join(str(m.content) for llamada in self.recibidos for m in llamada)
+
+
+class FakeEmbeddings(Embeddings):
+    """Embeddings determinísticos, sin red, con similitud léxica real.
+
+    ## Por qué no es un vector aleatorio
+
+    Lo más corto sería derivar el vector de un hash del texto entero. Sería
+    determinístico y serviría para verificar que la ingesta escribe algo, pero
+    dejaría los tests de recuperación de F3 sin poder afirmar nada: dos textos
+    que comparten todas sus palabras salvo una darían vectores sin relación, y
+    «el fragmento pertinente sale primero» no se podría testear.
+
+    Acá se usa el *hashing trick*: cada palabra cae en un bucket por su hash y
+    suma ahí. Dos textos con vocabulario en común comparten buckets, así que el
+    coseno entre ellos es alto de verdad. No hay semántica —«cañería» y «tubería»
+    siguen siendo desconocidas entre sí— pero sí solapamiento léxico, que es
+    suficiente para verificar que el pipeline ordena por pertinencia y no por
+    orden de inserción.
+
+    ## Por qué hashlib y no hash()
+
+    `hash()` de Python está salteado por proceso: el mismo texto da enteros
+    distintos entre corridas. Un corpus indexado en una corrida no sería
+    recuperable en la siguiente, que es exactamente el bug silencioso que un
+    modelo falso no puede permitirse.
+    """
+
+    def __init__(self, dimensiones: int) -> None:
+        if dimensiones <= 0:
+            raise ValueError(f"dimensiones tiene que ser positivo, no {dimensiones}")
+        self.dimensiones = dimensiones
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [self.embed_query(texto) for texto in texts]
+
+    def embed_query(self, text: str) -> list[float]:
+        vector = [0.0] * self.dimensiones
+        for palabra in _PALABRAS.findall(text.lower()):
+            digest = hashlib.blake2b(palabra.encode("utf-8"), digest_size=8).digest()
+            entero = int.from_bytes(digest, "big")
+            # El bit menos significativo decide el signo. Sin él, todas las
+            # componentes serían positivas y el coseno entre dos textos
+            # cualesquiera daría alto aunque no compartieran una sola palabra.
+            signo = 1.0 if entero & 1 else -1.0
+            vector[(entero >> 1) % self.dimensiones] += signo
+
+        norma = math.sqrt(sum(c * c for c in vector))
+        if norma == 0.0:
+            # Texto sin palabras. Un vector de ceros no es normalizable y
+            # Firestore lo aceptaría, dejando un documento que nunca se recupera.
+            # Se ancla en una componente fija para que al menos sea consistente.
+            vector[0] = 1.0
+            return vector
+        return [c / norma for c in vector]
+
+    async def aembed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self.embed_documents(texts)
+
+    async def aembed_query(self, text: str) -> list[float]:
+        return self.embed_query(text)
+
+
+# Palabras con acentos y ñ: el corpus es normativa técnica en español y partir
+# por [a-z]+ dejaría «inspección» como «inspecci» + «n».
+_PALABRAS = re.compile(r"[0-9a-záéíóúüñ]+")
 
 
 def _tokens(texto: str) -> int:

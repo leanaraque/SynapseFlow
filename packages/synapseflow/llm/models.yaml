@@ -174,3 +174,43 @@ providers:
         input_per_1m: 1.00
         output_per_1m: 5.00
         context_window: 200000
+
+  # ── Modelo falso · SOLO TESTS ──────────────────────────────────────────────
+  # No es un proveedor: es el destino de `SYNAPSEFLOW_PROVIDER=fake`, donde el
+  # gateway devuelve `FakeChatModel` y no sale una sola llamada a la red.
+  #
+  # Está en el catálogo, y no cableado en el gateway, para que el camino que
+  # ejercitan los tests sea el mismo que el de producción: se resuelve el perfil
+  # por el registry, se valida la dimensión del embedding contra el índice y se
+  # consulta la política de entrenamiento, igual que con Gemini. Un atajo que
+  # saltee el registry dejaría sin ejercitar justamente lo que hay que verificar.
+  #
+  # Los precios son cero a propósito. Un proveedor de mentira con precios de
+  # mentira pondría plata inventada en el panel de costos, y ese panel se usa
+  # para decidir qué modelo va en qué perfil.
+  fake:
+    zero_training: true
+    zero_training_note: >
+      No sale del proceso: no hay proveedor que pueda entrenar con estos datos.
+    profiles:
+      router:
+        model: fake-router
+        input_per_1m: 0.00
+        output_per_1m: 0.00
+      synthesis:
+        model: fake-synthesis
+        input_per_1m: 0.00
+        output_per_1m: 0.00
+      verifier:
+        model: fake-verifier
+        input_per_1m: 0.00
+        output_per_1m: 0.00
+      embedding:
+        model: fake-embedding
+        input_per_1m: 0.00
+        output_per_1m: 0.00
+        dimensions: 768
+        note: >
+          Tiene que declarar la dimensión del índice como cualquier otro: los
+          tests de RAG indexan con este modelo y un vector de otro tamaño no
+          entraría en el índice real.
