@@ -14,7 +14,17 @@
 # Los precios son por millón de tokens, en dólares.
 # ═════════════════════════════════════════════════════════════════════════════
 
-verified_on: 2026-07-29
+# Disponibilidad de los modelos de Gemini verificada el 2026-08-06 contra la API
+# real, con una clave nueva. Los ids de la familia 2.5 dejaron de resolver:
+# `gemini-2.5-flash` responde «no longer available to new users» y
+# `text-embedding-004` directamente no existe. Un catálogo que nombra modelos
+# retirados no falla al cargar: falla en la primera llamada, en producción.
+#
+# ⚠ LOS PRECIOS DE ESTA REVISIÓN NO ESTÁN CONTRASTADOS. Se arrastran de la
+# familia anterior como estimación de orden de magnitud. Antes de usar la
+# contabilidad de costos para decidir algo, contrastarlos contra
+# ai.google.dev/pricing y actualizar esta fecha.
+verified_on: 2026-08-06
 
 # Dimensión del índice vectorial declarado en firestore.indexes.json.
 #
@@ -37,31 +47,42 @@ providers:
       regulado hay que verificar en el contrato, no en la documentación.
     profiles:
       router:
-        model: gemini-2.5-flash
-        input_per_1m: 0.30
-        output_per_1m: 2.50
+        model: gemini-3.5-flash-lite
+        input_per_1m: 0.10
+        output_per_1m: 0.40
         context_window: 1048576
-        note: Clasificación y ruteo. Es la llamada más frecuente del sistema.
+        note: >
+          Clasificación y ruteo. Es la llamada más frecuente del sistema, así
+          que va el modelo más barato que sostenga tool calling confiable.
       synthesis:
-        model: gemini-2.5-pro
-        input_per_1m: 1.25
-        output_per_1m: 10.00
-        context_window: 1048576
-        note: Redacción fundamentada con citas. La llamada que define la calidad.
-      verifier:
-        model: gemini-2.5-flash
+        model: gemini-3.5-flash
         input_per_1m: 0.30
         output_per_1m: 2.50
+        context_window: 1048576
+        note: >
+          Redacción fundamentada con citas. La llamada que define la calidad.
+          Se eligió flash y no un modelo pro porque los pro devuelven cuota
+          excedida en el tier de arranque: un perfil que no responde no sirve
+          por más capaz que sea.
+      verifier:
+        model: gemini-3.5-flash-lite
+        input_per_1m: 0.10
+        output_per_1m: 0.40
         context_window: 1048576
         note: Chequeo de groundedness con salida estructurada.
       embedding:
-        model: text-embedding-004
-        input_per_1m: 0.00
+        model: gemini-embedding-001
+        input_per_1m: 0.15
         output_per_1m: 0.00
         dimensions: 768
+        output_dimensionality: 768
         note: >
-          768 dimensiones, que es lo que declara el índice vectorial. Cambiar
-          este modelo obliga a reindexar.
+          Devuelve 3072 dimensiones por defecto, pero acepta
+          `outputDimensionality` y con 768 coincide con el índice vectorial ya
+          declarado. Verificado contra la API el 2026-08-06. Sin ese parámetro
+          el gateway resuelve 3072 y el registry rechaza la resolución, que es
+          el comportamiento correcto: reindexar el corpus completo no puede ser
+          un efecto lateral silencioso.
 
   # ── OpenAI ─────────────────────────────────────────────────────────────────
   openai:

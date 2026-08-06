@@ -75,6 +75,9 @@ class ModelSpec(BaseModel):
     salida_por_1m: float = Field(ge=0)
     ventana_contexto: int | None = None
     dimensiones: int | None = None
+    # Lo que el gateway tiene que pedirle al proveedor para obtener
+    # `dimensiones`. None significa que el modelo ya las devuelve así.
+    dimensionalidad_pedida: int | None = None
     nota: str | None = None
 
 
@@ -100,6 +103,11 @@ class _PerfilCrudo(_Estricto):
     output_per_1m: float = Field(ge=0)
     context_window: int | None = None
     dimensions: int | None = None
+    # Parámetro que hay que pasarle al proveedor para que devuelva `dimensions`.
+    # Los modelos de embeddings modernos devuelven más de lo que el índice
+    # admite y lo truncan a pedido: sin este dato, el gateway pediría el valor
+    # por defecto y el resultado no entraría en el índice.
+    output_dimensionality: int | None = None
     note: str | None = None
 
 
@@ -237,6 +245,7 @@ def resolver(proveedor: Provider | str, perfil: str) -> ModelSpec:
         salida_por_1m=crudo.output_per_1m,
         ventana_contexto=crudo.context_window,
         dimensiones=crudo.dimensions,
+        dimensionalidad_pedida=crudo.output_dimensionality,
         nota=crudo.note,
     )
 
