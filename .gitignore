@@ -35,7 +35,11 @@ CLAUDE.md
 .aider*
 
 # Datos generados y artefactos de evaluación
-data/generated/
+#
+# `data/generado/` lo produce scripts/generar_datos.py y se reconstruye con la
+# semilla, así que versionarlo sería guardar algo derivado. `data/corpus/` NO va
+# acá: el corpus de normativa es fuente, se escribe a mano y se versiona.
+data/generado/
 evals/results/
 *.local.json
 
