@@ -134,3 +134,11 @@ check_untyped_defs = true
 # docs/adr/0003-ontologia-declarativa-en-yaml.md
 module = "synapseflow.ontology.compiler"
 disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+# `rank_bm25` no publica stubs ni py.typed. Se usa en un solo módulo y por una
+# sola clase, así que el costo de no tiparlo está acotado: la alternativa sería
+# un `type: ignore` en el import, que silencia también cualquier otro problema
+# de esa línea.
+module = "rank_bm25.*"
+ignore_missing_imports = true
