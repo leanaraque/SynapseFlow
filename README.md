@@ -203,8 +203,10 @@ already works; wiring it into the gateway is pending.
 | Idempotent Firestore seeding | ✅ | loaded twice against the emulator, counts unchanged |
 | Data coherence tests | ✅ | 45 tests over three seeds |
 | Model registry: profile + provider → model | ✅ | an embeddings model that does not match the vector index cannot be resolved |
-| Multi-provider LLM gateway | 🚧 | four adapters behind one exit point; cost accounting still to be written |
+| Multi-provider LLM gateway | ✅ | four adapters behind one exit point; a task profile is asked for, never a model name |
 | Zero-training policy enforced at the gateway | ✅ | a provider the catalogue does not vouch for is rejected at startup |
+| Single data-exit path, structurally enforced | ✅ | the AST of every module is walked; a second exit path fails the build |
+| Per-call cost accounting | ✅ | priced by the model that actually ran, not the profile requested |
 | Governance middleware | 📋 | design settled on LangChain 1.x `AgentMiddleware` |
 | Hybrid RAG with citations | 📋 | |
 | Agent graph | 📋 | |
@@ -289,11 +291,13 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> The suite has 193 tests. 183 need nothing installed — no API key, no network:
-> 45 assert properties of the generated data and the standards corpus, 86 cover
-> the model registry, the gateway, the fake model and cost accounting, 35 cover
-> the ontology and the CLI, and 17 check that the work plan is followable. The
-> remaining 10 run against the Firestore emulator.
+> The suite has 204 tests. **189 need nothing installed — no API key, no
+> network:** 45 assert properties of the generated data and the standards
+> corpus, 92 cover the LLM gateway, the model registry, the fake model and cost
+> accounting, 35 cover the ontology and the CLI, and 17 check that the work plan
+> is followable. Of the rest, 10 run against the Firestore emulator and 5 call a
+> real provider — those last ones are marked `live_llm` and are **not** part of
+> `pytest`'s default run in CI.
 
 Four of the ontology tests run a **real agent** — `create_agent` with
 `HumanInTheLoopMiddleware` — against gates derived from the YAML, driven by a

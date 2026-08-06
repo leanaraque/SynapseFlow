@@ -16,7 +16,7 @@ proyecto: **qué falta**, **en qué orden** y **cómo se sabe que una fase termi
 > ```
 
 - **Estado del documento:** vigente
-- **Última revisión:** 2026-08-06 (F0 completa; fase actual F1)
+- **Última revisión:** 2026-08-06 (F0 y F1 completas; fase actual F2)
 
 ---
 
@@ -32,7 +32,7 @@ se actualiza al cerrar cada fase.
 | 2 | La reversibilidad es un atributo del dominio | ◐ **Parcial** | El compilador emite la configuración del gate; falta el grafo que la aplique en ejecución real |
 | 3 | El modelo no calcula números | ○ **Declarado** | `calcular_vida_remanente` existe en el YAML sin implementación en Python |
 | 4 | Sin cita no hay respuesta | ○ **Declarado** | No hay recuperación ni nodo verificador |
-| 5 | Los datos sensibles no salen del perímetro | ◐ **Parcial** | La derivación de campos PII funciona; falta el tokenizador en el punto de salida |
+| 5 | Los datos sensibles no salen del perímetro | ◐ **Parcial** | Ya hay **un solo camino de salida**, garantizado por un test estructural sobre el AST del paquete. Falta el tokenizador que redacta en ese punto |
 
 > Un compromiso declarado y no implementado es deuda visible. El objetivo de este
 > plan es que la tabla quede en ✅ de arriba a abajo.
@@ -47,19 +47,21 @@ packages/synapseflow/
   config.py            ✅  configuración centralizada
   ontology/            ✅  schema · loader · compiler · oil_and_gas.yaml
   persistence/         ✅  client · vectorstore · checkpointer
-  llm/                 ◐   solo models.yaml, sin código
+  llm/                 ✅  registry · gateway · callbacks · fake · models.yaml
 scripts/               ✅  estado.py · generar_datos.py · seed.py
 data/corpus/           ✅  seis documentos de normativa, uno derogado
-tests/                 ◐   70 tests; 62 corren sin el emulador
+tests/                 ✅  204 tests; 189 sin dependencia externa
 ```
 
-No existen todavía: `llm/gateway.py`, `domain/`, `rag/`, `governance/`,
-`agents/`, `services/api/`, `apps/web/`, `evals/`.
+No existen todavía: `domain/`, `rag/`, `governance/`, `agents/`,
+`services/api/`, `apps/web/`, `evals/`.
 
-**La capa de ontología no tiene tests propios**, pese a figurar como verificada
-en la tabla de estado de los READMEs. El primer commit del plan que la ejercita
-es `F2.5`, y ningún commit crea `tests/ontology/`. Es deuda visible, igual que
-un compromiso declarado y no implementado.
+> Esta sección afirmaba hasta el 2026-08-06 que `llm/` tenía «solo models.yaml,
+> sin código», que la suite tenía 70 tests y que la capa de ontología no tenía
+> tests propios. Las tres cosas habían dejado de ser ciertas y el encabezado
+> decía «vigente». Es la misma clase de deriva que el documento existe para
+> evitar: **el estado que se mantiene a mano se desincroniza**. El que no se
+> desincroniza es `python -m scripts.estado`, porque se deriva del código.
 
 ## 3 · Dependencias entre fases
 
@@ -98,14 +100,30 @@ lo demás depende de al menos una de las dos.
 Dos cosas dependen de una acción humana y conviene resolverlas temprano porque
 condicionan la verificación de varias fases.
 
-| Bloqueo | Bloquea | Cómo se resuelve |
-|---|---|---|
-| **API key de Gemini** | Verificar en vivo F1, F3, F5, F8 | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) → `GOOGLE_API_KEY` en `.env` |
-| **Plan Blaze en el proyecto Firebase** | Desplegar F6 y F7 | Consola de Firebase → facturación |
+Estado verificado contra el proyecto `synapseflow-5fc52` el **2026-08-06**:
 
-**El código de todas las fases se puede escribir y testear sin ambos**, usando un
-modelo falso en los tests y el emulador de Firestore. Lo que no se puede sin la
-clave es comprobar que el agente responde bien de verdad.
+| Bloqueo | Bloquea | Estado |
+|---|---|---|
+| **API key de Gemini** | Verificar en vivo F1, F3, F5, F8 | ✅ resuelto — `GOOGLE_API_KEY` en `.env` |
+| **Plan Blaze en el proyecto Firebase** | Desplegar F6 y F7 | ✅ resuelto — facturación habilitada |
+| **API de Firestore habilitada** | Salir del emulador: ingesta real de F3, y F6 | ❌ **pendiente** — `firestore.googleapis.com` está deshabilitada |
+
+**El código de todas las fases se puede escribir y testear sin ninguno de los
+tres**, usando el modelo falso y el emulador de Firestore. Lo que no se puede sin
+la clave es comprobar que el agente responde bien de verdad.
+
+> El tercer bloqueo es nuevo y no estaba anotado. `firebase deploy` de reglas e
+> índices, y cualquier escritura fuera del emulador, fallan hasta habilitar la
+> API en el proyecto. Importa antes de F3: el índice vectorial de 768 dimensiones
+> que declara `firestore.indexes.json` **todavía no existe en la nube**, y crear
+> uno es lo único que fija su dimensión de forma irreversible.
+>
+> Se resuelve con:
+>
+> ```bash
+> gcloud services enable firestore.googleapis.com --project synapseflow-5fc52
+> firebase deploy --only firestore:rules,firestore:indexes
+> ```
 
 ---
 

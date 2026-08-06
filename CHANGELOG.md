@@ -127,9 +127,19 @@ El proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   la contabilidad de costo no habría podido testearse sin salir a la red — la
   pieza que existe para testear quedaba fuera del alcance de sus propios tests.
 
-### En curso
+- `tests/llm/test_frontera.py`: **el test que convierte la convención en
+  garantía.** Recorre el AST de cada módulo del paquete y falla si alguno
+  importa un `ChatModel` de proveedor fuera de `synapseflow/llm/`. Se analiza el
+  árbol de sintaxis y no el texto porque un `grep` daría falso positivo con la
+  palabra dentro de un docstring —el propio archivo las nombra todas— y falso
+  negativo con un import partido en varias líneas. Incluye su propio control
+  negativo: un archivo infractor sintético que el análisis tiene que detectar, y
+  la comprobación de que la frontera sí importa modelos, para que la garantía no
+  pase por vacío si alguien mueve los adapters.
 
-- Fase F1: falta el test estructural de la frontera de datos.
+**Fase F1 completa.** El gateway es el único punto por donde el texto cruza el
+perímetro, y ahora eso es una propiedad verificada de la estructura del código y
+no una convención escrita en un README.
 
 **Gobernanza de la ontología — deuda saldada**
 
