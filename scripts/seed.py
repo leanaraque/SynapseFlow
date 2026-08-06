@@ -103,7 +103,7 @@ def _describir_destino(permitir_produccion: bool) -> str:
             "FIRESTORE_EMULATOR_HOST no está definida, así que la escritura iría "
             f"a la base REAL del proyecto '{settings.gcp_project}'.\n"
             "  Para cargar contra el emulador:\n"
-            "    firebase emulators:start --only firestore --project synapseflow-lean\n"
+            "    firebase emulators:start --only firestore --project synapseflow-5fc52\n"
             "    export FIRESTORE_EMULATOR_HOST=localhost:8080\n"
             "  Si de verdad querés escribir en el proyecto real, pasá "
             "--permitir-produccion."

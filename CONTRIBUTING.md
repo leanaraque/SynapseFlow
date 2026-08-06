@@ -29,7 +29,7 @@ pytest -m "not emulator"
 pytest -m "not emulator"
 
 # Todo, incluyendo integración contra Firestore
-firebase emulators:start --only firestore --project synapseflow-lean
+firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 

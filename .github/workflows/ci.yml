@@ -148,10 +148,10 @@ jobs:
       # arrancarlo en background y adivinar cuánto esperar.
       - name: Tests de integración contra el emulador
         env:
-          GOOGLE_CLOUD_PROJECT: synapseflow-lean
+          GOOGLE_CLOUD_PROJECT: synapseflow-5fc52
           GOOGLE_API_KEY: clave-de-test
         run: |
           firebase emulators:exec \
             --only firestore \
-            --project synapseflow-lean \
+            --project synapseflow-5fc52 \
             "pytest -v"

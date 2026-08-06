@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     )
 
     # ── Firebase / GCP ───────────────────────────────────────────────────────
-    gcp_project: str = Field(default="synapseflow-lean", alias="GOOGLE_CLOUD_PROJECT")
+    gcp_project: str = Field(default="synapseflow-5fc52", alias="GOOGLE_CLOUD_PROJECT")
     firestore_database: str = Field(default="(default)", alias="FIRESTORE_DATABASE")
     firestore_emulator_host: str | None = Field(default=None, alias="FIRESTORE_EMULATOR_HOST")
 

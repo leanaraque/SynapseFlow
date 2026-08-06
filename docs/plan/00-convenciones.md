@@ -85,7 +85,7 @@ Correlas **antes** de commitear, no después de que falle el CI.
 
 ```bash
 # La suite completa necesita el emulador de Firestore en otra terminal:
-firebase emulators:start --only firestore --project synapseflow-lean
+firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 

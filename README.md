@@ -284,7 +284,7 @@ emitir_orden_trabajo   write   id_ot                                           r
 pytest -m "not emulator"
 
 # The whole suite. Needs the Firestore emulator in another terminal.
-firebase emulators:start --only firestore --project synapseflow-lean
+firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 

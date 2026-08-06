@@ -2,7 +2,7 @@
 
 Los tests marcados `emulator` necesitan el emulador de Firestore corriendo:
 
-    firebase emulators:start --only firestore --project synapseflow-lean
+    firebase emulators:start --only firestore --project synapseflow-5fc52
 
 Se saltean con un mensaje explícito si no está, en lugar de fallar con un
 timeout de gRPC que no dice nada.
@@ -18,7 +18,7 @@ from collections.abc import AsyncIterator, Iterator
 import pytest
 
 EMULATOR_HOST = os.environ.get("FIRESTORE_EMULATOR_HOST", "localhost:8080")
-PROYECTO_TEST = "synapseflow-lean"
+PROYECTO_TEST = "synapseflow-5fc52"
 
 
 def _emulador_disponible() -> bool:
