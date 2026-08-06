@@ -165,10 +165,14 @@ Un desarrollador no puede olvidarse de poner el gate: si la acción es
 irreversible, el gate existe.
 → [ADR-0005](docs/adr/0005-hitl-con-interrupt-de-langgraph.md)
 
-**3. El modelo no calcula números.** 🚧 en curso
+**3. El modelo no calcula números.** ✅ implementado
 Velocidad de corrosión y vida remanente se computan en Python determinístico y
 se le entregan al modelo como hecho. El LLM redacta y fundamenta; no estima
-magnitudes que después firma un ingeniero.
+magnitudes que después firma un ingeniero. Siguiendo API 570 §7 se calculan la
+velocidad de largo y la de corto plazo, y gobierna **la mayor**: un activo que se
+corroyó despacio durante años y se aceleró en la última campaña tiene un problema
+nuevo, y promediarlo lo esconde justo cuando importa.
+→ [`calculos.py`](packages/synapseflow/domain/calculos.py)
 
 **4. Sin cita no hay respuesta.** 🚧 en curso
 El agente de normativa está obligado a devolver documento y sección. Un nodo
@@ -287,13 +291,14 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> La suite tiene 204 tests. **189 no necesitan nada instalado —ni API key, ni
+> La suite tiene 247 tests. **205 no necesitan nada instalado —ni API key, ni
 > red—:** 45 verifican propiedades de los datos generados y del corpus de
 > normativa, 92 cubren el gateway de LLM, el registry de modelos, el modelo
-> falso y la contabilidad de costo, 35 la ontología y la CLI, y 17 que el plan
-> de trabajo sea seguible. De los demás, 10 corren contra el emulador de
-> Firestore y 5 llaman a un proveedor real — estos últimos llevan `live_llm` y
-> **no** entran en la corrida por defecto del CI.
+> falso y la contabilidad de costo, 35 la ontología y la CLI, 16 el cálculo
+> determinístico de vida remanente, y 17 que el plan de trabajo sea seguible. De
+> los demás, 37 corren contra el emulador de Firestore y 5 llaman a un proveedor
+> real — estos últimos llevan `live_llm` y **no** entran en la corrida por
+> defecto del CI.
 
 Cuatro de los tests de ontología corren un **agente real** —`create_agent` con
 `HumanInTheLoopMiddleware`— contra los gates derivados del YAML, gobernado por

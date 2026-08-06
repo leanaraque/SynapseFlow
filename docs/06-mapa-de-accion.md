@@ -30,7 +30,7 @@ se actualiza al cerrar cada fase.
 |---|---|---|---|
 | 1 | La ontología es declarativa, no código | ✅ **Cumplido** | — |
 | 2 | La reversibilidad es un atributo del dominio | ◐ **Parcial** | El compilador emite la configuración del gate; falta el grafo que la aplique en ejecución real |
-| 3 | El modelo no calcula números | ○ **Declarado** | `calcular_vida_remanente` existe en el YAML sin implementación en Python |
+| 3 | El modelo no calcula números | ✅ **Cumplido** | `domain/calculos.py` implementa el método de API 570 §7 en Python determinístico. Gobierna la mayor entre la velocidad de largo y la de corto plazo |
 | 4 | Sin cita no hay respuesta | ○ **Declarado** | No hay recuperación ni nodo verificador |
 | 5 | Los datos sensibles no salen del perímetro | ◐ **Parcial** | Ya hay **un solo camino de salida**, garantizado por un test estructural sobre el AST del paquete. Falta el tokenizador que redacta en ese punto |
 

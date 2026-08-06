@@ -141,6 +141,57 @@ El proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 perímetro, y ahora eso es una propiedad verificada de la estructura del código y
 no una convención escrita en un README.
 
+**Acciones del dominio — fase F2, en curso**
+
+- `packages/synapseflow/domain/repository.py`: acceso a las colecciones del
+  dominio. Los filtros se aplican en Firestore y no en Python —filtrar en
+  memoria funcionaría con los 60 activos sintéticos y no con los de una
+  operación real— y el límite se acota entre 1 y 50, porque lo elige el modelo:
+  un `limite=10000` alucinado no puede convertirse en diez mil lecturas
+  facturadas.
+- `packages/synapseflow/domain/contexto.py`: `ExecutionContext`, que el plan
+  daba por existente. Es la respuesta a la primera pregunta de un auditor —bajo
+  la autoridad de quién se ejecutó una acción— y la razón por la que el agente
+  hereda los permisos del usuario y no los de la cuenta de servicio.
+- `packages/synapseflow/domain/lecturas.py`: las cuatro acciones de lectura.
+  `content` lleva un resumen legible y `artifact` el detalle completo, porque lo
+  que vuelve en `content` ocupa contexto del modelo en cada turno siguiente.
+- **El legajo del inspector no llega al modelo**, y hay un test que lo verifica
+  desde ahora aunque la redacción sistemática sea de F4: una fuga que hoy no se
+  testea es una fuga que en F4 nadie va a buscar, porque para entonces la
+  garantía va a figurar como resuelta.
+- `buscar_normativa` filtra por vigencia **antes** de la búsqueda vectorial. El
+  corpus incluye un procedimiento derogado que contradice al vigente en el
+  criterio de aceptación: que aparezca como fundamento no sería un resultado de
+  baja calidad sino un error normativo.
+
+**Compromiso 3 cumplido: el modelo no calcula números.**
+
+- `packages/synapseflow/domain/calculos.py` implementa el método de la sección 7
+  de API 570 en Python determinístico. Se calculan la velocidad de corrosión de
+  largo plazo y la de corto plazo, y **gobierna la mayor**: un activo que se
+  corroyó despacio durante años y se aceleró en la última campaña tiene un
+  problema nuevo, y promediarlo contra la historia entera lo esconde justo
+  cuando importa.
+- Un cálculo que no se puede hacer devuelve `None` con su diagnóstico, nunca
+  cero. Una velocidad de corrosión de cero significa «este equipo no se corroe»,
+  que es una afirmación fuerte y falsa, y produce una vida remanente infinita.
+- Un espesor creciente se reporta como dato inconsistente en lugar de calcularse.
+  Devolver la velocidad negativa daría una vida remanente positiva enorme, que
+  es la respuesta más peligrosa posible: tranquiliza.
+- La vida remanente negativa **no es un error**: es el caso crítico del proyecto
+  y el número es válido.
+- 16 tests de tabla con valores calculados a mano, sobre fechas separadas por
+  múltiplos exactos de 1461 días para que la aritmética dé redonda. Uno de ellos
+  reconstruye el caso `P-2101-A` con las constantes del generador y verifica que
+  reproduce los 0,21 mm/año y los −1,43 años que publica el README.
+
+### Corregido
+
+- El índice de `llm_usage` en `firestore.indexes.json` declaraba el campo `ts` y
+  la contabilidad de costo escribe `momento`. Ningún documento tenía `ts`, así
+  que el índice era inútil y una consulta por fecha habría fallado en producción.
+
 **Gobernanza de la ontología — deuda saldada**
 
 - **El gate de aprobación lanzaba `TypeError` al dispararse.** El compilador

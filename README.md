@@ -169,10 +169,15 @@ reads those fields and emits the approval gate configuration. A developer cannot
 forget to add the gate: if the action is irreversible, the gate exists.
 → [ADR-0005](docs/adr/0005-hitl-con-interrupt-de-langgraph.md)
 
-**3. The model does not compute numbers.** 🚧 in progress
+**3. The model does not compute numbers.** ✅ implemented
 Corrosion rate and remaining life are computed in deterministic Python and handed
 to the model as fact. The LLM writes and justifies; it does not estimate
-magnitudes that an engineer will later sign off on.
+magnitudes that an engineer will later sign off on. Following API 570 §7, both
+the long-term and the short-term corrosion rate are computed and the **higher**
+one governs — an asset that corroded slowly for years and accelerated in the last
+campaign has a new problem, and averaging it away hides it exactly when it
+matters.
+→ [`calculos.py`](packages/synapseflow/domain/calculos.py)
 
 **4. No citation, no answer.** 🚧 in progress
 The standards agent is required to return document and clause. A verifier node
@@ -291,13 +296,14 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> The suite has 204 tests. **189 need nothing installed — no API key, no
+> The suite has 247 tests. **205 need nothing installed — no API key, no
 > network:** 45 assert properties of the generated data and the standards
 > corpus, 92 cover the LLM gateway, the model registry, the fake model and cost
-> accounting, 35 cover the ontology and the CLI, and 17 check that the work plan
-> is followable. Of the rest, 10 run against the Firestore emulator and 5 call a
-> real provider — those last ones are marked `live_llm` and are **not** part of
-> `pytest`'s default run in CI.
+> accounting, 35 cover the ontology and the CLI, 16 cover the deterministic
+> remaining-life calculation, and 17 check that the work plan is followable. Of
+> the rest, 37 run against the Firestore emulator and 5 call a real provider —
+> those last ones are marked `live_llm` and are **not** part of `pytest`'s
+> default run in CI.
 
 Four of the ontology tests run a **real agent** — `create_agent` with
 `HumanInTheLoopMiddleware` — against gates derived from the YAML, driven by a
