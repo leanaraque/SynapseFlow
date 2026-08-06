@@ -54,11 +54,26 @@ El proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   para leer la configuración de Firestore, y dejaba a `scripts/seed.py` sin
   poder correr contra el emulador.
 
+**Gateway de LLM — fase F1, en curso**
+
+- `packages/synapseflow/llm/registry.py`: resuelve perfil de tarea + proveedor →
+  modelo concreto y calcula el costo de una llamada desde el catálogo de
+  precios. En Azure OpenAI el id sale del nombre de deployment que declara el
+  entorno, porque lo define quien administra el recurso.
+- **Un modelo de embeddings incompatible con el índice vectorial no se puede
+  resolver.** Un índice de Firestore fija su dimensión al crearse; el desajuste
+  se detecta al resolver y no a mitad de la ingesta, cuando ya obligaría a
+  recrear el índice y reindexar el corpus completo. Hoy eso deja a OpenAI y
+  Azure fuera para embeddings —devuelven 1536 contra las 768 declaradas— y
+  Anthropic, que no tiene modelo propio, cae a Gemini por catálogo.
+- `tests/llm/test_pricing_freshness.py` falla cuando los precios llevan más de
+  noventa días sin verificarse contra el proveedor. Va a fallar solo, y es
+  intencional: un catálogo viejo no rompe nada visible, sigue calculando mal.
+
 ### En curso
 
-- Fase F1: gateway de LLM multi-proveedor. El catálogo de modelos, perfiles de
-  tarea y precios está definido en `packages/synapseflow/llm/models.yaml`;
-  falta el código.
+- Fase F1: faltan el modelo falso para tests, los adapters por proveedor y la
+  contabilidad de tokens y costo.
 
 ### Deuda declarada
 

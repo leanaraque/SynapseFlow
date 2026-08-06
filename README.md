@@ -201,7 +201,8 @@ already works; wiring it into the gateway is pending.
 | Standards corpus | ✅ | 6 documents, 42 citable clauses, one superseded |
 | Idempotent Firestore seeding | ✅ | loaded twice against the emulator, counts unchanged |
 | Data coherence tests | ✅ | 45 tests over three seeds |
-| Multi-provider LLM gateway | 🚧 | model and pricing catalogue defined |
+| Model registry: profile + provider → model | ✅ | an embeddings model that does not match the vector index cannot be resolved |
+| Multi-provider LLM gateway | 🚧 | registry and pricing done; adapters and cost accounting pending |
 | Governance middleware | 📋 | design settled on LangChain 1.x `AgentMiddleware` |
 | Hybrid RAG with citations | 📋 | |
 | Agent graph | 📋 | |
@@ -286,9 +287,10 @@ firebase emulators:start --only firestore --project synapseflow-lean
 pytest
 ```
 
-> The suite has 70 tests. 62 need nothing installed: 45 assert properties of the
-> generated data and the standards corpus, 17 check that the work plan is
-> followable. The remaining 8 exercise the checkpointer against the emulator.
+> The suite has 96 tests. 88 need nothing installed: 45 assert properties of the
+> generated data and the standards corpus, 26 cover the model registry, and 17
+> check that the work plan is followable. The remaining 8 exercise the
+> checkpointer against the emulator.
 > **The ontology layer still has no tests of its own**, despite showing as
 > verified in the table above: the first one to exercise it is `F2.5`.
 
@@ -317,6 +319,7 @@ packages/synapseflow/
     checkpointer.py      LangGraph BaseCheckpointSaver
   llm/
     models.yaml          model catalogue, task profiles and pricing
+    registry.py          profile + provider → model, cost, index-dimension check
 data/corpus/*.md         standards corpus, versioned: it is source, not derived
 scripts/
   estado.py              current-phase detector, derived from the code

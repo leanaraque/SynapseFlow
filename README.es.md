@@ -197,7 +197,8 @@ ontología ya funciona; falta cablearla al gateway.
 | Corpus de normativa | ✅ | 6 documentos, 42 secciones citables, uno derogado |
 | Carga idempotente a Firestore | ✅ | cargado dos veces contra el emulador, el conteo no cambia |
 | Tests de coherencia de los datos | ✅ | 45 tests sobre tres semillas |
-| Gateway de LLM multi-proveedor | 🚧 | catálogo de modelos y precios definido |
+| Registry de modelos: perfil + proveedor → modelo | ✅ | un modelo de embeddings que no coincide con el índice vectorial no se puede resolver |
+| Gateway de LLM multi-proveedor | 🚧 | registry y precios listos; faltan adapters y contabilidad de costo |
 | Middlewares de gobernanza | 📋 | diseño cerrado sobre `AgentMiddleware` de LC 1.x |
 | RAG híbrido con citas | 📋 | |
 | Grafo de agentes | 📋 | |
@@ -282,10 +283,10 @@ firebase emulators:start --only firestore --project synapseflow-lean
 pytest
 ```
 
-> La suite tiene 70 tests. 62 no necesitan nada instalado: 45 verifican
-> propiedades de los datos generados y del corpus de normativa, y 17 que el plan
-> de trabajo sea seguible. Los 8 restantes ejercitan el checkpointer contra el
-> emulador. **La capa de ontología todavía no tiene tests propios**, pese a
+> La suite tiene 96 tests. 88 no necesitan nada instalado: 45 verifican
+> propiedades de los datos generados y del corpus de normativa, 26 cubren el
+> registry de modelos y 17 que el plan de trabajo sea seguible. Los 8 restantes
+> ejercitan el checkpointer contra el emulador. **La capa de ontología todavía no tiene tests propios**, pese a
 > figurar como verificada en la tabla de arriba: el primero que la ejercita es
 > `F2.5`.
 
@@ -313,6 +314,7 @@ packages/synapseflow/
     checkpointer.py      BaseCheckpointSaver de LangGraph
   llm/
     models.yaml          catálogo de modelos, perfiles de tarea y precios
+    registry.py          perfil + proveedor → modelo, costo, chequeo de dimensión
 data/corpus/*.md         corpus de normativa, versionado: es fuente, no derivado
 scripts/
   estado.py              detector de la fase actual, derivada del código
