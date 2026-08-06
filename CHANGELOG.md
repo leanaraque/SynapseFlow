@@ -75,10 +75,29 @@ El proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - Fase F1: faltan el modelo falso para tests, los adapters por proveedor y la
   contabilidad de tokens y costo.
 
+**Gobernanza de la ontología — deuda saldada**
+
+- **El gate de aprobación lanzaba `TypeError` al dispararse.** El compilador
+  emitía un `description` con la firma equivocada: el middleware lo invoca como
+  `description(tool_call, state, runtime)` y estaba escrito con un solo
+  argumento. Debajo había un segundo bug del mismo origen, que habría rendido
+  todos los campos como «no informado». Nada lo detectaba porque la capa no
+  tenía tests.
+- **El meta-esquema no hacía cumplir la clasificación de datos.** Un rol de
+  clasificación `public` podía recibir una herramienta que devuelve datos
+  `confidential` sin que nada protestara. `can_role_read_entity` existía desde
+  el primer commit y no lo llamaba nadie. Es la verificación que el ADR-0003
+  declaraba desde el inicio.
+- `pii_fields` ignoraba la clasificación heredada de la entidad: marcar una
+  entidad entera como `restricted` no habría redactado ninguno de sus campos.
+- **`synapseflow ontology validate` se caía al redirigir la salida en Windows.**
+  Es el comando que el README ofrece como lo primero que funciona tras clonar.
+  En Linux no ocurre, así que el CI no lo detectaba.
+- `tests/ontology/` existe: 35 tests, cuatro de los cuales corren un agente real
+  contra los gates derivados del YAML.
+
 ### Deuda declarada
 
-- La capa de ontología figura como verificada en la tabla de estado y no tiene
-  tests propios. El primer commit del plan que la ejercita es `F2.5`.
 - El ADR-0002 declara `FirestoreStore` entre las integraciones implementadas.
   No existe, y ningún commit del plan lo produce.
 

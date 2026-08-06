@@ -186,9 +186,10 @@ ontología ya funciona; falta cablearla al gateway.
 
 | Componente | Estado | Verificación |
 |---|---|---|
-| Ontología: meta-esquema y validación | ✅ | invariantes de gobernanza forzadas al cargar |
+| Ontología: meta-esquema y validación | ✅ | invariantes forzadas al cargar; probadas por mutación |
 | Ontología: compilador a herramientas de LangChain | ✅ | 9 acciones, schemas con enums, filtrado por rol |
-| Ontología: RBAC y campos PII derivados | ✅ | `consulta` ve 1 herramienta, `auditor` no escribe |
+| Ontología: RBAC y campos PII derivados | ✅ | ningún rol actúa por encima de su clasificación — si pudiera, la carga falla |
+| Gates de aprobación derivados de la ontología | ✅ | un agente real se detiene en el gate; aprobar ejecuta lo propuesto |
 | `FirestoreSaver` — checkpointer de LangGraph | ✅ | 8 tests contra el emulador |
 | `FirestoreVectorStore` — `find_nearest` nativo | ✅ | implementado; tests de integración pendientes |
 | CLI de inspección | ✅ | `synapseflow ontology validate` |
@@ -283,12 +284,17 @@ firebase emulators:start --only firestore --project synapseflow-lean
 pytest
 ```
 
-> La suite tiene 96 tests. 88 no necesitan nada instalado: 45 verifican
-> propiedades de los datos generados y del corpus de normativa, 26 cubren el
-> registry de modelos y 17 que el plan de trabajo sea seguible. Los 8 restantes
-> ejercitan el checkpointer contra el emulador. **La capa de ontología todavía no tiene tests propios**, pese a
-> figurar como verificada en la tabla de arriba: el primero que la ejercita es
-> `F2.5`.
+> La suite tiene 149 tests. 141 no necesitan nada instalado —ni API key, ni
+> red—: 45 verifican propiedades de los datos generados y del corpus de
+> normativa, 44 cubren el registry de modelos y el modelo falso, 35 la ontología
+> y la CLI, y 17 que el plan de trabajo sea seguible. Los 8 restantes ejercitan
+> el checkpointer contra el emulador de Firestore.
+
+Cuatro de los tests de ontología corren un **agente real** —`create_agent` con
+`HumanInTheLoopMiddleware`— contra los gates derivados del YAML, gobernado por
+un modelo falso determinístico. Verifican que el agente se detenga antes de una
+acción irreversible, que una lectura reversible *no* se frene, que aprobar
+ejecute exactamente lo propuesto y que rechazar no materialice nada.
 
 El test que más importa es
 [`test_hitl_sobrevive_a_la_muerte_del_proceso`](tests/persistence/test_checkpointer.py):

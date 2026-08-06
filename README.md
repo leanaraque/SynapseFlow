@@ -190,9 +190,10 @@ already works; wiring it into the gateway is pending.
 
 | Component | Status | Verification |
 |---|---|---|
-| Ontology: meta-schema and validation | ✅ | governance invariants enforced at load time |
+| Ontology: meta-schema and validation | ✅ | invariants enforced at load time; mutation-tested |
 | Ontology: compiler to LangChain tools | ✅ | 9 actions, enum-typed schemas, role filtering |
-| Ontology: derived RBAC and PII fields | ✅ | `consulta` sees 1 tool, `auditor` cannot write |
+| Ontology: derived RBAC and PII fields | ✅ | no role can act above its classification — the load fails if one could |
+| Approval gates derived from the ontology | ✅ | a real agent stops at the gate; approving runs exactly what was proposed |
 | `FirestoreSaver` — LangGraph checkpointer | ✅ | 8 tests against the emulator |
 | `FirestoreVectorStore` — native `find_nearest` | ✅ | implemented; integration tests pending |
 | Inspection CLI | ✅ | `synapseflow ontology validate` |
@@ -287,12 +288,17 @@ firebase emulators:start --only firestore --project synapseflow-lean
 pytest
 ```
 
-> The suite has 96 tests. 88 need nothing installed: 45 assert properties of the
-> generated data and the standards corpus, 26 cover the model registry, and 17
-> check that the work plan is followable. The remaining 8 exercise the
-> checkpointer against the emulator.
-> **The ontology layer still has no tests of its own**, despite showing as
-> verified in the table above: the first one to exercise it is `F2.5`.
+> The suite has 149 tests. 141 need nothing installed — no API key, no network:
+> 45 assert properties of the generated data and the standards corpus, 44 cover
+> the model registry and the fake model, 35 cover the ontology and the CLI, and
+> 17 check that the work plan is followable. The remaining 8 exercise the
+> checkpointer against the Firestore emulator.
+
+Four of the ontology tests run a **real agent** — `create_agent` with
+`HumanInTheLoopMiddleware` — against gates derived from the YAML, driven by a
+deterministic fake model. They assert that the agent stops before an
+irreversible action, that a reversible read is *not* stopped, that approving
+executes exactly what was proposed, and that rejecting materialises nothing.
 
 The test that matters most is
 [`test_hitl_sobrevive_a_la_muerte_del_proceso`](tests/persistence/test_checkpointer.py)
