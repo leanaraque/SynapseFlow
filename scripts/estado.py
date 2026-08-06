@@ -26,11 +26,42 @@ el commit consiste en agregarle una función.
 
 from __future__ import annotations
 
+import contextlib
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Salida por consola
+#
+# Este script es el primer comando que corre alguien que retoma el proyecto. Si
+# se cae, esa persona queda sin punto de entrada.
+#
+# La consola de Windows usa cp1252 por defecto y no puede codificar los
+# caracteres de dibujo: sin esto, `python -m scripts.estado` termina en
+# UnicodeEncodeError en lugar de mostrar el estado. Se intenta pasar la salida a
+# UTF-8 y, si no se puede, se cae a símbolos ASCII.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _consola_soporta_unicode() -> bool:
+    # Si la salida no se puede reconfigurar —está redirigida a un archivo, o es
+    # un stdout sustituido por un test— se sigue con lo que haya.
+    with contextlib.suppress(AttributeError, OSError, ValueError):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+    return "utf" in (getattr(sys.stdout, "encoding", "") or "").lower()
+
+
+UNICODE = _consola_soporta_unicode()
+
+SEP = ("─" if UNICODE else "-") * 74
+BULLET = "·" if UNICODE else "*"
+MARCA_HECHO = "✅" if UNICODE else "[OK]"
+MARCA_PENDIENTE = "○ " if UNICODE else "[  ]"
+MARCA_ITEM = "✓" if UNICODE else "x"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -629,8 +660,6 @@ COMPROMISOS = [
 # Presentación
 # ─────────────────────────────────────────────────────────────────────────────
 
-SEP = "─" * 74
-
 
 def _por_id(commit_id: str) -> Commit | None:
     return next((c for c in COMMITS if c.id == commit_id), None)
@@ -644,7 +673,7 @@ def main(argv: list[str] | None = None) -> int:
     pendientes = [c for c in COMMITS if not c.hecho()]
 
     print()
-    print("SynapseFlow · Estado del plan")
+    print(f"SynapseFlow {BULLET} Estado del plan")
     print(SEP)
 
     if not pendientes:
@@ -660,7 +689,7 @@ def main(argv: list[str] | None = None) -> int:
     fuera_de_orden = [c.id for c in COMMITS[COMMITS.index(siguiente) + 1 :] if c.hecho()]
 
     print(f"  Progreso        {len(hechos)} de {len(COMMITS)} commits")
-    print(f"  Fase actual     {fase.id} · {fase.nombre}")
+    print(f"  Fase actual     {fase.id} {BULLET} {fase.nombre}")
     if fase.depende_de:
         print(f"  Depende de      {', '.join(fase.depende_de)}")
     if fase.compromiso:
@@ -682,7 +711,7 @@ def main(argv: list[str] | None = None) -> int:
     print("  Falta para darlo por hecho:")
     for s in siguiente.senales:
         if not s.cumplida():
-            print(f"    · {s.describir_falta()}")
+            print(f"    {BULLET} {s.describir_falta()}")
     print()
 
     if fuera_de_orden:
@@ -697,11 +726,11 @@ def main(argv: list[str] | None = None) -> int:
     print(SEP)
     for numero, texto, commit_id in COMPROMISOS:
         if commit_id is None:
-            marca = "✅"
+            marca = MARCA_HECHO
         else:
             c = _por_id(commit_id)
-            marca = "✅" if c and c.hecho() else "○ "
-        pendiente = "" if marca == "✅" else f"  (lo cierra {commit_id})"
+            marca = MARCA_HECHO if c and c.hecho() else MARCA_PENDIENTE
+        pendiente = "" if marca == MARCA_HECHO else f"  (lo cierra {commit_id})"
         print(f"  {marca} {numero}. {texto}{pendiente}")
     print()
 
@@ -715,7 +744,7 @@ def main(argv: list[str] | None = None) -> int:
             estado = "completa" if listos == len(de_la_fase) else f"{listos}/{len(de_la_fase)}"
             print(f"  {fid}  {f.nombre:38s} {estado}")
             for c in de_la_fase:
-                print(f"       {'✓' if c.hecho() else '·'} {c.id}  {c.titulo}")
+                print(f"       {MARCA_ITEM if c.hecho() else ' '} {c.id}  {c.titulo}")
         print()
 
     print(SEP)
