@@ -199,7 +199,8 @@ already works; wiring it into the gateway is pending.
 | Firestore rules and indexes | ✅ | declared and versioned |
 | Synthetic domain data | ✅ | 60 assets and 292 inspections, reproducible from a seed |
 | Standards corpus | ✅ | 6 documents, 42 citable clauses, one superseded |
-| Firestore seeding and data tests | 🚧 | rest of F0 |
+| Idempotent Firestore seeding | ✅ | loaded twice against the emulator, counts unchanged |
+| Data coherence tests | ✅ | 45 tests over three seeds |
 | Multi-provider LLM gateway | 🚧 | model and pricing catalogue defined |
 | Governance middleware | 📋 | design settled on LangChain 1.x `AgentMiddleware` |
 | Hybrid RAG with citations | 📋 | |
@@ -285,8 +286,9 @@ firebase emulators:start --only firestore --project synapseflow-lean
 pytest
 ```
 
-> The suite has 25 tests: 17 check that the work plan is followable and run with
-> nothing installed, and 8 exercise the checkpointer against the emulator.
+> The suite has 70 tests. 62 need nothing installed: 45 assert properties of the
+> generated data and the standards corpus, 17 check that the work plan is
+> followable. The remaining 8 exercise the checkpointer against the emulator.
 > **The ontology layer still has no tests of its own**, despite showing as
 > verified in the table above: the first one to exercise it is `F2.5`.
 

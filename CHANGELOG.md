@@ -7,7 +7,7 @@ El proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Agregado
 
-**Datos del dominio — fase F0, en curso**
+**Datos del dominio — fase F0 completa**
 
 - `scripts/generar_datos.py`: generador de instalaciones, activos, inspecciones
   y órdenes de trabajo. Reproducible por semilla —dos corridas con la misma
@@ -25,6 +25,18 @@ El proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   servicio de API sin reproducir su texto. Incluye `PROC-INT-009`, marcado
   `derogado`, que contradice al procedimiento vigente en el criterio de
   aceptación: es lo que permite que el test de vigencia de F3.5 pruebe algo.
+- `scripts/seed.py`: carga idempotente a Firestore. El id de cada documento es
+  la clave natural que declara la ontología, así que una segunda corrida
+  sobreescribe en lugar de duplicar. El destino se verifica antes de leer un
+  archivo: sin `FIRESTORE_EMULATOR_HOST` el script se niega a correr, y tocar la
+  base real exige `--permitir-produccion`.
+- 45 tests de coherencia sobre tres semillas distintas. Verifican propiedades de
+  los datos, no del generador: que exista un activo bajo `t_min`, que los
+  espesores decrezcan, que haya un activo de una sola medición, que la
+  integridad referencial se sostenga, y que el caso `P-2101-A` siga produciendo
+  los números que publica el README. Incluyen el corpus: frontmatter contrastado
+  contra los enums de la ontología, secciones numeradas sin repetir, y toda cita
+  publicada en la documentación respaldada por una sección real.
 
 ### Corregido
 
@@ -34,12 +46,19 @@ El proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 - `.gitignore` ignoraba `data/generated/`, ruta en inglés que no correspondía a
   ninguna carpeta real; el generador escribe en `data/generado/`.
 
+### Cambiado
+
+- La comprobación de credenciales del proveedor de LLM dejó de ser un validador
+  de `Settings` y pasó a `Settings.verificar_credenciales_del_proveedor()`, que
+  llama el gateway. Atada al constructor, obligaba a tener una `GOOGLE_API_KEY`
+  para leer la configuración de Firestore, y dejaba a `scripts/seed.py` sin
+  poder correr contra el emulador.
+
 ### En curso
 
-- Fase F0: falta la carga idempotente a Firestore y los tests de coherencia de
-  los datos generados.
-- Gateway de LLM multi-proveedor: catálogo de modelos, perfiles de tarea y
-  precios definidos en `packages/synapseflow/llm/models.yaml`.
+- Fase F1: gateway de LLM multi-proveedor. El catálogo de modelos, perfiles de
+  tarea y precios está definido en `packages/synapseflow/llm/models.yaml`;
+  falta el código.
 
 ### Deuda declarada
 

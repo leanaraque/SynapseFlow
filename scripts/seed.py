@@ -45,7 +45,6 @@ from pathlib import Path
 from typing import Any
 
 from scripts.generar_datos import SALIDA_POR_DEFECTO, validar_contra_ontologia
-
 from synapseflow.config import get_settings
 from synapseflow.ontology import Ontology, get_ontology
 from synapseflow.persistence.client import get_client

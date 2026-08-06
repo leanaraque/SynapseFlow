@@ -195,7 +195,8 @@ ontología ya funciona; falta cablearla al gateway.
 | Reglas e índices de Firestore | ✅ | declarados y versionados |
 | Datos sintéticos del dominio | ✅ | 60 activos y 292 inspecciones, reproducibles por semilla |
 | Corpus de normativa | ✅ | 6 documentos, 42 secciones citables, uno derogado |
-| Carga a Firestore y tests de los datos | 🚧 | resto de F0 |
+| Carga idempotente a Firestore | ✅ | cargado dos veces contra el emulador, el conteo no cambia |
+| Tests de coherencia de los datos | ✅ | 45 tests sobre tres semillas |
 | Gateway de LLM multi-proveedor | 🚧 | catálogo de modelos y precios definido |
 | Middlewares de gobernanza | 📋 | diseño cerrado sobre `AgentMiddleware` de LC 1.x |
 | RAG híbrido con citas | 📋 | |
@@ -281,10 +282,12 @@ firebase emulators:start --only firestore --project synapseflow-lean
 pytest
 ```
 
-> La suite tiene 25 tests: 17 verifican que el plan de trabajo sea seguible y
-> corren sin nada instalado, y 8 ejercitan el checkpointer contra el emulador.
-> **La capa de ontología todavía no tiene tests propios**, pese a figurar como
-> verificada en la tabla de arriba: el primero que la ejercita es `F2.5`.
+> La suite tiene 70 tests. 62 no necesitan nada instalado: 45 verifican
+> propiedades de los datos generados y del corpus de normativa, y 17 que el plan
+> de trabajo sea seguible. Los 8 restantes ejercitan el checkpointer contra el
+> emulador. **La capa de ontología todavía no tiene tests propios**, pese a
+> figurar como verificada en la tabla de arriba: el primero que la ejercita es
+> `F2.5`.
 
 El test que más importa es
 [`test_hitl_sobrevive_a_la_muerte_del_proceso`](tests/persistence/test_checkpointer.py):

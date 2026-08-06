@@ -16,7 +16,7 @@ proyecto: **qué falta**, **en qué orden** y **cómo se sabe que una fase termi
 > ```
 
 - **Estado del documento:** vigente
-- **Última revisión:** 2026-08-06 (F0.1 y F0.2 cerrados)
+- **Última revisión:** 2026-08-06 (F0 completa; fase actual F1)
 
 ---
 
@@ -48,9 +48,9 @@ packages/synapseflow/
   ontology/            ✅  schema · loader · compiler · oil_and_gas.yaml
   persistence/         ✅  client · vectorstore · checkpointer
   llm/                 ◐   solo models.yaml, sin código
-scripts/               ◐   estado.py · generar_datos.py; falta seed.py
+scripts/               ✅  estado.py · generar_datos.py · seed.py
 data/corpus/           ✅  seis documentos de normativa, uno derogado
-tests/                 ◐   8 del checkpointer + 17 de consistencia del plan
+tests/                 ◐   70 tests; 62 corren sin el emulador
 ```
 
 No existen todavía: `llm/gateway.py`, `domain/`, `rag/`, `governance/`,
