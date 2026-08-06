@@ -413,23 +413,41 @@ class Ontology(StrictModel):
 def _validar_placeholders(accion: Action) -> None:
     """Verifica los {placeholders} del texto de aprobación.
 
-    Un placeholder que no corresponde a ningún parámetro produce un texto roto
-    justo en el momento más sensible del flujo: cuando un supervisor tiene que
-    decidir si autoriza la parada de un equipo.
+    Todo placeholder tiene que corresponder a un parámetro **requerido** de la
+    acción. Es lo único que garantiza que el texto se pueda renderizar completo:
+    el gate solo dispone de los argumentos de la invocación, y un parámetro
+    opcional puede no venir.
+
+    Una versión anterior admitía además una lista blanca de «campos de contexto»
+    —`tag`, `prioridad`, `id_ot`…— con la idea de que la entidad objetivo los
+    aportara. Nada los aportaba. El resultado era que el gate de
+    `emitir_orden_trabajo` le mostraba al supervisor «se va a emitir la orden
+    sobre el activo «no informado» con prioridad «no informado»», que es
+    exactamente la información que necesita para decidir. Un texto degradado en
+    silencio es peor que un error: nadie lo reporta y el supervisor aprueba a
+    ciegas.
     """
     plantilla = accion.approval_prompt
     if not plantilla:
         return
 
-    declarados = {p.name for p in accion.parameters}
-    # La entidad objetivo aporta su clave natural y algunos campos de contexto
-    # que el gate puede querer mostrar aunque no sean parámetros de la acción.
-    contexto_permitido = {"tag", "prioridad", "id_ot", "criticidad_nueva", "motivo"}
-    permitidos = declarados | contexto_permitido
+    requeridos = {p.name for p in accion.parameters if p.required}
+    opcionales = {p.name for p in accion.parameters if not p.required}
     usados = {campo for _, campo, _, _ in string.Formatter().parse(plantilla) if campo}
-    desconocidos = usados - permitidos
+
+    desconocidos = usados - requeridos - opcionales
     if desconocidos:
         raise ValueError(
             f"el approval_prompt de '{accion.id}' usa placeholders que no "
-            f"corresponden a parámetros ni a campos de contexto: {sorted(desconocidos)}"
+            f"corresponden a ningún parámetro de la acción: {sorted(desconocidos)}. "
+            f"Parámetros declarados: {sorted(requeridos | opcionales)}"
+        )
+
+    no_garantizados = usados & opcionales
+    if no_garantizados:
+        raise ValueError(
+            f"el approval_prompt de '{accion.id}' usa placeholders de parámetros "
+            f"opcionales: {sorted(no_garantizados)}. El gate solo dispone de los "
+            "argumentos de la invocación, así que un opcional puede faltar y "
+            "dejar el texto incompleto justo cuando un humano tiene que decidir."
         )

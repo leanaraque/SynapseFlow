@@ -213,9 +213,29 @@ Middlewares ya hechos que este proyecto **usa en lugar de reinventar**:
 | `ModelFallbackMiddleware` | Degradar a otro proveedor |
 | `SummarizationMiddleware` | Manejo de ventana de contexto |
 
-`InterruptOnConfig` es un `TypedDict` con: `allowed_decisions`
-(`approve`/`edit`/`reject`/`respond`), `description` —acepta un callable que
-recibe el `ToolCallRequest`—, `args_schema` y `when`.
+`InterruptOnConfig` es un `TypedDict` con `allowed_decisions`
+(`approve`/`edit`/`reject`/`respond`), `description`, `args_schema` y `when`.
+
+**`description`, cuando es callable, recibe TRES argumentos**, no uno:
+
+```python
+def descripcion(tool_call: ToolCall, state: AgentState, runtime: Runtime) -> str: ...
+```
+
+`tool_call` es el `ToolCall` de LangChain —un `TypedDict` con `name`, `args` e
+`id`—, no un objeto con atributo `.tool_call`. Está declarado en
+`langchain.agents.middleware.human_in_the_loop._DescriptionFactory`.
+
+> Este documento decía antes que recibía un `ToolCallRequest`. Era falso, y el
+> compilador estaba escrito contra esa firma: el gate lanzaba `TypeError` en la
+> primera acción irreversible que se propusiera. Lo detectó recién el primer test
+> que ejecutó un gate de punta a punta. **Verificá la firma en el entorno.**
+
+**Reanudar un gate** lleva el payload envuelto:
+
+```python
+Command(resume={"decisions": [{"type": "approve"}]})
+```
 
 **El compilador de la ontología ya produce esa configuración**:
 `interrupt_config(ontology, role)` en `packages/synapseflow/ontology/compiler.py`.
@@ -270,6 +290,8 @@ No los repitas.
 | `pytest -m "not emulator"` documentado como suite unitaria | Deselecciona los 8 tests y no corre ninguno. | Ejecutar lo que se documenta antes de documentarlo |
 | Regla de cache sobre `/index.html` | Con `cleanUrls` la ruta servida es `/`, así que la regla nunca coincidía | Verificar los headers servidos, no la configuración escrita |
 | Documentar código inexistente | Un manual describía módulos no construidos sin avisarlo | Marcar siempre qué está implementado y qué es diseño |
+| Firma de `description` en el gate | El compilador la escribía con un argumento y el middleware la llama con tres. El gate lanzaba `TypeError` en la primera acción irreversible. La capa de ontología figuraba ✅ en el README y no tenía un solo test. | Una fila ✅ sin test es una afirmación, no un hecho |
+| Lista blanca de placeholders en `approval_prompt` | Se admitían `{tag}` y `{prioridad}` «aportados por la entidad objetivo». Nada los aportaba: el gate mostraba «no informado» donde iba el equipo. | Una degradación silenciosa no la reporta nadie |
 
 ---
 

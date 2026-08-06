@@ -329,25 +329,37 @@ def interrupt_config(ontology: Ontology, role: str) -> dict[str, Any]:
     return config
 
 
-def _descriptor_de_aprobacion(action: Action) -> Callable[[Any], str]:
+def _descriptor_de_aprobacion(action: Action) -> Callable[..., str]:
     """Fábrica del texto que ve el aprobador.
 
-    `InterruptOnConfig.description` acepta un callable que recibe el
-    `ToolCallRequest`, así que el texto se arma con los argumentos reales de la
-    invocación en lugar de ser genérico. Un supervisor que aprueba una parada de
-    equipo tiene que ver de qué equipo se trata, no "se requiere aprobación".
+    El texto se arma con los argumentos reales de la invocación en lugar de ser
+    genérico: un supervisor que aprueba una parada de equipo tiene que ver de qué
+    equipo se trata, no «se requiere aprobación».
+
+    ## Firma
+
+    `HumanInTheLoopMiddleware` invoca este callable como
+    `description(tool_call, state, runtime)`, donde `tool_call` es el `ToolCall`
+    de LangChain: un `TypedDict` con `name`, `args` e `id`.
+
+    Verificado por introspección contra `langchain` 1.3.14, en
+    `langchain.agents.middleware.human_in_the_loop._DescriptionFactory`. Una
+    versión anterior de esta función recibía un único argumento y buscaba los
+    valores en `request.tool_call`, con lo que el gate lanzaba `TypeError` en la
+    primera acción irreversible que se propusiera. `state` y `runtime` llevan
+    default para que el descriptor se pueda invocar con solo el `tool_call`
+    desde un test.
     """
     plantilla = (action.approval_prompt or "").strip()
 
-    def descriptor(request: Any) -> str:
+    def descriptor(tool_call: Any, state: Any = None, runtime: Any = None) -> str:
         args: dict[str, Any] = {}
-        try:
-            args = dict(getattr(request, "tool_call", {}).get("args", {}) or {})
-        except (AttributeError, TypeError):  # pragma: no cover - defensivo
-            args = {}
+        if isinstance(tool_call, dict):
+            args = dict(tool_call.get("args") or {})
 
-        # Los placeholders que la invocación no aporta se muestran como
-        # «no informado» en lugar de romper el texto del gate.
+        # Un placeholder sin valor se muestra como «no informado» en lugar de
+        # romper el texto. No debería ocurrir: el meta-esquema exige que todo
+        # placeholder corresponda a un parámetro declarado y requerido.
         class _Faltante(dict):
             def __missing__(self, clave: str) -> str:
                 return "«no informado»"

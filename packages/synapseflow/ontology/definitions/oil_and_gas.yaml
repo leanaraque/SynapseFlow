@@ -602,10 +602,13 @@ actions:
         type: string
         required: true
         description: Identificador del borrador a emitir.
+    # Solo se pueden usar placeholders de parámetros requeridos de la acción:
+    # es lo único que el gate tiene garantizado al momento de mostrar el texto.
+    # El TAG y la prioridad viven en el borrador y los resuelve la consola al
+    # mostrar la ficha, no este texto.
     approval_prompt: >
-      Se va a emitir la orden de trabajo {id_ot} sobre el activo {tag} con
-      prioridad {prioridad}. Esto moviliza cuadrilla y no se puede deshacer
-      desde esta plataforma.
+      Se va a emitir a ejecución la orden de trabajo {id_ot}. Esto moviliza
+      cuadrilla y materiales, y no se puede deshacer desde esta plataforma.
 
   - id: solicitar_parada_equipo
     name: Solicitar parada de equipo
