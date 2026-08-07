@@ -32,6 +32,7 @@ from synapseflow.domain.repository import RepositorioDominio
 from synapseflow.llm.gateway import Gateway
 from synapseflow.ontology import ToolResult, implements
 from synapseflow.persistence.vectorstore import FirestoreVectorStore
+from synapseflow.rag.retrievers import construir_retriever_vigente
 
 # Campos que nunca se escriben en `content`. Salen de la clasificación
 # `restricted` de la ontología; se listan acá porque F2 todavía no tiene la
@@ -144,25 +145,30 @@ async def buscar_normativa(
 ) -> ToolResult:
     """Fragmentos de normativa pertinentes a una consulta.
 
-    **Versión provisoria.** F3 la reemplaza por la recuperación híbrida con
-    verificación de fundamento. Acá quedan fijos el contrato y dos decisiones que
-    F3 hereda:
+    Recuperación **híbrida**: semántica y léxica combinadas, porque fallan
+    distinto. La vectorial encuentra por significado y no acierta un
+    identificador arbitrario como `§7.4`; BM25 es exactamente al revés. Ver
+    `synapseflow.rag.retrievers`.
 
-    1. Se filtra por `vigencia: vigente` **antes** de la búsqueda vectorial. El
-       corpus incluye un procedimiento derogado que contradice al vigente en el
-       criterio de aceptación; que aparezca como fundamento sería un error
-       normativo, no un resultado de baja calidad.
+    Dos garantías que este punto sostiene:
+
+    1. Se filtra por `vigencia: vigente` en **las dos ramas**. El corpus incluye
+       un procedimiento derogado que contradice al vigente en el criterio de
+       aceptación; que aparezca como fundamento sería un error normativo, no un
+       resultado de baja calidad.
     2. Cada fragmento vuelve con su documento y su sección, porque una respuesta
-       sin cita no se puede auditar.
+       sin cita no se puede auditar. El verificador de fundamento contrasta
+       después las citas del agente contra exactamente estos fragmentos.
     """
     filtros: dict[str, Any] = {"vigencia": "vigente"}
     if tipo_documento:
         filtros["tipo_documento"] = tipo_documento
 
     almacen = FirestoreVectorStore(_gateway().embeddings())
-    documentos = await almacen.asimilarity_search(
-        consulta, k=FRAGMENTOS_POR_CONSULTA, filtros=filtros
+    retriever = construir_retriever_vigente(
+        almacen, tipo_documento=tipo_documento, k=FRAGMENTOS_POR_CONSULTA
     )
+    documentos = await retriever.ainvoke(consulta)
 
     if not documentos:
         return ToolResult(

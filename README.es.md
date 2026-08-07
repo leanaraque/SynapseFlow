@@ -174,10 +174,16 @@ corroyó despacio durante años y se aceleró en la última campaña tiene un pr
 nuevo, y promediarlo lo esconde justo cuando importa.
 → [`calculos.py`](packages/synapseflow/domain/calculos.py)
 
-**4. Sin cita no hay respuesta.** 🚧 en curso
-El agente de normativa está obligado a devolver documento y sección. Un nodo
+**4. Sin cita no hay respuesta.** ✅ implementado
+El agente de normativa está obligado a devolver documento y sección. Un
 verificador comprueba que cada afirmación tenga respaldo en el contexto
-recuperado antes de emitir. Si no lo tiene, el sistema dice que no sabe.
+recuperado antes de emitir. Si no lo tiene, el sistema dice que no sabe — y la
+negativa es texto fijo, no generado: pedirle al modelo que redacte su propia
+negativa lo deja improvisando justo cuando acabamos de establecer que no tiene
+con qué. Las citas se validan contra **lo que efectivamente se recuperó**, no
+contra el corpus: un modelo que cita una cláusula real que no estaba en su
+contexto no la leyó.
+→ [`fundamento.py`](packages/synapseflow/rag/fundamento.py)
 
 **5. Los datos sensibles no salen del perímetro.** 🚧 en curso
 Los campos marcados `pii` o `restricted` en la ontología se tokenizan antes de
@@ -206,6 +212,8 @@ ontología ya funciona; falta cablearla al gateway.
 | Gateway de LLM multi-proveedor | ✅ | cuatro adapters detrás de un único punto de salida; se pide un perfil de tarea, nunca un nombre de modelo |
 | Las nueve acciones del dominio, implementadas | ✅ | el catálogo completo compila para todos los roles — antes se negaba |
 | Cálculo determinístico de vida remanente | ✅ | API 570 §7, velocidades de largo y corto plazo, gobierna la mayor |
+| RAG híbrido con citas | ✅ | vectorial + BM25; el filtro de vigencia vale en **las dos** ramas |
+| Verificador de fundamento | ✅ | tres veredictos; una cita inventada se rechaza sin llamar al modelo |
 | Política de zero-training aplicada en el gateway | ✅ | un proveedor que el catálogo no respalda se rechaza al arrancar |
 | Un solo camino de salida, garantizado por estructura | ✅ | se recorre el AST de cada módulo; un segundo camino rompe el build |
 | Contabilidad de costo por llamada | ✅ | se tarifa por el modelo que corrió de verdad, no por el perfil pedido |
@@ -293,12 +301,13 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> La suite tiene 308 tests. **248 no necesitan nada instalado —ni API key, ni
+> La suite tiene 376 tests. **305 no necesitan nada instalado —ni API key, ni
 > red—:** 45 verifican propiedades de los datos generados y del corpus de
-> normativa, 92 cubren el gateway de LLM, el registry de modelos, el modelo
+> normativa, 93 cubren el gateway de LLM, el registry de modelos, el modelo
 > falso y la contabilidad de costo, 59 el cálculo determinístico y el catálogo
-> de herramientas compilado, 35 la ontología y la CLI, y 17 que el plan de
-> trabajo sea seguible. De los demás, 55 corren contra el emulador de Firestore
+> de herramientas compilado, 56 la ingesta, la validación de citas y el
+> verificador de fundamento, 35 la ontología y la CLI, y 17 que el plan de
+> trabajo sea seguible. De los demás, 66 corren contra el emulador de Firestore
 > y 5 llaman a un proveedor real — estos últimos llevan `live_llm` y **no**
 > entran en la corrida por defecto del CI.
 

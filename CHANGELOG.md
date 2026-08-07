@@ -206,6 +206,39 @@ no una convención escrita en un README.
 **Fase F2 completa.** Las nueve acciones del dominio tienen implementación y el
 catálogo compila para los cinco roles.
 
+**RAG con citas — fase F3 completa. Compromiso 4 cumplido.**
+
+- `rag/ingesta.py`: el corpus se trocea **por sección**, no cada N caracteres.
+  Cortar a ciegas produciría un fragmento que empieza en la cláusula 7.4 y
+  termina en la 7.5 con la metadata de una sola: el sistema citaría §7.4
+  respaldando una afirmación que vino de otra cláusula. Un fragmento sin
+  `seccion` es un error de ingesta, no un caso a tolerar.
+- `rag/retrievers.py`: recuperación híbrida vectorial + BM25. **El filtro de
+  vigencia se aplica en las dos ramas.** Ponerlo solo en la búsqueda vectorial
+  deja la puerta de atrás abierta: la rama léxica recuperaría el procedimiento
+  derogado igual y el ensemble lo fusionaría. Hay un test sobre la rama aislada,
+  otro sobre el ensemble y un control negativo que verifica que sin filtro el
+  derogado sí aparece.
+- `EnsembleRetriever` no acepta un `k`: devuelve la unión de las dos ramas, que
+  puede llegar a veinte fragmentos donde el troceado presupuestó seis. Se acota
+  con un envoltorio, y no bajando el `k` de cada rama, porque la fusión necesita
+  candidatos de sobra para reordenar.
+- `rag/citas.py`: las citas se validan contra **lo que efectivamente se
+  recuperó**, no contra el corpus. Un modelo que cita una cláusula real que no
+  estaba en su contexto no la leyó: la recordó del entrenamiento o la infirió del
+  número. Se aceptan tres formatos porque el texto lo redacta un LLM.
+- `rag/fundamento.py`: el verificador, en dos capas y la barata primero. Una cita
+  inventada rechaza la respuesta **sin llamar al modelo** —hay un test que
+  verifica que el contador de llamadas queda en cero—. Tres veredictos, y
+  `parcial` es el que hace utilizable al sistema: con solo emite/no emite, una
+  respuesta de cinco afirmaciones con cuatro respaldadas se descartaría entera.
+- La negativa es texto fijo y no generado. La afirmación sin respaldo no se borra
+  de la respuesta: se marca, porque quitarla dejaría un texto que parece completo
+  y no lo es.
+- `buscar_normativa` dejó de ser la versión provisoria de F2.2.
+- `Gateway.estructurado(perfil, schema)` concentra en un solo lugar el cast que
+  `chat()` no puede evitar al declarar `Runnable`.
+
 ### Corregido
 
 - El índice de `llm_usage` en `firestore.indexes.json` declaraba el campo `ts` y

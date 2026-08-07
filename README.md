@@ -179,10 +179,15 @@ campaign has a new problem, and averaging it away hides it exactly when it
 matters.
 → [`calculos.py`](packages/synapseflow/domain/calculos.py)
 
-**4. No citation, no answer.** 🚧 in progress
-The standards agent is required to return document and clause. A verifier node
-checks that every claim is supported by the retrieved context before the answer
-is emitted. If it is not, the system says it does not know.
+**4. No citation, no answer.** ✅ implemented
+The standards agent is required to return document and clause. A verifier checks
+that every claim is supported by the retrieved context before the answer is
+emitted. If it is not, the system says it does not know — and the refusal is
+fixed text, not generated: asking the model to write its own refusal leaves it
+improvising exactly when we have just established it has nothing to go on.
+Citations are validated against **what was actually retrieved**, not against the
+corpus: a model citing a real clause that was not in its context did not read it.
+→ [`fundamento.py`](packages/synapseflow/rag/fundamento.py)
 
 **5. Sensitive data does not leave the perimeter.** 🚧 in progress
 Fields marked `pii` or `restricted` in the ontology are tokenised before the
@@ -211,6 +216,8 @@ already works; wiring it into the gateway is pending.
 | Multi-provider LLM gateway | ✅ | four adapters behind one exit point; a task profile is asked for, never a model name |
 | The nine domain actions, implemented | ✅ | the full catalogue compiles for every role — before this it refused to |
 | Deterministic remaining-life calculation | ✅ | API 570 §7, long- and short-term rates, the higher one governs |
+| Hybrid RAG with citations | ✅ | vector + BM25; the currency filter applies to **both** branches |
+| Groundedness verifier | ✅ | three verdicts; an invented citation is rejected without calling the model |
 | Zero-training policy enforced at the gateway | ✅ | a provider the catalogue does not vouch for is rejected at startup |
 | Single data-exit path, structurally enforced | ✅ | the AST of every module is walked; a second exit path fails the build |
 | Per-call cost accounting | ✅ | priced by the model that actually ran, not the profile requested |
@@ -298,12 +305,13 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> The suite has 308 tests. **248 need nothing installed — no API key, no
+> The suite has 376 tests. **305 need nothing installed — no API key, no
 > network:** 45 assert properties of the generated data and the standards
-> corpus, 92 cover the LLM gateway, the model registry, the fake model and cost
+> corpus, 93 cover the LLM gateway, the model registry, the fake model and cost
 > accounting, 59 cover the deterministic calculation and the compiled tool
-> catalogue, 35 cover the ontology and the CLI, and 17 check that the work plan
-> is followable. Of the rest, 55 run against the Firestore emulator and 5 call a
+> catalogue, 56 cover ingestion, citation validation and the groundedness
+> verifier, 35 cover the ontology and the CLI, and 17 check that the work plan is
+> followable. Of the rest, 66 run against the Firestore emulator and 5 call a
 > real provider — those last ones are marked `live_llm` and are **not** part of
 > `pytest`'s default run in CI.
 

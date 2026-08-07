@@ -31,7 +31,7 @@ se actualiza al cerrar cada fase.
 | 1 | La ontología es declarativa, no código | ✅ **Cumplido** | — |
 | 2 | La reversibilidad es un atributo del dominio | ◐ **Parcial** | El compilador emite la configuración del gate; falta el grafo que la aplique en ejecución real |
 | 3 | El modelo no calcula números | ✅ **Cumplido** | `domain/calculos.py` implementa el método de API 570 §7 en Python determinístico. Gobierna la mayor entre la velocidad de largo y la de corto plazo |
-| 4 | Sin cita no hay respuesta | ○ **Declarado** | No hay recuperación ni nodo verificador |
+| 4 | Sin cita no hay respuesta | ✅ **Cumplido** | Recuperación híbrida con filtro de vigencia en ambas ramas, validación de citas contra lo recuperado, y verificador de fundamento con tres veredictos |
 | 5 | Los datos sensibles no salen del perímetro | ◐ **Parcial** | Ya hay **un solo camino de salida**, garantizado por un test estructural sobre el AST del paquete. Falta el tokenizador que redacta en ese punto |
 
 > Un compromiso declarado y no implementado es deuda visible. El objetivo de este
@@ -49,13 +49,14 @@ packages/synapseflow/
   persistence/         ✅  client · vectorstore · checkpointer
   llm/                 ✅  registry · gateway · callbacks · fake · models.yaml
   domain/              ✅  contexto · repository · lecturas · calculos · escrituras
+  rag/                 ✅  ingesta · retrievers · citas · fundamento
 scripts/               ✅  estado.py · generar_datos.py · seed.py
 data/corpus/           ✅  seis documentos de normativa, uno derogado
-tests/                 ✅  308 tests; 248 sin dependencia externa
+tests/                 ✅  376 tests; 305 sin dependencia externa
 ```
 
-No existen todavía: `rag/`, `governance/`, `agents/`, `services/api/`,
-`apps/web/`, `evals/`.
+No existen todavía: `governance/`, `agents/`, `services/api/`, `apps/web/`,
+`evals/`.
 
 > Esta sección afirmaba hasta el 2026-08-06 que `llm/` tenía «solo models.yaml,
 > sin código», que la suite tenía 70 tests y que la capa de ontología no tenía
