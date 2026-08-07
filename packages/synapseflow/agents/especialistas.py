@@ -55,6 +55,23 @@ HERRAMIENTAS_POR_ESPECIALISTA: dict[str, tuple[str, ...]] = {
     "calculo": ("calcular_vida_remanente",),
 }
 
+# El cuarto agente, que el plan de F5.2 no listaba.
+#
+# Los tres especialistas de arriba son de lectura, y el recorrido de referencia
+# termina proponiendo `solicitar_parada_equipo`: sin un agente que tenga las
+# acciones de escritura, no hay quién dispare el gate y el recorrido no llega a
+# donde el proyecto promete que llega.
+#
+# Va aparte de `HERRAMIENTAS_POR_ESPECIALISTA` porque **no es un destino del
+# supervisor**: no se elige entre él y los otros tres. Corre siempre al final,
+# con todo lo que los especialistas juntaron, y es donde el gate se dispara.
+HERRAMIENTAS_DE_ACCION: tuple[str, ...] = (
+    "registrar_borrador_ot",
+    "emitir_orden_trabajo",
+    "solicitar_parada_equipo",
+    "reclasificar_criticidad",
+)
+
 PROMPT_NORMATIVA = """Sos el especialista en normativa técnica de inspección en \
 servicio.
 
@@ -78,6 +95,25 @@ encontrás sin interpretarlo. Reglas:
 - No saques conclusiones sobre aptitud para el servicio: eso depende de un \
 cálculo y de la normativa, que no son tu tarea.
 - Si un TAG no existe, es probable que esté mal tipeado: reportalo así."""
+
+PROMPT_ACCIONES = """Sos quien redacta la respuesta final y, si corresponde, \
+propone una acción sobre el activo.
+
+Tenés delante lo que los especialistas reunieron: la ficha del activo, el cálculo \
+de vida remanente y el fundamento normativo con sus citas. Con eso:
+
+1. **Redactá la respuesta.** Toda afirmación normativa lleva su cita con el \
+formato `[DOC-ID §sección]`. Los números del cálculo van tal como llegaron.
+2. **Si corresponde una acción, proponela.** No la ejecutes por tu cuenta: las \
+acciones irreversibles se frenan y las aprueba una persona. Vos las proponés con \
+fundamento.
+
+Cuándo corresponde proponer una parada de equipo: cuando el espesor medido está \
+por debajo del mínimo requerido, o la vida remanente es negativa. Ese caso no \
+admite esperar a la próxima campaña.
+
+Nunca propongas una acción sin la inspección que la respalda: una parada apoyada \
+en un identificador inventado es lo primero que va a mirar un auditor."""
 
 PROMPT_CALCULO = """Sos el especialista en cálculo de integridad.
 
@@ -105,7 +141,11 @@ def _herramientas_de(
             especialista necesita. Falla al construir el grafo y no en la
             primera consulta, que es donde el usuario lo pagaría.
     """
-    pedidas = HERRAMIENTAS_POR_ESPECIALISTA[especialista]
+    pedidas = (
+        HERRAMIENTAS_DE_ACCION
+        if especialista == "acciones"
+        else HERRAMIENTAS_POR_ESPECIALISTA[especialista]
+    )
     catalogo = {h.name: h for h in compile_tools(ontologia, ctx.rol, context=ctx)}
 
     faltantes = [nombre for nombre in pedidas if nombre not in catalogo]
@@ -177,6 +217,20 @@ def agente_calculo(ontologia: Ontology, ctx: ExecutionContext, **extra: Any) -> 
     return _construir("calculo", PROMPT_CALCULO, "router", ontologia, ctx, **extra)
 
 
+def agente_acciones(ontologia: Ontology, ctx: ExecutionContext, **extra: Any) -> Any:
+    """Redacta la respuesta final y propone acciones. **Acá se dispara el gate.**
+
+    Las acciones irreversibles que este agente proponga las frena el
+    `HumanInTheLoopMiddleware`, cuya configuración sale de la ontología. Usa el
+    perfil `synthesis`: es la respuesta que lee el usuario y la que fundamenta
+    una parada de planta.
+    """
+    return _construir("acciones", PROMPT_ACCIONES, "synthesis", ontologia, ctx, **extra)
+
+
 def especialistas_disponibles() -> tuple[str, ...]:
-    """Nombres de los especialistas, para el supervisor y para los tests."""
+    """Los tres entre los que el supervisor elige.
+
+    `acciones` no está: no es un destino que se elija, corre siempre al final.
+    """
     return tuple(HERRAMIENTAS_POR_ESPECIALISTA)
