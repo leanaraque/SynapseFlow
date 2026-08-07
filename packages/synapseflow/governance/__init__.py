@@ -7,6 +7,12 @@ garantía que hay que acordarse de aplicar no es una garantía.
 Ver docs/plan/fases/F4-gobernanza.md
 """
 
+from synapseflow.governance.pii import (
+    Tokenizador,
+    campos_pii,
+    contiene_pii,
+    detectar_legajos,
+)
 from synapseflow.governance.rbac import (
     AutoridadInsuficienteError,
     ContextoRequeridoError,
@@ -22,7 +28,11 @@ __all__ = [
     "AutoridadInsuficienteError",
     "ContextoRequeridoError",
     "ExecutionContext",
+    "Tokenizador",
     "aprobadores_de",
+    "campos_pii",
+    "contiene_pii",
+    "detectar_legajos",
     "exigir_autoridad_de_aprobacion",
     "exigir_contexto",
     "exigir_rol_autorizado",

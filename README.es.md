@@ -185,12 +185,19 @@ contra el corpus: un modelo que cita una cláusula real que no estaba en su
 contexto no la leyó.
 → [`fundamento.py`](packages/synapseflow/rag/fundamento.py)
 
-**5. Los datos sensibles no salen del perímetro.** 🚧 en curso
+**5. Los datos sensibles no salen del perímetro.** ◐ tokenizador listo, falta cablearlo
 Los campos marcados `pii` o `restricted` en la ontología se tokenizan antes de
 la llamada al proveedor y se rehidratan en la respuesta. El modelo externo ve
-`«INSPECTOR_1»`, nunca un legajo. La derivación de esos campos desde la
-ontología ya funciona; falta cablearla al gateway.
-→ [ADR-0004](docs/adr/0004-gateway-provider-agnostic.md)
+`«INSPECTOR_1»`, nunca un legajo. El token es un **contador por conversación, no
+un hash**: con cien mil legajos posibles, un hash se recupera probando todos —
+ofusca, no anonimiza.
+
+El tokenizador está implementado y probado; ensamblarlo en el pipeline de
+middleware es el commit siguiente, y la prueba de punta a punta viene con él.
+Hasta entonces esta fila queda en ◐, porque una garantía que no se ejercita
+entera es una afirmación.
+→ [`pii.py`](packages/synapseflow/governance/pii.py) ·
+[ADR-0004](docs/adr/0004-gateway-provider-agnostic.md)
 
 ## Estado del proyecto
 

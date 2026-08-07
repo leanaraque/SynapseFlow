@@ -189,12 +189,19 @@ Citations are validated against **what was actually retrieved**, not against the
 corpus: a model citing a real clause that was not in its context did not read it.
 → [`fundamento.py`](packages/synapseflow/rag/fundamento.py)
 
-**5. Sensitive data does not leave the perimeter.** 🚧 in progress
+**5. Sensitive data does not leave the perimeter.** ◐ tokeniser done, wiring pending
 Fields marked `pii` or `restricted` in the ontology are tokenised before the
 provider call and rehydrated in the response. The external model sees
-`«INSPECTOR_1»`, never an employee ID. Deriving those fields from the ontology
-already works; wiring it into the gateway is pending.
-→ [ADR-0004](docs/adr/0004-gateway-provider-agnostic.md)
+`«INSPECTOR_1»`, never an employee ID. The token is a **per-conversation
+counter, not a hash**: with only a hundred thousand possible employee IDs, a hash
+is recovered by brute force — it obfuscates, it does not anonymise.
+
+The tokeniser is implemented and tested; assembling it into the middleware
+pipeline is the next commit, and the end-to-end proof is the structural test that
+comes with it. Until that lands this row stays ◐, because a guarantee that is not
+exercised end to end is a claim.
+→ [`pii.py`](packages/synapseflow/governance/pii.py) ·
+[ADR-0004](docs/adr/0004-gateway-provider-agnostic.md)
 
 ## Project status
 
