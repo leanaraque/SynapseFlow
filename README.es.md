@@ -185,18 +185,19 @@ contra el corpus: un modelo que cita una cláusula real que no estaba en su
 contexto no la leyó.
 → [`fundamento.py`](packages/synapseflow/rag/fundamento.py)
 
-**5. Los datos sensibles no salen del perímetro.** ◐ tokenizador listo, falta cablearlo
+**5. Los datos sensibles no salen del perímetro.** ✅ implementado
 Los campos marcados `pii` o `restricted` en la ontología se tokenizan antes de
 la llamada al proveedor y se rehidratan en la respuesta. El modelo externo ve
 `«INSPECTOR_1»`, nunca un legajo. El token es un **contador por conversación, no
 un hash**: con cien mil legajos posibles, un hash se recupera probando todos —
 ofusca, no anonimiza.
 
-El tokenizador está implementado y probado; ensamblarlo en el pipeline de
-middleware es el commit siguiente, y la prueba de punta a punta viene con él.
-Hasta entonces esta fila queda en ◐, porque una garantía que no se ejercita
-entera es una afirmación.
-→ [`pii.py`](packages/synapseflow/governance/pii.py) ·
+Probado sobre un agente que corre, no sobre el tokenizador aislado: una
+herramienta devuelve dos legajos, y el test verifica que el modelo nunca los vio,
+que **sí** vio los tokens, y que el usuario recibe los legajos de vuelta. Un
+control negativo apaga la redacción y comprueba que el mismo recorrido filtra —
+si no, la garantía podría estar pasando sin probar nada.
+→ [`test_frontera_datos.py`](tests/governance/test_frontera_datos.py) ·
 [ADR-0004](docs/adr/0004-gateway-provider-agnostic.md)
 
 ## Estado del proyecto
@@ -221,6 +222,9 @@ entera es una afirmación.
 | Cálculo determinístico de vida remanente | ✅ | API 570 §7, velocidades de largo y corto plazo, gobierna la mayor |
 | RAG híbrido con citas | ✅ | vectorial + BM25; el filtro de vigencia vale en **las dos** ramas |
 | Verificador de fundamento | ✅ | tres veredictos; una cita inventada se rechaza sin llamar al modelo |
+| Middleware de gobernanza | ✅ | tokenización reversible de PII, gates desde la ontología, techo de llamadas |
+| Log de auditoría inmutable | ✅ | append-only; guarda `thread_id` y `checkpoint_id` para reconstruir el razonamiento |
+| Separación de funciones en la aprobación | ✅ | el proponente no puede aprobar su propia acción |
 | Política de zero-training aplicada en el gateway | ✅ | un proveedor que el catálogo no respalda se rechaza al arrancar |
 | Un solo camino de salida, garantizado por estructura | ✅ | se recorre el AST de cada módulo; un segundo camino rompe el build |
 | Contabilidad de costo por llamada | ✅ | se tarifa por el modelo que corrió de verdad, no por el perfil pedido |
@@ -308,15 +312,16 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> La suite tiene 376 tests. **305 no necesitan nada instalado —ni API key, ni
+> La suite tiene 473 tests. **396 no necesitan nada instalado —ni API key, ni
 > red—:** 45 verifican propiedades de los datos generados y del corpus de
-> normativa, 93 cubren el gateway de LLM, el registry de modelos, el modelo
-> falso y la contabilidad de costo, 59 el cálculo determinístico y el catálogo
-> de herramientas compilado, 56 la ingesta, la validación de citas y el
-> verificador de fundamento, 35 la ontología y la CLI, y 17 que el plan de
-> trabajo sea seguible. De los demás, 66 corren contra el emulador de Firestore
-> y 5 llaman a un proveedor real — estos últimos llevan `live_llm` y **no**
-> entran en la corrida por defecto del CI.
+> normativa, 93 cubren el gateway de LLM, el registry, el modelo falso y la
+> contabilidad de costo, 91 la gobernanza —PII, RBAC, política, middleware y la
+> frontera de datos de punta a punta—, 59 el cálculo determinístico y el catálogo
+> de herramientas compilado, 56 la ingesta, las citas y el verificador de
+> fundamento, 35 la ontología y la CLI, y 17 que el plan de trabajo sea seguible.
+> De los demás, 72 corren contra el emulador de Firestore y 5 llaman a un
+> proveedor real — estos últimos llevan `live_llm` y **no** entran en la corrida
+> por defecto del CI.
 
 Cuatro de los tests de ontología corren un **agente real** —`create_agent` con
 `HumanInTheLoopMiddleware`— contra los gates derivados del YAML, gobernado por

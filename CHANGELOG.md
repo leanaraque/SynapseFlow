@@ -239,11 +239,40 @@ catálogo compila para los cinco roles.
 - `Gateway.estructurado(perfil, schema)` concentra en un solo lugar el cast que
   `chat()` no puede evitar al declarar `Runnable`.
 
+**Gobernanza — fase F4 completa. Compromiso 5 cumplido.**
+
+- `governance/rbac.py`: identidad y **autoridad de aprobación**. El catálogo
+  filtra quién *propone*; los `approver_roles` deciden quién *aprueba*, y son
+  conjuntos distintos. El proponente no puede aprobar su propia acción: aprobar
+  la propia propuesta produce el mismo registro de auditoría que aprobar sin leer.
+- `governance/pii.py`: tokenización con **contador por conversación, no hash**.
+  Con cien mil legajos posibles, un hash se recupera probando todos: ofusca, no
+  anonimiza. El contador da la estabilidad que el modelo necesita dentro de un
+  hilo sin permitir correlacionar a la misma persona entre conversaciones.
+- `governance/auditoria.py`: log append-only con `thread_id` y `checkpoint_id`,
+  que son la llave para reconstruir el razonamiento y no solo el hecho. El id
+  lleva un componente aleatorio: un id determinístico haría que un reintento
+  sobreescribiera historia, y perder un evento es peor que duplicarlo.
+- `governance/politica.py`: la política de datos deja de vivir dentro del
+  gateway. El gateway aporta el hecho y la política decide, por inversión de
+  dependencia — hay un test sobre el AST que impide reintroducir el ciclo.
+- `governance/middleware.py`: el pipeline sobre `AgentMiddleware`. La redacción
+  es propia y no `PIIMiddleware` porque sus cuatro estrategias **destruyen** el
+  dato: una respuesta que dice «avisale a «REDACTED»» no le sirve a nadie.
+- `tests/governance/test_frontera_datos.py`: la garantía probada sobre un agente
+  que corre. Una herramienta devuelve dos legajos, y se verifica que el modelo
+  nunca los vio, que sí vio los tokens, y que el usuario los recibe de vuelta.
+  Incluye control negativo: con la redacción apagada, el mismo recorrido filtra.
+
 ### Corregido
 
 - El índice de `llm_usage` en `firestore.indexes.json` declaraba el campo `ts` y
   la contabilidad de costo escribe `momento`. Ningún documento tenía `ts`, así
   que el índice era inútil y una consulta por fecha habría fallado en producción.
+- `RedaccionDePII` descartaba en silencio el tokenizador que le inyectaban.
+  `Tokenizador` define `__len__`, así que uno recién creado es *falsy* y
+  `tokenizador or Tokenizador()` lo reemplazaba por otro: la redacción funcionaba
+  y la auditoría guardaba un mapa de tokenización vacío.
 
 **Gobernanza de la ontología — deuda saldada**
 

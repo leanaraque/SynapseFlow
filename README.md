@@ -189,18 +189,19 @@ Citations are validated against **what was actually retrieved**, not against the
 corpus: a model citing a real clause that was not in its context did not read it.
 → [`fundamento.py`](packages/synapseflow/rag/fundamento.py)
 
-**5. Sensitive data does not leave the perimeter.** ◐ tokeniser done, wiring pending
+**5. Sensitive data does not leave the perimeter.** ✅ implemented
 Fields marked `pii` or `restricted` in the ontology are tokenised before the
 provider call and rehydrated in the response. The external model sees
 `«INSPECTOR_1»`, never an employee ID. The token is a **per-conversation
 counter, not a hash**: with only a hundred thousand possible employee IDs, a hash
 is recovered by brute force — it obfuscates, it does not anonymise.
 
-The tokeniser is implemented and tested; assembling it into the middleware
-pipeline is the next commit, and the end-to-end proof is the structural test that
-comes with it. Until that lands this row stays ◐, because a guarantee that is not
-exercised end to end is a claim.
-→ [`pii.py`](packages/synapseflow/governance/pii.py) ·
+Proven on a running agent, not on the tokeniser in isolation: a tool returns two
+employee IDs, and the test asserts the model never saw them, that it *did* see
+the tokens, and that the user gets the real IDs back. A negative control turns
+the redaction off and checks the same run leaks — otherwise the guarantee could
+pass by proving nothing.
+→ [`test_frontera_datos.py`](tests/governance/test_frontera_datos.py) ·
 [ADR-0004](docs/adr/0004-gateway-provider-agnostic.md)
 
 ## Project status
@@ -225,6 +226,9 @@ exercised end to end is a claim.
 | Deterministic remaining-life calculation | ✅ | API 570 §7, long- and short-term rates, the higher one governs |
 | Hybrid RAG with citations | ✅ | vector + BM25; the currency filter applies to **both** branches |
 | Groundedness verifier | ✅ | three verdicts; an invented citation is rejected without calling the model |
+| Governance middleware | ✅ | reversible PII tokenisation, gates from the ontology, per-turn call ceiling |
+| Immutable audit log | ✅ | append-only; keeps `thread_id` and `checkpoint_id` to rebuild the reasoning |
+| Separation of duties on approvals | ✅ | the proposer cannot approve their own action |
 | Zero-training policy enforced at the gateway | ✅ | a provider the catalogue does not vouch for is rejected at startup |
 | Single data-exit path, structurally enforced | ✅ | the AST of every module is walked; a second exit path fails the build |
 | Per-call cost accounting | ✅ | priced by the model that actually ran, not the profile requested |
@@ -312,13 +316,14 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> The suite has 376 tests. **305 need nothing installed — no API key, no
+> The suite has 473 tests. **396 need nothing installed — no API key, no
 > network:** 45 assert properties of the generated data and the standards
-> corpus, 93 cover the LLM gateway, the model registry, the fake model and cost
-> accounting, 59 cover the deterministic calculation and the compiled tool
-> catalogue, 56 cover ingestion, citation validation and the groundedness
+> corpus, 93 cover the LLM gateway, the registry, the fake model and cost
+> accounting, 91 cover governance — PII, RBAC, policy, middleware and the
+> end-to-end data boundary — 59 cover the deterministic calculation and the
+> compiled tool catalogue, 56 cover ingestion, citations and the groundedness
 > verifier, 35 cover the ontology and the CLI, and 17 check that the work plan is
-> followable. Of the rest, 66 run against the Firestore emulator and 5 call a
+> followable. Of the rest, 72 run against the Firestore emulator and 5 call a
 > real provider — those last ones are marked `live_llm` and are **not** part of
 > `pytest`'s default run in CI.
 
