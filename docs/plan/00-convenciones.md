@@ -333,6 +333,36 @@ silenciar el tipo.
 el alias. Escribir el nombre «obvio» produce código que corre y que `mypy`
 rechaza, o —peor— que `mypy` acepta y el adapter ignora en silencio.
 
+## Hallazgo 9 · `from __future__ import annotations` rompe el estado de LangGraph
+
+Verificado contra Python 3.11 el **2026-08-06**.
+
+Con las anotaciones diferidas, las de un `TypedDict` quedan como **cadenas** y
+`NotRequired` no se resuelve:
+
+```python
+class ConFuturo(TypedDict):  # con `from __future__ import annotations`
+    b: NotRequired[str]
+
+
+ConFuturo.__optional_keys__  # frozenset()  ← vacío
+
+
+class SinFuturo(TypedDict):  # sin él
+    b: NotRequired[str]
+
+
+SinFuturo.__optional_keys__  # frozenset({'b'})
+```
+
+No es cosmético: **LangGraph inspecciona las anotaciones del esquema de estado en
+tiempo de ejecución** —para descubrir el reductor `add_messages`, entre otras
+cosas— y una anotación que es una cadena no le dice nada.
+
+Por eso `packages/synapseflow/agents/state.py` es el único módulo del paquete sin
+`from __future__ import annotations`, y lleva el motivo escrito en su docstring.
+Un `ruff` que lo agregara «por consistencia» rompería el grafo en silencio.
+
 ---
 
 # Errores ya cometidos en este repositorio
