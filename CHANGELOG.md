@@ -264,11 +264,45 @@ catálogo compila para los cinco roles.
   nunca los vio, que sí vio los tokens, y que el usuario los recibe de vuelta.
   Incluye control negativo: con la redacción apagada, el mismo recorrido filtra.
 
+**Grafo de agentes — fase F5 completa. LOS CINCO COMPROMISOS CUMPLIDOS.**
+
+- `agents/state.py`: estado estrecho y serializable, con el mismo `serde` que
+  usa el checkpointer. Es el único módulo del paquete sin
+  `from __future__ import annotations`, porque las anotaciones diferidas dejan
+  `NotRequired` sin resolver y LangGraph inspecciona el esquema en runtime.
+- `agents/especialistas.py`: cada agente ve solo su subconjunto del catálogo del
+  rol. Un especialista **nunca amplía permisos**: si el rol no tiene la
+  herramienta, el grafo falla al construirse.
+- `agents/verificador.py`: el ciclo de vuelta a normativa cuando falta
+  fundamento, con techo de dos vueltas. Es una de las dos razones por las que el
+  proyecto usa un motor de grafos.
+- `agents/supervisor.py`: rutea con el perfil `router` —la llamada más frecuente
+  del sistema— y las invariantes se aplican en Python después de que el modelo
+  eligió. Una salida que no valida no mata el turno.
+- `agents/graph.py`: el ensamblado. `recuperados` y `calculos` salen del
+  `artifact` de las herramientas y no del texto del modelo.
+- **El recorrido completo de P-2101-A frena en el gate**, y el test verifica que
+  el activo siga en `en_servicio` en Firestore: un gate que se dispara después de
+  la escritura no es un gate.
+
 ### Corregido
 
 - El índice de `llm_usage` en `firestore.indexes.json` declaraba el campo `ts` y
   la contabilidad de costo escribe `momento`. Ningún documento tenía `ts`, así
   que el índice era inútil y una consulta por fecha habría fallado en producción.
+- **`FakeChatModel.with_structured_output` reiniciaba la cola en cada llamada.**
+  Tomaba una copia local de `estructurados`, así que un grafo que pide salida
+  estructurada en varios nodos recibía siempre el primer objeto programado. El
+  síntoma era un ruteo que repetía destino, y desde ahí todo se desalineaba sin
+  que nada fallara ruidosamente.
+- El contador que indexa la cola `respuestas` se separó de `llamadas`, que
+  `with_structured_output` también incrementa. Mezclar ruteo estructurado con
+  generación de texto —lo que hace el grafo— desalineaba el índice y cada agente
+  recibía la respuesta del anterior.
+- El verificador ruteaba al nodo `emitir` y el grafo lo llamaba `acciones`.
+  **LangGraph ignora un destino desconocido con un warning y termina el grafo**:
+  el recorrido nunca llegaba al gate y ninguna excepción lo delataba. Ahora el
+  nombre se declara una sola vez y `graph.py` lo importa.
 - `RedaccionDePII` descartaba en silencio el tokenizador que le inyectaban.
   `Tokenizador` define `__len__`, así que uno recién creado es *falsy* y
   `tokenizador or Tokenizador()` lo reemplazaba por otro: la redacción funcionaba

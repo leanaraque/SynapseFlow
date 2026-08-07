@@ -41,12 +41,18 @@ from synapseflow.agents.state import AgentState, puede_reintentar
 from synapseflow.llm.gateway import Gateway
 from synapseflow.rag.fundamento import Resultado, Veredicto, VerificadorDeFundamento
 
-# Destinos posibles del nodo. `normativa` es el ciclo; los otros dos terminan.
-Destino = Literal["normativa", "emitir", "__end__"]
-
-# Nodo al que se vuelve a buscar más contexto.
+# Nombres de los nodos a los que este puede rutear.
+#
+# Viven acá y `graph.py` los importa, en lugar de que cada módulo declare el
+# suyo. Con dos constantes, el verificador ruteaba a «emitir» y el nodo del
+# grafo se llamaba «acciones»: **LangGraph ignora un destino desconocido con un
+# warning y termina el grafo**. El síntoma era un recorrido que nunca llegaba al
+# gate, sin ninguna excepción que lo delatara.
 NODO_NORMATIVA = "normativa"
-NODO_EMITIR = "emitir"
+NODO_EMITIR = "acciones"
+
+# Destinos posibles del nodo. `normativa` es el ciclo; el otro sigue al final.
+Destino = Literal["normativa", "acciones"]
 
 
 async def nodo_verificador(

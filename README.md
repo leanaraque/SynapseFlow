@@ -167,7 +167,14 @@ domain means changing the YAML.
 Every action declares `reversible` and `requires_approval`. The tool compiler
 reads those fields and emits the approval gate configuration. A developer cannot
 forget to add the gate: if the action is irreversible, the gate exists.
-→ [ADR-0005](docs/adr/0005-hitl-con-interrupt-de-langgraph.md)
+
+Enforced on the **running graph**, not just on the compiled catalogue: a
+structural test walks every role and asserts no irreversible action is reachable
+without its gate, and the end-to-end test drives the P-2101-A case until the
+agent proposes a shutdown — then checks the asset is *still* `en_servicio` in
+Firestore. A gate that fires after the write is not a gate.
+→ [ADR-0005](docs/adr/0005-hitl-con-interrupt-de-langgraph.md) ·
+[`test_recorrido_completo.py`](tests/agents/test_recorrido_completo.py)
 
 **3. The model does not compute numbers.** ✅ implemented
 Corrosion rate and remaining life are computed in deterministic Python and handed
@@ -229,6 +236,8 @@ pass by proving nothing.
 | Governance middleware | ✅ | reversible PII tokenisation, gates from the ontology, per-turn call ceiling |
 | Immutable audit log | ✅ | append-only; keeps `thread_id` and `checkpoint_id` to rebuild the reasoning |
 | Separation of duties on approvals | ✅ | the proposer cannot approve their own action |
+| Agent graph: supervisor, specialists, verifier | ✅ | the full P-2101-A journey stops at the gate and the asset stays in service |
+| Approval gates applied on the running graph | ✅ | structural test over every role: no irreversible action is reachable without its gate |
 | Zero-training policy enforced at the gateway | ✅ | a provider the catalogue does not vouch for is rejected at startup |
 | Single data-exit path, structurally enforced | ✅ | the AST of every module is walked; a second exit path fails the build |
 | Per-call cost accounting | ✅ | priced by the model that actually ran, not the profile requested |
@@ -316,15 +325,15 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> The suite has 473 tests. **396 need nothing installed — no API key, no
-> network:** 45 assert properties of the generated data and the standards
-> corpus, 93 cover the LLM gateway, the registry, the fake model and cost
-> accounting, 91 cover governance — PII, RBAC, policy, middleware and the
-> end-to-end data boundary — 59 cover the deterministic calculation and the
-> compiled tool catalogue, 56 cover ingestion, citations and the groundedness
-> verifier, 35 cover the ontology and the CLI, and 17 check that the work plan is
-> followable. Of the rest, 72 run against the Firestore emulator and 5 call a
-> real provider — those last ones are marked `live_llm` and are **not** part of
+> The suite has 576 tests. **491 need nothing installed — no API key, no
+> network:** 95 cover the agent graph — routing, the verifier cycle, the
+> structural gate property — 93 the LLM gateway, registry, fake model and cost
+> accounting, 91 governance, 59 the deterministic calculation and the compiled
+> tool catalogue, 56 ingestion, citations and the groundedness verifier, 45
+> properties of the generated data and the standards corpus, 35 the ontology and
+> the CLI, and 17 that the work plan is followable. Of the rest, 80 run against
+> the Firestore emulator — including the full P-2101-A journey — and 5 call a
+> real provider; those last ones are marked `live_llm` and are **not** part of
 > `pytest`'s default run in CI.
 
 Four of the ontology tests run a **real agent** — `create_agent` with

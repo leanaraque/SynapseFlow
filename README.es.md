@@ -163,7 +163,15 @@ Cada acción declara `reversible` y `requires_approval`. El compilador de
 herramientas lee esos campos y produce la configuración del gate de aprobación.
 Un desarrollador no puede olvidarse de poner el gate: si la acción es
 irreversible, el gate existe.
-→ [ADR-0005](docs/adr/0005-hitl-con-interrupt-de-langgraph.md)
+
+Verificado sobre el **grafo en ejecución**, no solo sobre el catálogo compilado:
+un test estructural recorre todos los roles y comprueba que ninguna acción
+irreversible sea alcanzable sin su gate, y el test de punta a punta lleva el caso
+P-2101-A hasta que el agente propone la parada — y después verifica que el activo
+**siga** en `en_servicio` en Firestore. Un gate que se dispara después de la
+escritura no es un gate.
+→ [ADR-0005](docs/adr/0005-hitl-con-interrupt-de-langgraph.md) ·
+[`test_recorrido_completo.py`](tests/agents/test_recorrido_completo.py)
 
 **3. El modelo no calcula números.** ✅ implementado
 Velocidad de corrosión y vida remanente se computan en Python determinístico y
@@ -225,6 +233,8 @@ si no, la garantía podría estar pasando sin probar nada.
 | Middleware de gobernanza | ✅ | tokenización reversible de PII, gates desde la ontología, techo de llamadas |
 | Log de auditoría inmutable | ✅ | append-only; guarda `thread_id` y `checkpoint_id` para reconstruir el razonamiento |
 | Separación de funciones en la aprobación | ✅ | el proponente no puede aprobar su propia acción |
+| Grafo de agentes: supervisor, especialistas, verificador | ✅ | el recorrido completo de P-2101-A frena en el gate y el activo sigue en servicio |
+| Gates aplicados sobre el grafo en ejecución | ✅ | test estructural sobre todos los roles: ninguna acción irreversible es alcanzable sin gate |
 | Política de zero-training aplicada en el gateway | ✅ | un proveedor que el catálogo no respalda se rechaza al arrancar |
 | Un solo camino de salida, garantizado por estructura | ✅ | se recorre el AST de cada módulo; un segundo camino rompe el build |
 | Contabilidad de costo por llamada | ✅ | se tarifa por el modelo que corrió de verdad, no por el perfil pedido |
@@ -312,16 +322,16 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> La suite tiene 473 tests. **396 no necesitan nada instalado —ni API key, ni
-> red—:** 45 verifican propiedades de los datos generados y del corpus de
-> normativa, 93 cubren el gateway de LLM, el registry, el modelo falso y la
-> contabilidad de costo, 91 la gobernanza —PII, RBAC, política, middleware y la
-> frontera de datos de punta a punta—, 59 el cálculo determinístico y el catálogo
-> de herramientas compilado, 56 la ingesta, las citas y el verificador de
-> fundamento, 35 la ontología y la CLI, y 17 que el plan de trabajo sea seguible.
-> De los demás, 72 corren contra el emulador de Firestore y 5 llaman a un
-> proveedor real — estos últimos llevan `live_llm` y **no** entran en la corrida
-> por defecto del CI.
+> La suite tiene 576 tests. **491 no necesitan nada instalado —ni API key, ni
+> red—:** 95 cubren el grafo de agentes —ruteo, ciclo del verificador, propiedad
+> estructural de los gates—, 93 el gateway de LLM, el registry, el modelo falso y
+> la contabilidad de costo, 91 la gobernanza, 59 el cálculo determinístico y el
+> catálogo de herramientas compilado, 56 la ingesta, las citas y el verificador
+> de fundamento, 45 propiedades de los datos generados y del corpus, 35 la
+> ontología y la CLI, y 17 que el plan de trabajo sea seguible. De los demás, 80
+> corren contra el emulador de Firestore —incluido el recorrido completo de
+> P-2101-A— y 5 llaman a un proveedor real; estos últimos llevan `live_llm` y
+> **no** entran en la corrida por defecto del CI.
 
 Cuatro de los tests de ontología corren un **agente real** —`create_agent` con
 `HumanInTheLoopMiddleware`— contra los gates derivados del YAML, gobernado por

@@ -104,7 +104,15 @@ class FakeChatModel(BaseChatModel):
     ciclico: bool = False
 
     # ── Estado observable por los tests ──────────────────────────────────────
+    # Total de llamadas al modelo, de cualquier clase. Es lo que verifica el
+    # límite de `ModelCallLimitMiddleware`.
     llamadas: int = 0
+    # Llamadas que consumieron la cola `respuestas`. Se cuenta aparte de
+    # `llamadas` porque `with_structured_output` también incrementa aquella: con
+    # un solo contador, un grafo que mezcla ruteo estructurado y generación de
+    # texto —que es exactamente lo que hace el supervisor con los especialistas—
+    # desalinea el índice de la cola y cada agente recibe la respuesta de otro.
+    generaciones: int = 0
     # Los mensajes que recibió en cada llamada. Permite afirmar sobre lo que el
     # grafo le mandó al modelo, que es donde se detecta si un dato sensible
     # llegó a cruzar la frontera.
@@ -138,6 +146,7 @@ class FakeChatModel(BaseChatModel):
         **kwargs: Any,
     ) -> ChatResult:
         self.llamadas += 1
+        self.generaciones += 1
         self.recibidos.append(list(messages))
         respuesta = self._elegir(messages)
         return ChatResult(
@@ -161,14 +170,14 @@ class FakeChatModel(BaseChatModel):
 
     def _elegir(self, messages: Sequence[BaseMessage]) -> Respuesta:
         if self.respuestas:
-            indice = self.llamadas - 1
+            indice = self.generaciones - 1
             if indice < len(self.respuestas):
                 return self.respuestas[indice]
             if self.ciclico:
                 return self.respuestas[-1]
             raise FakeChatModelError(
-                f"el modelo falso recibió {self.llamadas} llamadas y solo tiene "
-                f"{len(self.respuestas)} respuestas programadas.\n"
+                f"el modelo falso recibió {self.generaciones} llamadas de generación "
+                f"y solo tiene {len(self.respuestas)} respuestas programadas.\n"
                 "  Si el agente debía converger antes, esto es el bug que el test "
                 "buscaba.\n"
                 "  Si el bucle es deliberado —por ejemplo para verificar un límite "
@@ -265,16 +274,23 @@ class FakeChatModel(BaseChatModel):
         herramienta y parsea la invocación— porque para un modelo falso ese
         rodeo solo agrega formas de fallar. Acá el test declara directamente qué
         objeto quiere recibir.
+
+        **La cola se consume de `self.estructurados`, no de una copia local.**
+        Tomar una copia parecía más limpio y hacía que cada llamada a
+        `with_structured_output` reiniciara la secuencia: un grafo que pide
+        salida estructurada en varios nodos —el supervisor en cada turno, el
+        verificador al final— recibía siempre el primer objeto programado. El
+        síntoma era un ruteo que repetía el mismo destino, y desde ahí todo lo
+        demás se desalineaba sin que nada fallara ruidosamente.
         """
-        cola = list(self.estructurados)
 
         def responder(_: Any) -> Any:
             self.llamadas += 1
-            if not cola:
+            if not self.estructurados:
                 raise FakeChatModelError(
                     "with_structured_output se invocó más veces que objetos hay en `estructurados`."
                 )
-            valor = cola.pop(0)
+            valor = self.estructurados.pop(0)
             if isinstance(schema, type) and issubclass(schema, BaseModel):
                 return valor if isinstance(valor, schema) else schema.model_validate(valor)
             return valor
@@ -284,8 +300,9 @@ class FakeChatModel(BaseChatModel):
     # ── Utilidades de test ───────────────────────────────────────────────────
 
     def reiniciar(self) -> None:
-        """Vuelve el contador y el historial a cero, sin tocar lo programado."""
+        """Vuelve los contadores y el historial a cero, sin tocar lo programado."""
         self.llamadas = 0
+        self.generaciones = 0
         self.recibidos = []
 
     @property

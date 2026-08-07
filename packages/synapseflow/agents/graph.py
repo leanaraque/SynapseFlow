@@ -54,14 +54,19 @@ from synapseflow.agents.especialistas import (
 )
 from synapseflow.agents.state import AgentState
 from synapseflow.agents.supervisor import NODO_VERIFICADOR, destinos_posibles, nodo_supervisor
-from synapseflow.agents.verificador import nodo_verificador
+from synapseflow.agents.verificador import NODO_EMITIR, nodo_verificador
 from synapseflow.governance.pii import Tokenizador
 from synapseflow.governance.rbac import ExecutionContext
 from synapseflow.llm.gateway import Gateway
 from synapseflow.ontology import Ontology, interrupt_config
 
 # Nodo final: redacta y propone. Es donde se dispara el gate.
-NODO_ACCIONES = "acciones"
+#
+# El nombre se importa de `verificador`, que es quien rutea hacia acá. Con dos
+# constantes independientes bastaba un typo para que el verificador ruteara a un
+# nodo inexistente: LangGraph lo ignora con un warning y termina el grafo, así
+# que el recorrido no llegaba nunca al gate y nada fallaba ruidosamente.
+NODO_ACCIONES = NODO_EMITIR
 NODO_SUPERVISOR = "supervisor"
 
 CONSTRUCTORES = {

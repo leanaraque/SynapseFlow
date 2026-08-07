@@ -29,7 +29,7 @@ se actualiza al cerrar cada fase.
 | # | Compromiso | Estado | Qué falta |
 |---|---|---|---|
 | 1 | La ontología es declarativa, no código | ✅ **Cumplido** | — |
-| 2 | La reversibilidad es un atributo del dominio | ◐ **Parcial** | El compilador emite la configuración del gate; falta el grafo que la aplique en ejecución real |
+| 2 | La reversibilidad es un atributo del dominio | ✅ **Cumplido** | El grafo aplica los gates derivados del YAML. Un test estructural recorre todos los roles, y el recorrido completo de P-2101-A frena en el gate con el activo todavía en servicio |
 | 3 | El modelo no calcula números | ✅ **Cumplido** | `domain/calculos.py` implementa el método de API 570 §7 en Python determinístico. Gobierna la mayor entre la velocidad de largo y la de corto plazo |
 | 4 | Sin cita no hay respuesta | ✅ **Cumplido** | Recuperación híbrida con filtro de vigencia en ambas ramas, validación de citas contra lo recuperado, y verificador de fundamento con tres veredictos |
 | 5 | Los datos sensibles no salen del perímetro | ✅ **Cumplido** | Un solo camino de salida garantizado por AST, tokenización reversible en `wrap_model_call`, y un test sobre un agente que corre —con control negativo— que verifica que el legajo no cruza y que el usuario lo recibe de vuelta |
@@ -51,12 +51,17 @@ packages/synapseflow/
   domain/              ✅  contexto · repository · lecturas · calculos · escrituras
   rag/                 ✅  ingesta · retrievers · citas · fundamento
   governance/          ✅  rbac · pii · auditoria · politica · middleware
+  agents/              ✅  state · especialistas · verificador · supervisor · graph
 scripts/               ✅  estado.py · generar_datos.py · seed.py
 data/corpus/           ✅  seis documentos de normativa, uno derogado
-tests/                 ✅  473 tests; 396 sin dependencia externa
+tests/                 ✅  576 tests; 491 sin dependencia externa
 ```
 
-No existen todavía: `agents/`, `services/api/`, `apps/web/`, `evals/`.
+No existen todavía: `services/api/`, `apps/web/`, `evals/`.
+
+> **Los cinco compromisos están cumplidos.** El sistema hace el recorrido
+> completo y frena esperando a un humano. Lo que falta —evals, API y consola— lo
+> hace medible y usable por otros; lo que lo hace *verdadero* ya está.
 
 > Esta sección afirmaba hasta el 2026-08-06 que `llm/` tenía «solo models.yaml,
 > sin código», que la suite tenía 70 tests y que la capa de ontología no tenía

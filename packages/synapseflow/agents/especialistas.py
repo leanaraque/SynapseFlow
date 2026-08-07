@@ -49,10 +49,14 @@ if TYPE_CHECKING:  # pragma: no cover - solo para el tipado
 # Qué herramientas ve cada especialista. Los ids son los de la ontología: si
 # alguno se renombrara en el YAML, `_herramientas_de` falla al no encontrarlo, en
 # lugar de armar un agente sin herramientas que fallaría en la primera consulta.
+# El orden importa: es el que usa el supervisor cuando tiene que caer a un
+# destino por defecto, y coincide con el del caso de referencia. Caer en
+# `normativa` antes que en `datos` produciría una búsqueda de fundamento sobre
+# una pregunta cuyos datos todavía no se leyeron.
 HERRAMIENTAS_POR_ESPECIALISTA: dict[str, tuple[str, ...]] = {
-    "normativa": ("buscar_normativa",),
     "datos": ("consultar_activo", "listar_activos", "historial_inspecciones"),
     "calculo": ("calcular_vida_remanente",),
+    "normativa": ("buscar_normativa",),
 }
 
 # El cuarto agente, que el plan de F5.2 no listaba.
