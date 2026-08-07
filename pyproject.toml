@@ -70,6 +70,19 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 pythonpath = ["packages", "."]
 
+# Import por `importlib` en lugar del `prepend` histórico.
+#
+# Con `prepend`, dos archivos de test con el mismo nombre base en directorios
+# distintos colisionan: pytest importa el primero y falla al collectar el
+# segundo con «import file mismatch». Pasó con `tests/ontology/test_rbac.py` y
+# `tests/governance/test_rbac.py`, que verifican cosas distintas y se llaman
+# igual con razón — la ontología deriva los permisos, gobernanza los aplica.
+#
+# La alternativa era sembrar `__init__.py` en cada carpeta de tests, o renombrar
+# archivos para esquivar la colisión. Lo primero es ruido; lo segundo deja que
+# una limitación del arnés decida cómo se llaman los tests.
+addopts = "--import-mode=importlib"
+
 # Un solo event loop para toda la sesión.
 #
 # El cliente de Firestore mantiene canales gRPC atados al loop donde se creó, y

@@ -37,8 +37,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from synapseflow.domain.contexto import ExecutionContext
 from synapseflow.domain.repository import RepositorioDominio
+from synapseflow.governance.rbac import ExecutionContext
 from synapseflow.ontology import ToolResult, implements
 
 # Días por año. Es la misma constante que usa `scripts/generar_datos.py` para

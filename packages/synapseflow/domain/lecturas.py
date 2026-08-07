@@ -27,8 +27,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from synapseflow.domain.contexto import ExecutionContext
 from synapseflow.domain.repository import RepositorioDominio
+from synapseflow.governance.rbac import ExecutionContext
 from synapseflow.llm.gateway import Gateway
 from synapseflow.ontology import ToolResult, implements
 from synapseflow.persistence.vectorstore import FirestoreVectorStore

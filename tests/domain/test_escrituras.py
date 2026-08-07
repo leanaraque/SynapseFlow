@@ -23,8 +23,8 @@ import pytest
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 from synapseflow.domain import escrituras
-from synapseflow.domain.contexto import ContextoRequeridoError, ExecutionContext
 from synapseflow.domain.repository import RepositorioDominio
+from synapseflow.governance.rbac import ContextoRequeridoError, ExecutionContext
 from synapseflow.ontology import get_ontology
 from synapseflow.persistence.client import Collections, get_client
 

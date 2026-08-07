@@ -33,12 +33,12 @@ from __future__ import annotations
 
 import datetime as dt
 
-from synapseflow.domain.contexto import (
+from synapseflow.domain.repository import RepositorioDominio
+from synapseflow.governance.rbac import (
     ExecutionContext,
     exigir_contexto,
     exigir_rol_autorizado,
 )
-from synapseflow.domain.repository import RepositorioDominio
 from synapseflow.ontology import ToolResult, implements
 
 # Roles autorizados por acción. Se repiten acá desde el YAML a propósito: el

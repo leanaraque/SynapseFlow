@@ -20,18 +20,6 @@ Ver docs/plan/fases/F2-dominio.md
 """
 
 from synapseflow.domain import calculos, escrituras, lecturas  # noqa: F401
-from synapseflow.domain.contexto import (
-    ContextoRequeridoError,
-    ExecutionContext,
-    exigir_contexto,
-    exigir_rol_autorizado,
-)
 from synapseflow.domain.repository import RepositorioDominio
 
-__all__ = [
-    "ContextoRequeridoError",
-    "ExecutionContext",
-    "RepositorioDominio",
-    "exigir_contexto",
-    "exigir_rol_autorizado",
-]
+__all__ = ["RepositorioDominio"]
