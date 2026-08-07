@@ -34,12 +34,12 @@ Ver docs/plan/fases/F1-gateway.md § F1.3
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from langchain_core.language_models import LanguageModelInput
 from langchain_core.messages import BaseMessage
 from langchain_core.runnables import Runnable
-from pydantic import SecretStr
+from pydantic import BaseModel, SecretStr
 
 from synapseflow.config import Provider, Settings, get_settings
 from synapseflow.llm import registry
@@ -172,6 +172,23 @@ class Gateway:
         if perfil not in self._cache:
             self._cache[perfil] = self._construir_chat(perfil)
         return self._cache[perfil]
+
+    def estructurado(self, perfil: PerfilDeChat, schema: type[BaseModel]) -> Runnable[Any, Any]:
+        """Modelo que devuelve una instancia de `schema` en lugar de texto.
+
+        Existe para que el cast viva acá y no en cada call site. `chat()` declara
+        `Runnable`, que es la verdad —con respaldo configurado devuelve un
+        `RunnableWithFallbacks`, no un `BaseChatModel`— y `Runnable` no expone
+        `with_structured_output` en el tipo. Los dos objetos concretos sí lo
+        tienen; verificado contra el entorno para el envoltorio de
+        `with_fallbacks()`.
+
+        Poner el `type: ignore` en cada verificador o extractor esparciría la
+        misma afirmación no comprobable por todo el código. Acá está en un solo
+        lugar, con el motivo escrito al lado.
+        """
+        modelo: Any = self.chat(perfil)
+        return cast(Runnable[Any, Any], modelo.with_structured_output(schema))
 
     def embeddings(self) -> Embeddings:
         """Modelo de embeddings, con la dimensión que exige el índice vectorial.

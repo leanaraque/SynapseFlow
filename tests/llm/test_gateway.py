@@ -22,6 +22,7 @@ from typing import Any
 import pytest
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
+from pydantic import BaseModel
 
 from synapseflow.config import CredencialesFaltantesError, Provider, Settings
 from synapseflow.llm import registry
@@ -148,6 +149,26 @@ def test_el_proveedor_falso_no_necesita_credenciales() -> None:
     """No sale del proceso: exigirle una clave sería pedir algo que no usa."""
     gateway = Gateway(settings=settings_de(SYNAPSEFLOW_PROVIDER=Provider.FAKE, GOOGLE_API_KEY=None))
     assert isinstance(gateway.chat("router"), FakeChatModel)
+
+
+async def test_el_gateway_entrega_un_modelo_de_salida_estructurada() -> None:
+    """`chat()` declara `Runnable`, que no expone `with_structured_output`.
+
+    El cast vive en el gateway, que es donde está el conocimiento de qué objeto
+    concreto se devolvió. Repartirlo por cada verificador o extractor esparciría
+    la misma afirmación no comprobable por todo el código.
+    """
+
+    class Dictamen(BaseModel):
+        veredicto: str
+
+    programado = FakeChatModel(estructurados=[Dictamen(veredicto="fundamentada")])
+    gateway = Gateway(settings=settings_de(SYNAPSEFLOW_PROVIDER=Provider.FAKE), falso=programado)
+
+    resultado = await gateway.estructurado("verifier", Dictamen).ainvoke("lo que sea")
+
+    assert isinstance(resultado, Dictamen)
+    assert resultado.veredicto == "fundamentada"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
