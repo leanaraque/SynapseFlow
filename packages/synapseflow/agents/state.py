@@ -90,6 +90,15 @@ class AgentState(TypedDict):
     # podría no terminar nunca.
     reintentos: NotRequired[int]
 
+    # Especialistas que el supervisor ya consultó en este turno, en orden.
+    #
+    # Podría inferirse recorriendo los mensajes y mirando de qué agente vino cada
+    # uno, y sería frágil: depende de que cada especialista etiquete su salida y
+    # de que el historial no se resuma. Un campo explícito es más barato de leer
+    # y sobrevive a la compactación de contexto que va a llegar con las
+    # conversaciones largas.
+    especialistas_consultados: NotRequired[list[str]]
+
 
 def estado_inicial(pregunta: str) -> AgentState:
     """Estado con el que arranca una conversación.
@@ -104,6 +113,7 @@ def estado_inicial(pregunta: str) -> AgentState:
         "calculos": {},
         "veredicto": None,
         "reintentos": 0,
+        "especialistas_consultados": [],
     }
 
 
