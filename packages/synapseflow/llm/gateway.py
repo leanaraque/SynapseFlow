@@ -42,6 +42,7 @@ from langchain_core.runnables import Runnable
 from pydantic import BaseModel, SecretStr
 
 from synapseflow.config import Provider, Settings, get_settings
+from synapseflow.governance.politica import PoliticaVioladaError, exigir_zero_training
 from synapseflow.llm import registry
 from synapseflow.llm.fake import FakeChatModel, FakeEmbeddings
 
@@ -100,13 +101,13 @@ class ProveedorNoInstaladoError(GatewayError):
     """El adapter del proveedor activo no está instalado en el entorno."""
 
 
-class PoliticaVioladaError(GatewayError):
-    """El proveedor activo no cumple una política que está exigida.
-
-    Tipo propio porque no es un error de configuración que el usuario pueda
-    corregir con una variable de entorno: es una decisión de gobernanza. Quien
-    la reciba tiene que poder distinguirla y reportarla como tal.
-    """
+# `PoliticaVioladaError` se define en `governance.politica` y se reexporta acá.
+#
+# Tener una copia por capa parece prolijo y no lo es: un call site que capture la
+# del gateway no atraparía la que levanta la política, y el error se escaparía
+# por un `except` que parecía cubrirlo. La excepción es una sola porque la
+# decisión de gobernanza es una sola, la aplique quien la aplique.
+__all__ = ["PoliticaVioladaError"]
 
 
 class Gateway:
@@ -387,10 +388,11 @@ class Gateway:
         se aplica es peor que no tenerla: alguien la ve en `true` y concluye que
         la garantía está.
 
-        Lo que se verifica es lo que **declara el catálogo**, no el proveedor: no
-        hay forma programática de comprobarlo. Para un cliente regulado el
-        respaldo es el contrato, y el catálogo es dónde queda anotado quién lo
-        firmó. Ver models.yaml § zero_training_note.
+        **La regla vive en `governance.politica`, no acá.** El gateway aporta el
+        hecho —qué declara el catálogo— y la política decide. La inversión evita
+        un import circular (`llm` → `governance` → `llm`) y, sobre todo, deja la
+        política de datos en un módulo auditable en lugar de repartida por las
+        capas que la aplican.
         """
         if not self.settings.enforce_zero_training:
             return
@@ -401,15 +403,7 @@ class Gateway:
                 f"no se puede verificar la política de entrenamiento de '{proveedor.value}': {exc}"
             ) from exc
 
-        if not declara:
-            raise PoliticaVioladaError(
-                f"SYNAPSEFLOW_ENFORCE_ZERO_TRAINING está activo y el catálogo no "
-                f"declara zero_training para '{proveedor.value}'.\n"
-                "  Mandar datos del cliente a un proveedor que entrena con ellos "
-                "es justamente lo que la política impide.\n"
-                "  Opciones: cambiar SYNAPSEFLOW_PROVIDER, o desactivar la "
-                "política de forma explícita si el contrato lo respalda."
-            )
+        exigir_zero_training(proveedor.value, declarado=declara, exigido=True)
 
 
 def _secreto(valor: str | None) -> SecretStr | None:
