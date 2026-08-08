@@ -421,6 +421,33 @@ vector, `find_nearest` con filtro de vigencia y recuperación correcta.
 - 22 tests sobre la imagen, en la línea del CI de evals: un `Dockerfile` que se
   degrada no falla el build, solo tarda más, pesa más o expone más.
 
+**Consola — fase F7, en curso**
+
+- `apps/web/`: scaffold de React 19 + Vite 8 + TypeScript, con el build saliendo
+  a `dist/` — que es lo que `firebase.json` ya declara como `public`.
+- **El SDK de Firebase se usa solo para Auth.** No se importa
+  `firebase/firestore` en ningún lado, y no es una omisión: las reglas cierran el
+  acceso directo del cliente a todas las colecciones a propósito, y el RBAC lo
+  aplica la API. Hay un test que lo detiene antes, con el motivo escrito, en
+  lugar de dejar que se descubra como un error opaco de permisos en el navegador.
+- **Un solo módulo importa el SDK y un solo módulo llama a `fetch`.** Es el mismo
+  argumento que el gateway hace sobre los proveedores de LLM: una garantía que se
+  sostiene por estructura no se puede olvidar. Un `fetch` suelto que se olvide del
+  `Authorization` no falla en desarrollo —el proxy puede ser permisivo— y falla
+  con 401 en producción.
+- El rol se le pide a la API y no se deduce del token. La ontología es la que
+  dice qué habilita cada rol; un cliente que decide por su cuenta termina
+  ofreciendo acciones que el backend rechaza.
+- Un usuario sin rol no ve una consola vacía: ve la explicación de que es un
+  problema de aprovisionamiento de identidad y a quién pedírselo.
+- Las rutas de la API son relativas: en desarrollo las reenvía el proxy de Vite y
+  en producción el rewrite de Hosting. Una URL cableada funciona en una máquina y
+  falla en las otras dos.
+- El `build` corre `tsc` antes que `vite build`. Vite transpila sin chequear
+  tipos, así que sin eso `strict` es decoración.
+- 19 tests sobre la frontera del cliente y el scaffold. Corren en Python, dentro
+  del CI que ya existe, sin instalar node.
+
 ### Pendiente
 
 - **La imagen todavía no se construyó.** `docker build` necesita Docker local o

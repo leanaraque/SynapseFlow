@@ -1,0 +1,37 @@
+{
+  "//": [
+    "Consola de SynapseFlow. React + Vite + TypeScript.",
+    "",
+    "El build sale a dist/, que es lo que firebase.json ya declara como `public`.",
+    "Cambiar esa ruta acá deja el hosting sirviendo una carpeta vacía.",
+    "",
+    "El SDK de Firebase se usa SOLO para Auth: obtener el token que va a la API.",
+    "NO para leer Firestore. Las reglas cierran el acceso directo del cliente a",
+    "todas las colecciones a propósito, y el RBAC lo aplica la API. Hay un test",
+    "en tests/web/ que falla si alguien importa firebase/firestore desde acá.",
+    "",
+    "Versiones verificadas contra el registro de npm el 2026-08-08."
+  ],
+  "name": "synapseflow-console",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "firebase": "12.17.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "@vitejs/plugin-react": "6.0.5",
+    "typescript": "7.0.2",
+    "vite": "8.2.1"
+  }
+}

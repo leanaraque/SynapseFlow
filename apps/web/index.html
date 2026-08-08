@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      El idioma es `es` porque el dominio es normativa técnica en español: los
+      nombres de las acciones, el texto de las aprobaciones y las citas salen
+      todos del YAML del dominio. Declarar `en` haría que un lector de pantalla
+      pronuncie mal cada término técnico.
+    -->
+    <title>SynapseFlow · Consola</title>
+    <meta
+      name="description"
+      content="Consola de SynapseFlow: consultas con citas verificables y aprobación de acciones irreversibles."
+    />
+
+    <!--
+      Sin indexar. La consola es una herramienta interna que muestra datos de
+      activos y propuestas de acciones sobre equipos en servicio.
+    -->
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="color-scheme" content="light dark" />
+  </head>
+  <body>
+    <div id="raiz"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
