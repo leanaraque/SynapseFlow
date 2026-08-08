@@ -674,6 +674,63 @@ def _por_id(commit_id: str) -> Commit | None:
     return next((c for c in COMMITS if c.id == commit_id), None)
 
 
+# Lo que el plan no dejó hecho, y que ninguna señal del repositorio puede
+# detectar porque no ocurre acá adentro.
+#
+# Va en el detector y no solo en el README porque este comando es lo primero que
+# corre quien retoma el proyecto: «todas las fases completas» a secas le haría
+# creer que el sistema está desplegado, y no lo está. Un estado que oculta lo que
+# falta es peor que no tener estado.
+PENDIENTE_AFUERA: tuple[tuple[str, str], ...] = (
+    (
+        "La imagen del contenedor nunca se construyó",
+        "docker build -f services/api/Dockerfile . — hace falta Docker o Cloud Build",
+    ),
+    (
+        "Nada está desplegado",
+        "el procedimiento está en docs/05-despliegue.md; Blaze ya está habilitado",
+    ),
+    (
+        "El explorador de la ontología quedó en la pantalla «Mi rol»",
+        "muestra el catálogo compilado; navegar entidades y relaciones no se hizo",
+    ),
+    (
+        "El panel de costos no se construyó",
+        "`llm_usage` se escribe desde F1 y no tiene ningún consumidor",
+    ),
+)
+
+
+def _informar_cierre(hechos: int) -> None:
+    """El cierre del plan, con lo que quedó afuera."""
+    print()
+    print(f"  Plan completo   {hechos} de {len(COMMITS)} commits")
+    print()
+
+    print(SEP)
+    print("  COMPROMISOS DE DISEÑO")
+    print(SEP)
+    for numero, texto, commit_id in COMPROMISOS:
+        c = _por_id(commit_id) if commit_id else None
+        marca = MARCA_HECHO if commit_id is None or (c and c.hecho()) else MARCA_PENDIENTE
+        print(f"  {marca} {numero}. {texto}")
+    print()
+
+    print(SEP)
+    print("  LO QUE EL PLAN NO CONSTRUYÓ")
+    print(SEP)
+    print("  Un plan terminado no es un producto terminado.")
+    print()
+    for titulo, detalle in PENDIENTE_AFUERA:
+        print(f"  {BULLET} {titulo}")
+        print(f"      {detalle}")
+    print()
+
+    print(SEP)
+    print("  El detalle está en el CHANGELOG y en docs/06-mapa-de-accion.md")
+    print()
+
+
 def main(argv: list[str] | None = None) -> int:
     args = argv if argv is not None else sys.argv[1:]
     detallado = "--detallado" in args or "-d" in args
@@ -686,9 +743,7 @@ def main(argv: list[str] | None = None) -> int:
     print(SEP)
 
     if not pendientes:
-        print()
-        print("  Todas las fases completas. El plan terminó.")
-        print()
+        _informar_cierre(len(hechos))
         return 0
 
     siguiente = pendientes[0]
