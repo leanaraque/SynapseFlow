@@ -22,10 +22,11 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { ErrorDeApi, identidad, type Identidad } from "./api";
+import { Aprobaciones } from "./Aprobaciones";
 import { Chat } from "./Chat";
 import { alCambiarLaSesion, cerrarSesion, iniciarSesion, type Usuario } from "./firebase";
 
-type Pantalla = "consulta" | "catalogo";
+type Pantalla = "consulta" | "aprobaciones" | "catalogo";
 
 export function App() {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
@@ -99,6 +100,13 @@ export function App() {
           </button>
           <button
             type="button"
+            aria-current={pantalla === "aprobaciones" ? "page" : undefined}
+            onClick={() => setPantalla("aprobaciones")}
+          >
+            Aprobaciones
+          </button>
+          <button
+            type="button"
             aria-current={pantalla === "catalogo" ? "page" : undefined}
             onClick={() => setPantalla("catalogo")}
           >
@@ -127,6 +135,8 @@ export function App() {
         </main>
       ) : pantalla === "consulta" ? (
         <Chat />
+      ) : pantalla === "aprobaciones" ? (
+        <Aprobaciones />
       ) : (
         <Catalogo identidad={quien} />
       )}

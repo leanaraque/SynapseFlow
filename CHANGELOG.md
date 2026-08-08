@@ -473,6 +473,37 @@ vector, `find_nearest` con filtro de vigencia y recuperación correcta.
   compilando mientras la consola muestra una respuesta vacía.
 - El CI gana un job `consola`: `npm ci`, `npm test` y `npm run build`. Sin él,
   estos tests solo corren en la máquina de quien los escribió.
+- `apps/web/src/Aprobaciones.tsx`: la bandeja. Cada pendiente muestra los
+  argumentos **exactos**, uno por línea — aprobar «una parada» no es aprobar
+  nada, y un resumen invita a no leerlos.
+- El texto de la propuesta viene de `approval_prompt` en la ontología, ya
+  formateado por la API. Si la consola lo redactara, lo que alguien lee al firmar
+  dejaría de ser lo que el dominio declara.
+- **Los botones salen de `allowed_decisions`**, no están cableados: ofrecer
+  «editar» donde la ontología no lo permite es prometer algo que el endpoint
+  rechaza, y el límite se descubriría después de decidir.
+- **La consola no reimplementa quién puede aprobar.** La bandeja trae solo lo que
+  este usuario puede resolver, filtrado por la API con el mismo código que valida
+  el POST. Dos reglas de autoridad que dicen lo mismo se desincronizan, y la que
+  corre en el navegador no protege de nada.
+- Aprobar **no manda argumentos**, y hay un test que lo verifica sobre el código
+  del cliente. El grafo retoma la llamada de su checkpoint.
+- Se marcan las que llevan más de 24 horas esperando. Es la deuda que el ADR-0005
+  declaró al elegir `interrupt()`, y no es solo estado ocupado en Firestore: es
+  un equipo esperando una decisión.
+- Aprobar muestra **el resto del recorrido**: la respuesta vuelve a ser un flujo
+  SSE y el supervisor ve ejecutarse lo que aprobó, por el mismo canal.
+- 17 tests más sobre la bandeja.
+
+### Corregido en el detector de estado
+
+- **La señal de F7.4 era `apps/web/dist/index.html`, que está en `.gitignore`.**
+  Correr `npm run build` una vez daba el despliegue por hecho sin que nada se
+  hubiera publicado, y un clon limpio lo reportaba pendiente otra vez: el mismo
+  código decía dos cosas distintas en dos máquinas. El detector existe para que
+  el estado no se pueda desincronizar, así que esto no era un detalle. Ahora la
+  señal es el procedimiento de despliegue versionado; publicar de verdad pasa en
+  Firebase y no se puede derivar del repositorio.
 
 ### Pendiente
 

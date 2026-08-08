@@ -247,7 +247,7 @@ pass by proving nothing.
 | SSE streaming | ✅ | tool events before the answer; citations before the approval prompt |
 | Approval endpoints | ✅ | the proposer cannot approve their own action; approving sends no arguments |
 | Cloud Run image and deployment | 🚧 | multi-stage image and ADR-0006 written; `docker build` still pending |
-| Web console | 🚧 | chat with live tool events and inspectable citations; approval inbox next |
+| Web console | 🚧 | chat, inspectable citations and the approval inbox; deployment pending |
 
 ✅ implemented and verified · 🚧 in progress · 📋 planned
 
@@ -326,7 +326,7 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> The suite has 832 tests. **745 need nothing installed — no API key, no
+> The suite has 849 tests. **762 need nothing installed — no API key, no
 > network:** 95 cover the agent graph — routing, the verifier cycle, the
 > structural gate property — 93 the LLM gateway, registry, fake model and cost
 > accounting, 129 the API — identity, the SSE stream, the approval endpoints and
@@ -334,8 +334,8 @@ pytest
 > 91 governance, 84 the eval suite and its regression CI, 59 the deterministic
 > calculation and the compiled tool catalogue, 56 ingestion, citations and the
 > groundedness verifier, 45 properties of the generated data and the standards
-> corpus, 35 the ontology and the CLI, 41 the console's client-side boundary and its event contract with
-> the API, and 17 that the work plan is followable. The console adds 11 of its
+> corpus, 35 the ontology and the CLI, 58 the console — its client-side boundary, its event contract with
+> the API and the approval inbox — and 17 that the work plan is followable. The console adds 11 of its
 > own, in `vitest`, over the only non-trivial client-side logic: the SSE reader.
 > Of the rest, 82 run
 > against the Firestore emulator — including the full P-2101-A journey — and 5
@@ -386,6 +386,7 @@ apps/web/
   src/api.ts             the only place the Authorization header is built
   src/sse.ts             SSE reader over fetch: EventSource takes no headers
   src/Chat.tsx           tool events as they happen, citations with their currency
+  src/Aprobaciones.tsx   exact arguments, buttons from the ontology, ageing shown
 scripts/
   estado.py              current-phase detector, derived from the code
   generar_datos.py       synthetic data, reproducible from a seed

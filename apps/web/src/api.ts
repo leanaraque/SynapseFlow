@@ -116,3 +116,57 @@ export async function consultar(pregunta: string, hilo?: string): Promise<Respon
 export function hiloDe(respuesta: Response): string | null {
   return respuesta.headers.get("X-Thread-Id");
 }
+
+export interface Pendiente {
+  thread_id: string;
+  checkpoint_id: string | null;
+  action_id: string;
+  herramienta: string;
+  argumentos: Record<string, unknown>;
+  descripcion: string;
+  decisiones: string[];
+  propuesta_por: string;
+  rol_proponente: string;
+  aprobadores: string[];
+  estado: string;
+  creado_en: string;
+}
+
+export type Decision = "aprobar" | "rechazar" | "editar";
+
+/**
+ * Los gates que **este** usuario puede resolver.
+ *
+ * El filtro lo aplica la API con el mismo código que decide el POST. La consola
+ * no lo repite: si lo hiciera, habría dos reglas de autoridad y el día que
+ * divergieran mostraría algo que después se rechaza.
+ */
+export function pendientes(): Promise<{ pendientes: Pendiente[] }> {
+  return json<{ pendientes: Pendiente[] }>("/api/aprobaciones");
+}
+
+/**
+ * Resuelve un gate. Devuelve el flujo del resto del recorrido.
+ *
+ * **Aprobar no manda argumentos**, y no es una omisión de este cliente: es la
+ * garantía de que lo ejecutado es lo propuesto. El grafo retoma la llamada que
+ * ya tenía en su checkpoint. `editar` es la excepción explícita, y la API la
+ * audita como tal.
+ */
+export async function decidir(
+  hilo: string,
+  decision: Decision,
+  extra: { argumentos?: Record<string, unknown>; motivo?: string } = {},
+): Promise<Response> {
+  const cuerpo: Record<string, unknown> = { decision };
+  if (decision === "editar" && extra.argumentos) cuerpo.argumentos = extra.argumentos;
+  if (extra.motivo) cuerpo.motivo = extra.motivo;
+
+  const respuesta = await fetch(`/api/aprobaciones/${encodeURIComponent(hilo)}`, {
+    method: "POST",
+    headers: await cabeceras(hilo),
+    body: JSON.stringify(cuerpo),
+  });
+  if (!respuesta.ok) await fallar(respuesta);
+  return respuesta;
+}

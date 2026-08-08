@@ -244,7 +244,7 @@ si no, la garantía podría estar pasando sin probar nada.
 | Streaming por SSE | ✅ | eventos de herramienta antes de la respuesta; citas antes del pedido de aprobación |
 | Endpoints de aprobación | ✅ | el proponente no aprueba lo suyo; aprobar no manda argumentos |
 | Imagen y despliegue en Cloud Run | 🚧 | imagen multietapa y ADR-0006 escritos; falta correr `docker build` |
-| Consola web | 🚧 | chat con eventos de herramienta en vivo y citas inspeccionables; falta la bandeja |
+| Consola web | 🚧 | chat, citas inspeccionables y bandeja de aprobaciones; falta desplegar |
 
 ✅ implementado y verificado · 🚧 en curso · 📋 planificado
 
@@ -323,15 +323,15 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> La suite tiene 832 tests. **745 no necesitan nada instalado —ni API key, ni
+> La suite tiene 849 tests. **762 no necesitan nada instalado —ni API key, ni
 > red—:** 95 cubren el grafo de agentes —ruteo, ciclo del verificador, propiedad
 > estructural de los gates—, 93 el gateway de LLM, el registry, el modelo falso y
 > la contabilidad de costo, 129 la API —identidad, flujo SSE, endpoints de
 > aprobación e imagen de Cloud Run—, 91 la gobernanza, 84 la suite de evals y su CI de regresión, 59 el
 > cálculo determinístico y el catálogo de herramientas compilado, 56 la ingesta,
 > las citas y el verificador de fundamento, 45 propiedades de los datos generados
-> y del corpus, 35 la ontología y la CLI, 41 la frontera del cliente de la consola y su contrato de eventos con
-> la API, y 17 que el plan de trabajo sea seguible. La consola suma 11 propios,
+> y del corpus, 35 la ontología y la CLI, 58 la consola —su frontera de cliente, su contrato de eventos con la
+> API y la bandeja de aprobaciones— y 17 que el plan de trabajo sea seguible. La consola suma 11 propios,
 > en `vitest`, sobre su única lógica no trivial: el lector de SSE. De los demás, 82 corren
 > contra el emulador de Firestore —incluido el recorrido completo de P-2101-A— y 5
 > llaman a un proveedor real; estos últimos llevan `live_llm` y **no** entran en
@@ -380,6 +380,7 @@ apps/web/
   src/api.ts             el único lugar donde se arma la cabecera de identidad
   src/sse.ts             lector de SSE sobre fetch: EventSource no admite cabeceras
   src/Chat.tsx           eventos de herramienta en vivo, citas con su vigencia
+  src/Aprobaciones.tsx   argumentos exactos, botones desde la ontología, antigüedad
 scripts/
   estado.py              detector de la fase actual, derivada del código
   generar_datos.py       datos sintéticos reproducibles por semilla

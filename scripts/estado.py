@@ -634,9 +634,18 @@ COMMITS: list[Commit] = [
         "F7.4",
         "F7",
         "Despliegue a Firebase Hosting",
-        (Senal("apps/web/dist/index.html"),),
-        verificar="firebase deploy --only hosting",
-        notas="El rewrite de /api/** a Cloud Run ya está en firebase.json.",
+        # La señal era `apps/web/dist/index.html`, y estaba mal: `dist/` está en
+        # .gitignore, así que correr `npm run build` una vez daba el commit por
+        # hecho sin que nada se hubiera desplegado — y un clon limpio lo reportaba
+        # pendiente otra vez. Un detector que depende de un artefacto ignorado
+        # dice cosas distintas en dos máquinas con el mismo código.
+        #
+        # El despliegue en sí no se puede derivar del repositorio: pasa en
+        # Firebase. Lo que sí se versiona es el procedimiento, con los headers a
+        # comprobar después de publicar.
+        (Senal("docs/05-despliegue.md"),),
+        verificar="firebase deploy --only hosting && curl -I <url>",
+        notas="Requiere plan Blaze. Verificar los headers SERVIDOS, no los escritos.",
     ),
 ]
 
