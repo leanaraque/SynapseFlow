@@ -1,0 +1,159 @@
+name: Evals
+
+# ═════════════════════════════════════════════════════════════════════════════
+# El único job del CI que consume cuota real de un proveedor.
+#
+# Por eso corre solo en los PR que tocan lo que puede cambiar la calidad de las
+# respuestas: prompts, RAG, agentes, gobernanza y el propio dataset. Un cambio en
+# el README o en el generador de datos no justifica pagar una corrida.
+#
+# ── Autenticación: Workload Identity Federation, sin claves ───────────────────
+#
+# La organización prohíbe las claves descargables de cuenta de servicio
+# (`iam.disableServiceAccountKeyCreation`), y está bien que lo haga: una clave en
+# los secretos de GitHub es una credencial de larga vida que hay que rotar y que
+# nadie rota. WIF hace que GitHub intercambie su token OIDC por uno de GCP,
+# válido por minutos y atado a este repositorio.
+#
+# Configuración por única vez, con el proyecto ya creado:
+#
+#   gcloud iam workload-identity-pools create github --location=global \
+#     --project synapseflow-5fc52
+#   gcloud iam workload-identity-pools providers create-oidc github \
+#     --location=global --workload-identity-pool=github \
+#     --issuer-uri=https://token.actions.githubusercontent.com \
+#     --attribute-mapping=google.subject=assertion.sub,attribute.repository=assertion.repository \
+#     --attribute-condition="assertion.repository=='leanaraque/SynapseFlow'" \
+#     --project synapseflow-5fc52
+#   gcloud iam service-accounts add-iam-policy-binding \
+#     synapseflow-dev@synapseflow-5fc52.iam.gserviceaccount.com \
+#     --role=roles/iam.workloadIdentityUser \
+#     --member="principalSet://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github/attribute.repository/leanaraque/SynapseFlow"
+#
+# Y dos variables en el repositorio: WIF_PROVIDER y WIF_SERVICE_ACCOUNT.
+#
+# ── Mientras WIF no esté configurado ──────────────────────────────────────────
+#
+# El job se saltea en lugar de fallar. Un CI que falla por infraestructura que
+# nadie configuró todavía enseña a ignorar el rojo, y entonces deja de proteger
+# de lo que sí importa.
+# ═════════════════════════════════════════════════════════════════════════════
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/synapseflow/agents/**"
+      - "packages/synapseflow/rag/**"
+      - "packages/synapseflow/governance/**"
+      - "packages/synapseflow/llm/**"
+      - "packages/synapseflow/domain/**"
+      - "evals/**"
+      - "data/corpus/**"
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Suite a evaluar"
+        type: choice
+        options: [all, normativa, datos, calculos, rechazo]
+        default: all
+
+concurrency:
+  group: evals-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  # Necesario para que GitHub emita el token OIDC que WIF intercambia.
+  id-token: write
+  pull-requests: write
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  evaluar:
+    name: Suite de evaluación
+    runs-on: ubuntu-latest
+    # Una corrida completa contra un proveedor real puede tardar. El techo evita
+    # que un proveedor que no responde deje el job colgado consumiendo minutos.
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Verificar que la infraestructura esté configurada
+        id: preflight
+        run: |
+          if [ -z "${{ vars.WIF_PROVIDER }}" ] || [ -z "${{ secrets.GOOGLE_API_KEY }}" ]; then
+            echo "listo=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Evals: no configuradas"
+              echo
+              echo "Falta \`vars.WIF_PROVIDER\` o \`secrets.GOOGLE_API_KEY\`."
+              echo "El job se saltea: un CI que falla por infraestructura ausente"
+              echo "enseña a ignorar el rojo."
+              echo
+              echo "Instrucciones en el encabezado de \`.github/workflows/evals.yml\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "listo=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: google-github-actions/auth@v3
+        if: steps.preflight.outputs.listo == 'true'
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
+
+      - uses: actions/setup-python@v6
+        if: steps.preflight.outputs.listo == 'true'
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Instalar dependencias
+        if: steps.preflight.outputs.listo == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Correr la suite y comparar contra la línea base
+        if: steps.preflight.outputs.listo == 'true'
+        id: correr
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GOOGLE_CLOUD_PROJECT: synapseflow-5fc52
+          SYNAPSEFLOW_PROVIDER: gemini
+        run: |
+          set +e
+          python -m evals.run \
+            --suite "${{ inputs.suite || 'all' }}" \
+            --comparar-linea-base \
+            --rama "${{ github.head_ref || github.ref_name }}" \
+            --commit "${{ github.sha }}" \
+            | tee reporte.txt
+          # `tee` devuelve su propio código: el del corredor está en PIPESTATUS.
+          echo "codigo=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar el reporte
+        if: steps.preflight.outputs.listo == 'true' && always()
+        run: |
+          {
+            echo "## Suite de evaluación"
+            echo
+            echo '```'
+            cat reporte.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fallar ante regresión
+        if: steps.preflight.outputs.listo == 'true'
+        run: |
+          codigo="${{ steps.correr.outputs.codigo }}"
+          case "$codigo" in
+            0) echo "Sin regresión." ;;
+            1) echo "::error::Regresión respecto de la línea base. El detalle por caso está en el resumen del job."; exit 1 ;;
+            2) echo "::error::Ningún caso se pudo ejecutar: la corrida no mide nada. Revisar credenciales y acceso a Firestore."; exit 1 ;;
+            *) echo "::error::El corredor terminó con código $codigo."; exit 1 ;;
+          esac

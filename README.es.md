@@ -235,6 +235,8 @@ si no, la garantía podría estar pasando sin probar nada.
 | Separación de funciones en la aprobación | ✅ | el proponente no puede aprobar su propia acción |
 | Grafo de agentes: supervisor, especialistas, verificador | ✅ | el recorrido completo de P-2101-A frena en el gate y el activo sigue en servicio |
 | Gates aplicados sobre el grafo en ejecución | ✅ | test estructural sobre todos los roles: ninguna acción irreversible es alcanzable sin gate |
+| Suite de evals y CI de regresión | ✅ | cuatro métricas determinísticas y una juzgada; el rechazo se penaliza en **las dos** direcciones |
+| Firestore aprovisionado en la nube | ✅ | `nam5`, reglas e índices desplegados, búsqueda vectorial de 768 dim verificada contra la base real |
 | Política de zero-training aplicada en el gateway | ✅ | un proveedor que el catálogo no respalda se rechaza al arrancar |
 | Un solo camino de salida, garantizado por estructura | ✅ | se recorre el AST de cada módulo; un segundo camino rompe el build |
 | Contabilidad de costo por llamada | ✅ | se tarifa por el modelo que corrió de verdad, no por el perfil pedido |
@@ -322,16 +324,17 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> La suite tiene 576 tests. **491 no necesitan nada instalado —ni API key, ni
+> La suite tiene 662 tests. **575 no necesitan nada instalado —ni API key, ni
 > red—:** 95 cubren el grafo de agentes —ruteo, ciclo del verificador, propiedad
 > estructural de los gates—, 93 el gateway de LLM, el registry, el modelo falso y
-> la contabilidad de costo, 91 la gobernanza, 59 el cálculo determinístico y el
-> catálogo de herramientas compilado, 56 la ingesta, las citas y el verificador
-> de fundamento, 45 propiedades de los datos generados y del corpus, 35 la
-> ontología y la CLI, y 17 que el plan de trabajo sea seguible. De los demás, 80
-> corren contra el emulador de Firestore —incluido el recorrido completo de
-> P-2101-A— y 5 llaman a un proveedor real; estos últimos llevan `live_llm` y
-> **no** entran en la corrida por defecto del CI.
+> la contabilidad de costo, 91 la gobernanza, 84 la suite de evals y su CI de
+> regresión, 59 el cálculo determinístico y el catálogo de herramientas
+> compilado, 56 la ingesta, las citas y el verificador de fundamento, 45
+> propiedades de los datos generados y del corpus, 35 la ontología y la CLI, y 17
+> que el plan de trabajo sea seguible. De los demás, 82 corren contra el emulador
+> de Firestore —incluido el recorrido completo de P-2101-A— y 5 llaman a un
+> proveedor real; estos últimos llevan `live_llm` y **no** entran en la corrida
+> por defecto del CI.
 
 Cuatro de los tests de ontología corren un **agente real** —`create_agent` con
 `HumanInTheLoopMiddleware`— contra los gates derivados del YAML, gobernado por

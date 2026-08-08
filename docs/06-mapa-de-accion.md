@@ -52,12 +52,13 @@ packages/synapseflow/
   rag/                 ✅  ingesta · retrievers · citas · fundamento
   governance/          ✅  rbac · pii · auditoria · politica · middleware
   agents/              ✅  state · especialistas · verificador · supervisor · graph
+evals/                 ✅  datasets · evaluadores · run.py con línea base
 scripts/               ✅  estado.py · generar_datos.py · seed.py
 data/corpus/           ✅  seis documentos de normativa, uno derogado
-tests/                 ✅  576 tests; 491 sin dependencia externa
+tests/                 ✅  662 tests; 575 sin dependencia externa
 ```
 
-No existen todavía: `services/api/`, `apps/web/`, `evals/`.
+No existen todavía: `services/api/`, `apps/web/`.
 
 > **Los cinco compromisos están cumplidos.** El sistema hace el recorrido
 > completo y frena esperando a un humano. Lo que falta —evals, API y consola— lo

@@ -285,11 +285,44 @@ catálogo compila para los cinco roles.
   el activo siga en `en_servicio` en Firestore: un gate que se dispara después de
   la escritura no es un gate.
 
+**Evals y CI de regresión — fase F8 completa.**
+
+- Cuatro golden datasets con 31 casos. Las citas esperadas se contrastan contra
+  el corpus: un caso que espera una sección inexistente hace la suite
+  **infalsificable**, porque la métrica siempre da mal y nadie sabe si el
+  problema es el sistema o el dataset.
+- Cuatro evaluadores: tres determinísticos y uno con juez. Un juez que es otro
+  modelo introduce varianza, y una eval que empeora pasaría a tener dos
+  explicaciones. Solo la fidelidad no tiene alternativa.
+- **El rechazo se penaliza en las dos direcciones.** Responder sin fundamento va
+  a cero; negarse a algo que sí está va a 0,5. Sin la asimetría, un sistema que
+  rechaza todo puntuaría perfecto.
+- `evals/run.py` reporta por métrica **y por caso**: el promedio es para la
+  comparación automática, el detalle para quien tiene que arreglarlo.
+- Margen de regresión cero para las determinísticas y 0,05 para la fidelidad. Sin
+  margen el CI fallaría de manera intermitente, y un CI intermitente enseña a
+  reintentar hasta que pase.
+- `.github/workflows/evals.yml` corre solo en los PR que tocan agentes, RAG,
+  gobernanza, gateway, dominio, evals o corpus — es el único job que consume
+  cuota real. Autentica por Workload Identity Federation, **sin claves**.
+- `docs/04-llmops.md`: cómo se lee un reporte y qué hacer ante una regresión. El
+  plan lo pedía y el documento no existía.
+
+**Infraestructura: Firestore aprovisionado.** Base `(default)` en `nam5`, reglas
+e índices desplegados, 15 índices `READY` incluidos los cuatro vectoriales de 768
+dimensiones. Verificado de punta a punta contra la base real: escritura con
+vector, `find_nearest` con filtro de vigencia y recuperación correcta.
+
 ### Corregido
 
 - El índice de `llm_usage` en `firestore.indexes.json` declaraba el campo `ts` y
   la contabilidad de costo escribe `momento`. Ningún documento tenía `ts`, así
   que el índice era inútil y una consulta por fecha habría fallado en producción.
+- El corredor de evals no importaba `synapseflow.domain`, así que el registro de
+  `@implements` quedaba vacío y `compile_tools` fallaba con los archivos ahí.
+- Una corrida de evals donde **ningún** caso se podía ejecutar salía con código 0
+  si todavía no había línea base. Un CI con el proveedor mal configurado habría
+  reportado fracaso total en verde. Ahora sale con código 2 y dice qué revisar.
 - **`FakeChatModel.with_structured_output` reiniciaba la cola en cada llamada.**
   Tomaba una copia local de `estructurados`, así que un grafo que pide salida
   estructurada en varios nodos recibía siempre el primer objeto programado. El
