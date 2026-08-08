@@ -113,24 +113,47 @@ Estado verificado contra el proyecto `synapseflow-5fc52` el **2026-08-06**:
 |---|---|---|
 | **API key de Gemini** | Verificar en vivo F1, F3, F5, F8 | ✅ resuelto — `GOOGLE_API_KEY` en `.env` |
 | **Plan Blaze en el proyecto Firebase** | Desplegar F6 y F7 | ✅ resuelto — facturación habilitada |
-| **API de Firestore habilitada** | Salir del emulador: ingesta real de F3, y F6 | ❌ **pendiente** — `firestore.googleapis.com` está deshabilitada |
+| **Firestore en la nube** | Salir del emulador: ingesta real de F3, y F6 | ✅ resuelto — base en `nam5`, reglas e índices desplegados |
+| **ADC apuntando a la cuenta correcta** | Escribir en la base real desde la máquina local | ❌ **pendiente** — requiere un login interactivo |
 
 **El código de todas las fases se puede escribir y testear sin ninguno de los
-tres**, usando el modelo falso y el emulador de Firestore. Lo que no se puede sin
-la clave es comprobar que el agente responde bien de verdad.
+cuatro**, usando el modelo falso y el emulador de Firestore. La suite completa
+corre contra el emulador por diseño y no toca la nube.
 
-> El tercer bloqueo es nuevo y no estaba anotado. `firebase deploy` de reglas e
-> índices, y cualquier escritura fuera del emulador, fallan hasta habilitar la
-> API en el proyecto. Importa antes de F3: el índice vectorial de 768 dimensiones
-> que declara `firestore.indexes.json` **todavía no existe en la nube**, y crear
-> uno es lo único que fija su dimensión de forma irreversible.
->
-> Se resuelve con:
->
-> ```bash
-> gcloud services enable firestore.googleapis.com --project synapseflow-5fc52
-> firebase deploy --only firestore:rules,firestore:indexes
-> ```
+### Firestore en la nube · estado verificado el 2026-08-08
+
+Base `(default)` en **`nam5`** (multi-región EE.UU.), modo nativo. Se eligió esa
+región por costo y por SLA de 99,999 %; los datos del proyecto son sintéticos, así
+que la residencia en EE.UU. no plantea un problema de cumplimiento. **Si algún día
+hubiera datos reales de un cliente argentino, esa decisión hay que rehacerla —y
+rehacerla significa recrear el proyecto, porque la región no se cambia.**
+
+Los 15 índices compuestos están `READY`, incluidos los **cuatro vectoriales de
+768 dimensiones** sobre `corpus_chunks`. Verificado de punta a punta contra la
+base real: escritura de un fragmento con su vector, `find_nearest` con filtro de
+vigencia, y recuperación correcta.
+
+### El bloqueo que queda
+
+Las credenciales por defecto de aplicación (ADC) de esta máquina pertenecen a
+`lean.araque@gmail.com`, y el proyecto le da acceso a `hey@leanaraque.com`. El
+cliente de Python autentica con el ADC, así que da `403` aunque `gcloud` funcione
+—`gcloud` usa su propia cuenta activa, que sí es la correcta—.
+
+Se resuelve con un login interactivo:
+
+```bash
+gcloud auth application-default login
+```
+
+No afecta al desarrollo: la suite corre contra el emulador. Solo hace falta para
+sembrar el corpus en la nube y para verificar a mano contra la base real.
+
+> **No se creó ninguna clave descargable de cuenta de servicio.** La organización
+> lo prohíbe por política (`iam.disableServiceAccountKeyCreation`), que es la
+> postura correcta: una clave descargable es una credencial de larga vida que hay
+> que custodiar. Existe la cuenta `synapseflow-dev@` con `roles/datastore.user`
+> para cuando F6 corra en Cloud Run, donde la identidad se asume sin archivo.
 
 ---
 
