@@ -31,14 +31,22 @@ from __future__ import annotations
 
 import functools
 import uuid
+from collections.abc import AsyncIterator
 from typing import Any
 
 from fastapi import Depends, FastAPI
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from services.api.aprobaciones import (
+    ErrorDeAprobacion,
+    PedidoDeDecision,
+    decidir,
+    pendientes,
+    registrar_al_pasar,
+)
 from services.api.auth import ErrorDeIdentidad, roles_del_dominio, usuario_actual
-from services.api.streaming import eventos, flujo_sse
+from services.api.streaming import Evento, eventos, flujo_sse
 from synapseflow.agents.graph import construir_grafo
 from synapseflow.governance.pii import Tokenizador
 from synapseflow.governance.rbac import ExecutionContext
@@ -116,6 +124,17 @@ async def _identidad(_: Any, exc: ErrorDeIdentidad) -> JSONResponse:
         content={"error": exc.detail},
         headers=exc.headers or {},
     )
+
+
+@app.exception_handler(ErrorDeAprobacion)
+async def _aprobacion(_: Any, exc: ErrorDeAprobacion) -> JSONResponse:
+    """404, 409 y 400 dicen cosas distintas sobre un gate.
+
+    «No existe», «alguien llegó antes» y «esa decisión no está permitida» se
+    resuelven de tres maneras distintas, y devolver un 400 genérico para las tres
+    le deja a la consola adivinar cuál fue.
+    """
+    return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
 
 
 @app.exception_handler(PermissionError)
@@ -198,13 +217,64 @@ async def consultar(
     """
     thread_id = consulta.thread_id or ctx.thread_id or str(uuid.uuid4())
     contexto = ctx.model_copy(update={"thread_id": thread_id})
+    grafo = grafo_para(contexto)
 
     flujo = eventos(
-        grafo_para(contexto),
+        grafo,
         {"messages": [{"role": "user", "content": consulta.pregunta}]},
         {"configurable": {"thread_id": thread_id}},
     )
 
+    return _respuesta_sse(registrar_al_pasar(contexto, grafo, flujo), thread_id)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Aprobaciones
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@app.get("/api/aprobaciones")
+async def bandeja(ctx: ExecutionContext = Depends(usuario_actual)) -> dict[str, Any]:
+    """Los gates que **este** usuario puede resolver.
+
+    No es «todos los pendientes con un aviso»: una bandeja que muestra lo que no
+    se puede aprobar enseña a ignorarla.
+    """
+    return {"pendientes": await pendientes(ctx)}
+
+
+@app.post("/api/aprobaciones/{thread_id}")
+async def decidir_aprobacion(
+    thread_id: str,
+    pedido: PedidoDeDecision,
+    ctx: ExecutionContext = Depends(usuario_actual),
+) -> StreamingResponse:
+    """Resuelve un gate y deja que el grafo siga donde había quedado.
+
+    La respuesta vuelve a ser un flujo SSE porque aprobar **no es un endpoint que
+    devuelve ok**: es el resto del recorrido. El usuario ve ejecutarse la acción
+    que aprobó y la respuesta que la cierra, por el mismo canal que ya conoce.
+
+    El contexto se rearma con el hilo de la propuesta, no con el del aprobador:
+    la ejecución pertenece a esa conversación, y auditarla contra otra la volvería
+    imposible de reconstruir.
+    """
+    contexto = ctx.model_copy(update={"thread_id": thread_id})
+    comando, _ = await decidir(contexto, thread_id, pedido)
+    grafo = grafo_para(contexto)
+
+    flujo = eventos(grafo, comando, {"configurable": {"thread_id": thread_id}})
+
+    return _respuesta_sse(registrar_al_pasar(contexto, grafo, flujo), thread_id)
+
+
+def _respuesta_sse(flujo: AsyncIterator[Evento], thread_id: str) -> StreamingResponse:
+    """Un flujo de eventos como respuesta SSE.
+
+    El `thread_id` viaja en una cabecera porque cuando lo genera el servidor la
+    consola no lo conoce, y sin él no puede aprobar el gate que ese mismo
+    recorrido llega a abrir.
+    """
     return StreamingResponse(
         flujo_sse(flujo),
         media_type="text/event-stream",

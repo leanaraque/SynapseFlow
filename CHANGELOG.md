@@ -360,6 +360,45 @@ vector, `find_nearest` con filtro de vigencia y recuperación correcta.
   cambiar la forma de un evento y la suite seguiría en verde traduciendo algo que
   ya no existe.
 
+- `services/api/aprobaciones.py`: la bandeja y la decisión que reanuda el grafo.
+- **Lo aprobado es lo ejecutado, y es una garantía estructural.** Al aprobar no
+  se mandan argumentos: el grafo retoma la llamada que ya tenía en su
+  checkpoint, así que no existe el lugar donde meter otros. No hay validación
+  que lo asegure porque no hace falta ninguna. Los argumentos que mande la
+  consola al aprobar se ignoran.
+- `editar` es la excepción explícita y se audita como tal: cambia lo que se va a
+  ejecutar y queda registrado quién lo cambió, con los argumentos finales.
+- **Las dos validaciones que exige el plan**, aplicadas por `governance.rbac` y
+  no por la API: el rol está entre los `approver_roles` de la acción, y el
+  aprobador no es el proponente. La primera sin la segunda deja que un supervisor
+  proponga una parada y la apruebe él mismo.
+- La bandeja filtra por autoridad con **el mismo código que decide el POST**. Una
+  consulta que filtrara por rol en Firestore sería una segunda regla, y el día
+  que divergieran la bandeja ofrecería algo que el POST rechaza.
+- Aprobar dos veces es **409, no 403**: el problema no es quién sos, es que
+  llegaste tarde. Dos supervisores mirando la misma bandeja es el caso normal, y
+  un 403 los mandaría a revisar permisos que están bien.
+- El log de auditoría se escribe **antes** de reanudar el grafo. Al revés, una
+  caída entre la ejecución y el registro dejaría una acción irreversible
+  ejecutada y sin rastro de quién la aprobó.
+- Una propuesta cuya acción ya no existe en el YAML no se aprueba: quedó huérfana
+  de un cambio del dominio, y los aprobadores declarados pudieron cambiar con
+  ella.
+- Aprobar devuelve **otro flujo SSE**, no un `ok`: es el resto del recorrido. El
+  supervisor ve ejecutarse la acción que aprobó por el mismo canal que ya conoce.
+- Si registrar el pendiente falla, el flujo no se cae. El usuario ya vio la
+  propuesta y el checkpoint ya está guardado; perder la fila de la bandeja es un
+  problema de comodidad y romper la respuesta sería uno de verdad. Se anuncia
+  como un `error` propio para que no pase inadvertido.
+- 37 tests. Dos corren el gate de verdad: aprobar ejecuta exactamente lo
+  propuesto, y rechazar no materializa nada.
+- `tests/api/firestore_en_memoria.py`: un doble de Firestore con lo que este
+  proyecto invoca y nada más. Los tests de autoridad son los que más importan y
+  no deberían necesitar un emulador levantado para poder correr — uno que sí lo
+  necesita es uno que alguien va a saltear. **No reemplaza al emulador**: los
+  tests marcados `emulator` siguen contra Firestore de verdad, que es lo que
+  descubre que falta un índice o que un tipo no serializa.
+
 ### Verificado contra la librería instalada
 
 - **`create_agent` invoca el modelo con `ainvoke`, no con `astream`** —está en
@@ -374,6 +413,12 @@ vector, `find_nearest` con filtro de vigencia y recuperación correcta.
 - **El gate llega como `on_chain_stream` con `__interrupt__` en el chunk**, y su
   valor trae `action_requests` —nombre, argumentos y descripción— junto con
   `review_configs` y las decisiones permitidas.
+- **Se reanuda con `Command(resume={"decisions": [...]})`**, una decisión por
+  llamada interrumpida. `approve` no lleva argumentos y ejecuta la llamada del
+  checkpoint; `edit` lleva `edited_action` con nombre y args nuevos; `reject`
+  admite un `message` que vuelve al modelo. Verificado de punta a punta: aprobar
+  ejecuta con los argumentos propuestos, rechazar no ejecuta y editar ejecuta con
+  los nuevos.
 
 ### Corregido
 
