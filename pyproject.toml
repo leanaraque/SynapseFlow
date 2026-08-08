@@ -132,6 +132,17 @@ ignore = [
 "tests/**" = ["S101", "S311", "S603"]
 "scripts/**" = ["S311"]
 "evals/**" = ["S101"]
+# `Depends(...)` en el valor por defecto es la forma en que FastAPI declara una
+# dependencia; no es el bug que B008 persigue —un default mutable compartido—
+# porque FastAPI resuelve el objeto en cada request, no en la definición.
+"services/api/**" = ["B008"]
+
+[tool.ruff.lint.isort]
+# `src` hace que ruff busque paquetes *dentro* de esos directorios, así que
+# `services.api` quedaba clasificado como dependencia externa y se ordenaba
+# junto a pytest. Declararlos evita que el orden de imports dependa de qué
+# subdirectorios existan.
+known-first-party = ["synapseflow", "services", "evals", "scripts", "tests"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -154,4 +165,11 @@ disallow_untyped_defs = false
 # un `type: ignore` en el import, que silencia también cualquier otro problema
 # de esa línea.
 module = "rank_bm25.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# El SDK de Firebase Admin no publica py.typed. Se usa en un solo lugar —la
+# verificación del id token— y el resultado se convierte a `dict` en la misma
+# línea, así que lo no tipado no se propaga.
+module = "firebase_admin.*"
 ignore_missing_imports = true

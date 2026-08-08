@@ -42,8 +42,10 @@ jobs:
       - name: ruff format
         run: ruff format --check .
 
+      # Se tipa también `services`: es la capa que traduce un token en permisos,
+      # y un `Any` que se cuela ahí no lo detecta ningún test de dominio.
       - name: mypy
-        run: mypy packages/synapseflow
+        run: mypy packages/synapseflow services scripts evals
 
   gobernanza:
     name: Invariantes de la ontología

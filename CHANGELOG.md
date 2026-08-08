@@ -313,6 +313,31 @@ e índices desplegados, 15 índices `READY` incluidos los cuatro vectoriales de 
 dimensiones. Verificado de punta a punta contra la base real: escritura con
 vector, `find_nearest` con filtro de vigencia y recuperación correcta.
 
+**API — fase F6, en curso**
+
+- `services/api/auth.py`: del token de Firebase Auth al `ExecutionContext`. El
+  rol sale de un custom claim y **se valida contra la ontología**.
+- **Un rol inválido es un rechazo, no un valor por defecto.** «Si no tiene rol,
+  dale `consulta`» parece prudente —es el rol más restringido— y convierte un
+  problema de aprovisionamiento de identidad en un acceso silencioso: la persona
+  entra y nadie se entera de que sus claims nunca se configuraron. Lo mismo con
+  un rol que no existe en el YAML, que puede ser un typo o un rol eliminado.
+- Se distingue 401 de 403 con un tipo propio. No es cosmético: uno se resuelve
+  volviendo a autenticar y el otro pidiendo que alguien configure los permisos.
+- `services/api/main.py`: la app de FastAPI. **El grafo se construye por request
+  y no se cachea**, porque depende del rol de quien pregunta y un grafo cacheado
+  serviría el catálogo de un rol a otro. Lo que sí se comparte por proceso es el
+  gateway —abre clientes HTTP— y el checkpointer, que mantiene el pool de gRPC.
+- El tokenizador de PII es uno por conversación: compartirlo entre hilos
+  correlacionaría a la misma persona entre conversaciones distintas.
+- `/health` no toca Firestore ni al proveedor. Una sonda que depende de un
+  servicio externo reporta caído al servicio propio cuando el que falla es el
+  otro, y Cloud Run reinicia contenedores sanos.
+- 30 tests. Los que importan son los negativos —sin rol, rol inexistente, rol
+  vacío, header ausente o mal formado— y los que verifican que la resolución esté
+  **enchufada**: una identidad correcta que ningún endpoint invoca no protege
+  nada, y es una falla que no se ve leyendo `auth.py`.
+
 ### Corregido
 
 - El índice de `llm_usage` en `firestore.indexes.json` declaraba el campo `ts` y
@@ -361,6 +386,19 @@ vector, `find_nearest` con filtro de vigencia y recuperación correcta.
   En Linux no ocurre, así que el CI no lo detectaba.
 - `tests/ontology/` existe: 35 tests, cuatro de los cuales corren un agente real
   contra los gates derivados del YAML.
+
+### Herramientas
+
+- `mypy` pasó a cubrir `services`, `scripts` y `evals`, no solo el paquete. La
+  capa que traduce un token en permisos es justo donde un `Any` no lo detecta
+  ningún test de dominio.
+- `services/` es un paquete con `__init__.py`. Como namespace package, mypy
+  resolvía el mismo archivo con dos nombres —`api.auth` y `services.api.auth`— y
+  abortaba el análisis.
+- Se declaró `known-first-party` en la configuración de isort. `src` hace que
+  ruff busque paquetes *dentro* de esos directorios, así que `services.api`
+  quedaba clasificado como dependencia externa y se ordenaba junto a pytest: el
+  orden de los imports dependía de qué subdirectorios existieran.
 
 ### Deuda declarada
 

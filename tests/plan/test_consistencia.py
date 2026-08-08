@@ -15,6 +15,7 @@ import re
 from pathlib import Path
 
 import pytest
+
 from scripts.estado import COMMITS, FASES, RAIZ
 
 

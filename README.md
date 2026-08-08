@@ -243,12 +243,11 @@ pass by proving nothing.
 | Zero-training policy enforced at the gateway | ✅ | a provider the catalogue does not vouch for is rejected at startup |
 | Single data-exit path, structurally enforced | ✅ | the AST of every module is walked; a second exit path fails the build |
 | Per-call cost accounting | ✅ | priced by the model that actually ran, not the profile requested |
-| Governance middleware | 📋 | design settled on LangChain 1.x `AgentMiddleware` |
-| Hybrid RAG with citations | 📋 | |
-| Agent graph | 📋 | |
-| Cloud Run API | 📋 | |
+| API identity: Firebase token → execution context | ✅ | a user without a valid role gets a 403, never a default role |
+| SSE streaming | 📋 | |
+| Approval endpoints | 📋 | |
+| Cloud Run image and deployment | 📋 | |
 | Web console | 📋 | |
-| Eval suite and regression CI | 📋 | |
 
 ✅ implemented and verified · 🚧 in progress · 📋 planned
 
@@ -327,16 +326,17 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> The suite has 662 tests. **575 need nothing installed — no API key, no
+> The suite has 692 tests. **605 need nothing installed — no API key, no
 > network:** 95 cover the agent graph — routing, the verifier cycle, the
 > structural gate property — 93 the LLM gateway, registry, fake model and cost
 > accounting, 91 governance, 84 the eval suite and its regression CI, 59 the
 > deterministic calculation and the compiled tool catalogue, 56 ingestion,
 > citations and the groundedness verifier, 45 properties of the generated data
-> and the standards corpus, 35 the ontology and the CLI, and 17 that the work
-> plan is followable. Of the rest, 82 run against the Firestore emulator —
-> including the full P-2101-A journey — and 5 call a real provider; those last
-> ones are marked `live_llm` and are **not** part of `pytest`'s default run in CI.
+> and the standards corpus, 35 the ontology and the CLI, 30 the API's identity
+> layer, and 17 that the work plan is followable. Of the rest, 82 run against the
+> Firestore emulator — including the full P-2101-A journey — and 5 call a real
+> provider; those last ones are marked `live_llm` and are **not** part of
+> `pytest`'s default run in CI.
 
 Four of the ontology tests run a **real agent** — `create_agent` with
 `HumanInTheLoopMiddleware` — against gates derived from the YAML, driven by a
@@ -371,6 +371,9 @@ packages/synapseflow/
     models.yaml          model catalogue, task profiles and pricing
     registry.py          profile + provider → model, cost, index-dimension check
 data/corpus/*.md         standards corpus, versioned: it is source, not derived
+services/api/
+  auth.py                Firebase token → execution context; no default role
+  main.py                FastAPI app; the graph is built per user, not per process
 scripts/
   estado.py              current-phase detector, derived from the code
   generar_datos.py       synthetic data, reproducible from a seed

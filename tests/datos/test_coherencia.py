@@ -28,6 +28,7 @@ import random
 from typing import Any, NamedTuple
 
 import pytest
+
 from scripts.generar_datos import (
     ESPESOR_MEDIDO_CRITICO,
     ESPESOR_MINIMO_CRITICO,

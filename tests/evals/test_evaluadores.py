@@ -14,9 +14,9 @@ Ver docs/plan/fases/F8-evals.md § F8.2
 from __future__ import annotations
 
 import pytest
+
 from evals.evaluadores import calculos, citas, fidelidad, rechazo
 from evals.evaluadores.base import Caso, Fragmento, RespuestaDelSistema
-
 from synapseflow.config import Provider, Settings
 from synapseflow.llm.fake import FakeChatModel
 from synapseflow.llm.gateway import Gateway
