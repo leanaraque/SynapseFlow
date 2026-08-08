@@ -365,6 +365,64 @@ Un `ruff` que lo agregara «por consistencia» rompería el grafo en silencio.
 
 ---
 
+## Hallazgo 10 · `create_agent` invoca el modelo con `ainvoke`
+
+Verificado contra `langchain/agents/factory.py` de la versión instalada el
+**2026-08-08**. El nodo del modelo hace `await model_.ainvoke(messages)`: no hay
+`astream` en ningún camino.
+
+La consecuencia es directa: **el grafo no emite eventos
+`on_chat_model_stream`**, sin importar qué proveedor se configure. El texto llega
+entero en `on_chat_model_end`.
+
+Un traductor de eventos que solo escuchara los trozos —que es lo que sugiere toda
+la documentación sobre streaming— no mostraría nunca la respuesta, y **nada
+fallaría**: el flujo terminaría bien, con eventos de herramienta y sin texto. Por
+eso `services/api/streaming.py` emite `token` en las dos formas y lleva un
+registro de qué runs ya emitieron trozos, para no duplicar el día que eso cambie.
+
+---
+
+## Hallazgo 11 · `langgraph_node` informa el nodo interno, no el propio
+
+Verificado el **2026-08-08**. Cada especialista es un grafo compilado que corre
+adentro de un nodo del grafo grande, así que un evento de herramienta trae
+`metadata["langgraph_node"] == "tools"` — el nodo del subgrafo, no `normativa`.
+
+La jerarquía completa está en `langgraph_checkpoint_ns`:
+
+```
+normativa:8a1f…|tools:1dd4…
+```
+
+El primer segmento es el nodo propio. Es lo que le permite a la consola decir
+qué agente ejecutó qué, y lo que distingue el texto de la respuesta final del
+razonamiento intermedio de los especialistas.
+
+---
+
+## Hallazgo 12 · El gate viaja como `__interrupt__` dentro de `on_chain_stream`
+
+Verificado el **2026-08-08**. No hay un evento propio de interrupción: aparece
+como un `on_chain_stream` del grafo raíz cuyo chunk es
+`{"__interrupt__": (Interrupt(...),)}`.
+
+El `value` de cada `Interrupt` que arma `HumanInTheLoopMiddleware` tiene esta
+forma:
+
+```python
+{
+    "action_requests": [{"name": ..., "args": {...}, "description": ...}],
+    "review_configs": [{"action_name": ..., "allowed_decisions": [...]}],
+}
+```
+
+Las decisiones permitidas salen de ahí y no se inventan en la API: ofrecer
+«editar» donde la ontología no lo permite es prometer algo que el endpoint de
+aprobación después rechaza.
+
+---
+
 # Errores ya cometidos en este repositorio
 
 No los repitas.

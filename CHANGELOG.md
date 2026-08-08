@@ -337,6 +337,43 @@ vector, `find_nearest` con filtro de vigencia y recuperación correcta.
   vacío, header ausente o mal formado— y los que verifican que la resolución esté
   **enchufada**: una identidad correcta que ningún endpoint invoca no protege
   nada, y es una falla que no se ve leyendo `auth.py`.
+- `services/api/streaming.py`: `astream_events` traducido a Server-Sent Events.
+  La traducción está separada del transporte, así que se verifica sin levantar un
+  servidor ni parsear texto.
+- El usuario ve **qué está haciendo** el agente antes de ver la respuesta. En
+  este dominio no es solo experiencia: ver qué herramientas se ejecutaron es
+  parte de poder auditar lo que se respondió.
+- **Las citas se emiten antes que el pedido de aprobación**, aunque el gate llega
+  a mitad del flujo y las citas solo se conocen al final. Pedirle a alguien que
+  apruebe una parada antes de mostrarle el fundamento es pedirle que apruebe a
+  ciegas.
+- **El flujo termina siempre con exactamente un evento terminal**, `fin` o
+  `error`. El 200 ya salió con la primera línea, así que una excepción no puede
+  volverse un 500: dejaría a la consola con una respuesta truncada y ningún
+  motivo. `CancelledError` no se atrapa —no es `Exception`— para que cortar la
+  conexión libere el grafo en lugar de generar un evento que nadie va a leer.
+- `/api/consultas` devuelve el `thread_id` en una cabecera. Cuando lo genera el
+  servidor la consola no lo conoce, y sin él no puede aprobar el gate que ese
+  mismo recorrido abre.
+- 40 tests del streaming. El que sostiene a los demás corre un grafo real contra
+  las formas grabadas a mano: sin él, una versión nueva de LangGraph podría
+  cambiar la forma de un evento y la suite seguiría en verde traduciendo algo que
+  ya no existe.
+
+### Verificado contra la librería instalada
+
+- **`create_agent` invoca el modelo con `ainvoke`, no con `astream`** —está en
+  `langchain/agents/factory.py`—, así que hoy no hay eventos
+  `on_chat_model_stream` y el texto llega entero en `on_chat_model_end`. Un
+  traductor que solo escuchara los trozos no mostraría nunca la respuesta, y nada
+  fallaría. Se emiten las dos formas sin duplicar.
+- **`langgraph_node` informa el nodo interno del subgrafo**, no el nuestro: cada
+  especialista es un grafo compilado que corre dentro de un nodo, así que un
+  evento de herramienta dice `node = tools`. El nodo propio está en el primer
+  segmento de `langgraph_checkpoint_ns`.
+- **El gate llega como `on_chain_stream` con `__interrupt__` en el chunk**, y su
+  valor trae `action_requests` —nombre, argumentos y descripción— junto con
+  `review_configs` y las decisiones permitidas.
 
 ### Corregido
 

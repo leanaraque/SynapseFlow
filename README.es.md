@@ -241,7 +241,7 @@ si no, la garantía podría estar pasando sin probar nada.
 | Un solo camino de salida, garantizado por estructura | ✅ | se recorre el AST de cada módulo; un segundo camino rompe el build |
 | Contabilidad de costo por llamada | ✅ | se tarifa por el modelo que corrió de verdad, no por el perfil pedido |
 | Identidad de la API: token de Firebase → contexto de ejecución | ✅ | un usuario sin rol válido recibe un 403, nunca un rol por defecto |
-| Streaming por SSE | 📋 | |
+| Streaming por SSE | ✅ | eventos de herramienta antes de la respuesta; citas antes del pedido de aprobación |
 | Endpoints de aprobación | 📋 | |
 | Imagen y despliegue en Cloud Run | 📋 | |
 | Consola web | 📋 | |
@@ -323,17 +323,17 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> La suite tiene 692 tests. **605 no necesitan nada instalado —ni API key, ni
+> La suite tiene 732 tests. **645 no necesitan nada instalado —ni API key, ni
 > red—:** 95 cubren el grafo de agentes —ruteo, ciclo del verificador, propiedad
 > estructural de los gates—, 93 el gateway de LLM, el registry, el modelo falso y
 > la contabilidad de costo, 91 la gobernanza, 84 la suite de evals y su CI de
-> regresión, 59 el cálculo determinístico y el catálogo de herramientas
-> compilado, 56 la ingesta, las citas y el verificador de fundamento, 45
-> propiedades de los datos generados y del corpus, 35 la ontología y la CLI, 30 la
-> capa de identidad de la API, y 17 que el plan de trabajo sea seguible. De los
-> demás, 82 corren contra el emulador de Firestore —incluido el recorrido completo
-> de P-2101-A— y 5 llaman a un proveedor real; estos últimos llevan `live_llm` y
-> **no** entran en la corrida por defecto del CI.
+> regresión, 70 la API —identidad y flujo SSE—, 59 el cálculo determinístico y el
+> catálogo de herramientas compilado, 56 la ingesta, las citas y el verificador de
+> fundamento, 45 propiedades de los datos generados y del corpus, 35 la ontología
+> y la CLI, y 17 que el plan de trabajo sea seguible. De los demás, 82 corren
+> contra el emulador de Firestore —incluido el recorrido completo de P-2101-A— y 5
+> llaman a un proveedor real; estos últimos llevan `live_llm` y **no** entran en
+> la corrida por defecto del CI.
 
 Cuatro de los tests de ontología corren un **agente real** —`create_agent` con
 `HumanInTheLoopMiddleware`— contra los gates derivados del YAML, gobernado por
@@ -370,6 +370,7 @@ data/corpus/*.md         corpus de normativa, versionado: es fuente, no derivado
 services/api/
   auth.py                token de Firebase → contexto; sin rol por defecto
   main.py                app de FastAPI; el grafo se arma por usuario, no por proceso
+  streaming.py           astream_events → SSE; siempre un evento terminal
 scripts/
   estado.py              detector de la fase actual, derivada del código
   generar_datos.py       datos sintéticos reproducibles por semilla

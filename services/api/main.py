@@ -8,8 +8,14 @@ gates del middleware y la redacción de PII del gateway. Si esta capa tuviera su
 propia lógica de permisos habría dos, y dos reglas que dicen lo mismo son dos
 reglas que se desincronizan.
 
-Este commit trae la identidad. El streaming (F6.2), los endpoints de aprobación
-(F6.3) y la imagen (F6.4) se agregan sobre esta misma app.
+## El grafo se construye por request; el gateway y el checkpointer no
+
+Parece un desperdicio y no lo es: el grafo depende del **rol del usuario**, y
+cachearlo por proceso serviría el catálogo de un rol a otro. Compilar un
+`StateGraph` cuesta memoria, no red.
+
+Lo que sí se comparte por proceso es el gateway —abre clientes HTTP y no depende
+de quién pregunta— y el checkpointer, que mantiene el pool de gRPC de Firestore.
 
 ## Los errores de identidad se traducen acá
 
@@ -23,14 +29,22 @@ Ver docs/plan/fases/F6-api.md
 
 from __future__ import annotations
 
+import functools
+import uuid
 from typing import Any
 
 from fastapi import Depends, FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel, Field
 
 from services.api.auth import ErrorDeIdentidad, roles_del_dominio, usuario_actual
+from services.api.streaming import eventos, flujo_sse
+from synapseflow.agents.graph import construir_grafo
+from synapseflow.governance.pii import Tokenizador
 from synapseflow.governance.rbac import ExecutionContext
+from synapseflow.llm.gateway import Gateway
 from synapseflow.ontology import compile_tools, get_ontology
+from synapseflow.persistence.checkpointer import FirestoreSaver
 
 # Importar el paquete dispara los `@implements` de las nueve acciones. Sin esto
 # la API arranca y el catálogo de cualquier rol falla al compilarse.
@@ -41,6 +55,47 @@ app = FastAPI(
     description="Plataforma de agentes gobernados para industrias reguladas.",
     version="0.1.0",
 )
+
+
+class Consulta(BaseModel):
+    """Lo que manda la consola para preguntar algo."""
+
+    pregunta: str = Field(min_length=1, max_length=4000)
+    # Ausente, se abre un hilo nuevo. Presente, se continúa uno: es lo que
+    # permite que una conversación sobreviva a la recarga de la página.
+    thread_id: str | None = None
+
+
+@functools.lru_cache(maxsize=1)
+def gateway() -> Gateway:
+    """Gateway compartido por proceso. Abre clientes HTTP y no depende del rol."""
+    return Gateway()
+
+
+@functools.lru_cache(maxsize=1)
+def checkpointer() -> FirestoreSaver:
+    """Checkpointer compartido. Mantiene el pool de gRPC de Firestore.
+
+    Sin él, un gate no sobrevive a la muerte del proceso y el human-in-the-loop
+    deja de ser asincrónico — que es la promesa que sostiene todo lo demás.
+    """
+    return FirestoreSaver()
+
+
+def grafo_para(ctx: ExecutionContext) -> Any:
+    """El grafo compilado para este usuario, con su rol y su tokenizador.
+
+    El tokenizador es **uno por conversación**: compartirlo entre hilos
+    correlacionaría a la misma persona entre conversaciones distintas, que es
+    justo lo que el diseño de `governance.pii` evita.
+    """
+    return construir_grafo(
+        get_ontology(),
+        ctx,
+        gateway=gateway(),
+        tokenizador=Tokenizador(),
+        checkpointer=checkpointer(),
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -120,3 +175,45 @@ async def yo(ctx: ExecutionContext = Depends(usuario_actual)) -> dict[str, Any]:
 async def roles() -> dict[str, Any]:
     """Roles del dominio. Sin identidad: es información del YAML, no de nadie."""
     return {"roles": list(roles_del_dominio())}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Consultas
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@app.post("/api/consultas")
+async def consultar(
+    consulta: Consulta, ctx: ExecutionContext = Depends(usuario_actual)
+) -> StreamingResponse:
+    """Una pregunta, respondida en streaming.
+
+    El `thread_id` viaja también en una cabecera porque cuando lo genera el
+    servidor la consola no lo conoce, y sin él no puede aprobar el gate que este
+    mismo recorrido puede llegar a abrir.
+
+    El contexto se rearma con el hilo definitivo: el `thread_id` es lo que
+    correlaciona cada acción con el razonamiento que la produjo, y una acción
+    auditada contra un hilo que no es el suyo no es auditable.
+    """
+    thread_id = consulta.thread_id or ctx.thread_id or str(uuid.uuid4())
+    contexto = ctx.model_copy(update={"thread_id": thread_id})
+
+    flujo = eventos(
+        grafo_para(contexto),
+        {"messages": [{"role": "user", "content": consulta.pregunta}]},
+        {"configurable": {"thread_id": thread_id}},
+    )
+
+    return StreamingResponse(
+        flujo_sse(flujo),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            # Sin esto, nginx junta la respuesta en un buffer y la entrega al
+            # final: el streaming queda técnicamente correcto y prácticamente
+            # inexistente.
+            "X-Accel-Buffering": "no",
+            "X-Thread-Id": thread_id,
+        },
+    )
