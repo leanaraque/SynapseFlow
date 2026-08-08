@@ -495,6 +495,34 @@ vector, `find_nearest` con filtro de vigencia y recuperación correcta.
   SSE y el supervisor ve ejecutarse lo que aprobó, por el mismo canal.
 - 17 tests más sobre la bandeja.
 
+- `docs/05-despliegue.md`: el procedimiento de despliegue, versionado. Los
+  secretos por Secret Manager, la cuenta de servicio con `roles/datastore.user`
+  y no `owner`, sin claves descargables, y el rollback de cada pieza — con la
+  advertencia de que Firestore no vuelve atrás con el código.
+- **La regla de caché del shell no cubría `/`.** Los headers de Firebase Hosting
+  se evalúan contra la URL que pidió el navegador, no contra el archivo que el
+  rewrite terminó sirviendo, así que una regla escrita solo para `/index.html`
+  no alcanzaba a quien entra por la raíz — que es todo el mundo. Es el mismo
+  error que ya está anotado en las convenciones, todavía vivo en `firebase.json`.
+- 14 tests sobre la configuración de despliegue: que el rewrite de `/api/**` vaya
+  antes que el general, que apunte al servicio que el Dockerfile documenta, que
+  el hosting publique lo que Vite construye y que ninguna regla de caché alcance
+  a la API. Son los errores que **no** fallan al desplegar: dejan el sitio
+  andando y mal.
+
+### Lo que el plan no construyó
+
+Un plan terminado no es un producto terminado. Queda escrito acá porque no
+enterarse es peor que faltar:
+
+- **La imagen del contenedor nunca se construyó** y **nada se desplegó**. No es
+  por facturación —Blaze está habilitado—: falta Docker o Cloud Build, y que
+  alguien ejecute el procedimiento.
+- **El explorador de la ontología** quedó reducido a la pantalla «Mi rol», que
+  muestra el catálogo compilado. Navegar entidades y relaciones no se hizo.
+- **El panel de costos no se construyó.** La colección `llm_usage` se escribe
+  desde F1 y no tiene ningún consumidor.
+
 ### Corregido en el detector de estado
 
 - **La señal de F7.4 era `apps/web/dist/index.html`, que está en `.gitignore`.**

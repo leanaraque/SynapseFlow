@@ -179,14 +179,14 @@ FASES: dict[str, Fase] = {
         "API en Cloud Run",
         "docs/plan/fases/F6-api.md",
         depende_de=("F5",),
-        bloqueo_externo="Plan Blaze para desplegar",
+        bloqueo_externo="Construir la imagen: hace falta Docker o Cloud Build",
     ),
     "F7": Fase(
         "F7",
         "Consola web",
         "docs/plan/fases/F7-consola.md",
         depende_de=("F6",),
-        bloqueo_externo="Plan Blaze para desplegar",
+        bloqueo_externo="Construir la imagen: hace falta Docker o Cloud Build",
     ),
     "F8": Fase(
         "F8",
@@ -606,7 +606,7 @@ COMMITS: list[Commit] = [
             Senal("docs/adr/0006-cloud-run-sobre-cloud-functions.md"),
         ),
         verificar="docker build -t synapseflow-api services/api",
-        notas="Requiere plan Blaze. Escribir el ADR-0006 en este commit.",
+        notas="Escribir el ADR-0006 en este commit. Blaze ya está habilitado.",
     ),
     # ── F7 · Consola ────────────────────────────────────────────────────────
     Commit(
@@ -645,7 +645,7 @@ COMMITS: list[Commit] = [
         # comprobar después de publicar.
         (Senal("docs/05-despliegue.md"),),
         verificar="firebase deploy --only hosting && curl -I <url>",
-        notas="Requiere plan Blaze. Verificar los headers SERVIDOS, no los escritos.",
+        notas="Verificar los headers SERVIDOS, no los escritos. Ver docs/05-despliegue.md.",
     ),
 ]
 

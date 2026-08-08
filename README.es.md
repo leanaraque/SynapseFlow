@@ -23,11 +23,13 @@ Sobre LangGraph y LangChain 1.x · desplegada en Firebase
 </div>
 
 > [!NOTE]
-> **Proyecto en construcción.** La capa de ontología y la de persistencia están
-> implementadas y con tests. El grafo de agentes, la API y la consola web están
-> en curso. El [estado del proyecto](#estado-del-proyecto) dice exactamente qué
-> corre hoy y qué no — y la sección [Empezar](#empezar) solo documenta comandos
-> que funcionan de verdad.
+> **El plan de 43 commits está terminado; el sistema no está desplegado.** Todas
+> las capas —ontología, persistencia, gateway, acciones del dominio, RAG,
+> gobernanza, grafo de agentes, evals, API y consola— están construidas y con
+> tests. Lo que falta es material y está dicho como tal: la imagen del contenedor
+> no se construyó, no se publicó nada, y dos funciones de la consola que el mapa
+> listaba no se hicieron. El [estado del proyecto](#estado-del-proyecto) dice qué
+> corre hoy, y [Empezar](#empezar) solo documenta comandos que funcionan.
 
 ---
 
@@ -244,14 +246,22 @@ si no, la garantía podría estar pasando sin probar nada.
 | Streaming por SSE | ✅ | eventos de herramienta antes de la respuesta; citas antes del pedido de aprobación |
 | Endpoints de aprobación | ✅ | el proponente no aprueba lo suyo; aprobar no manda argumentos |
 | Imagen y despliegue en Cloud Run | 🚧 | imagen multietapa y ADR-0006 escritos; falta correr `docker build` |
-| Consola web | 🚧 | chat, citas inspeccionables y bandeja de aprobaciones; falta desplegar |
+| Consola web | ✅ | chat, citas inspeccionables y bandeja de aprobaciones |
+| Despliegue | 📋 | procedimiento escrito y verificado contra la configuración; nada publicado |
 
 ✅ implementado y verificado · 🚧 en curso · 📋 planificado
 
-El [mapa de acción](docs/06-mapa-de-accion.md) desglosa el trabajo restante en
-ocho fases, cada una con sus dependencias, sus entregables y —sobre todo— cómo se
-verifica. Además lleva la cuenta de cuáles de los cinco compromisos de diseño del
-proyecto están operativos y cuáles siguen solamente declarados.
+El [mapa de acción](docs/06-mapa-de-accion.md) desglosa el trabajo en ocho fases,
+cada una con sus dependencias, sus entregables y —sobre todo— cómo se verifica.
+Las ocho están hechas y los cinco compromisos de diseño están operativos.
+
+**Lo que no se construyó**, dicho sin vueltas porque un plan terminado no es un
+producto terminado: la imagen del contenedor nunca se construyó —`docker build`
+necesita Docker o Cloud Build—, no se desplegó nada, el explorador de la ontología
+quedó reducido a una pantalla «mi rol» con el catálogo compilado, y el panel de
+costos no se hizo: `llm_usage` se escribe y no tiene quien lo lea. El
+[despliegue](docs/05-despliegue.md) está escrito y verificado contra la
+configuración, pero nunca se ejecutó.
 
 **Si vas a retomar el desarrollo**, empezá por [`docs/plan/`](docs/plan/), que
 tiene el mismo mapa desglosado commit por commit. No adivines en qué estado está
@@ -323,15 +333,16 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> La suite tiene 849 tests. **762 no necesitan nada instalado —ni API key, ni
+> La suite tiene 863 tests. **776 no necesitan nada instalado —ni API key, ni
 > red—:** 95 cubren el grafo de agentes —ruteo, ciclo del verificador, propiedad
 > estructural de los gates—, 93 el gateway de LLM, el registry, el modelo falso y
 > la contabilidad de costo, 129 la API —identidad, flujo SSE, endpoints de
 > aprobación e imagen de Cloud Run—, 91 la gobernanza, 84 la suite de evals y su CI de regresión, 59 el
 > cálculo determinístico y el catálogo de herramientas compilado, 56 la ingesta,
 > las citas y el verificador de fundamento, 45 propiedades de los datos generados
-> y del corpus, 35 la ontología y la CLI, 58 la consola —su frontera de cliente, su contrato de eventos con la
-> API y la bandeja de aprobaciones— y 17 que el plan de trabajo sea seguible. La consola suma 11 propios,
+> y del corpus, 35 la ontología y la CLI, 72 la consola —su frontera de cliente, su contrato de eventos con la
+> API, la bandeja de aprobaciones y la configuración de despliegue— y 17 que el
+> plan de trabajo sea seguible. La consola suma 11 propios,
 > en `vitest`, sobre su única lógica no trivial: el lector de SSE. De los demás, 82 corren
 > contra el emulador de Firestore —incluido el recorrido completo de P-2101-A— y 5
 > llaman a un proveedor real; estos últimos llevan `live_llm` y **no** entran en

@@ -25,6 +25,23 @@
         "headers": [{ "key": "Cache-Control", "value": "public,max-age=31536000,immutable" }]
       },
       {
+        "//": [
+          "El shell de la SPA no se cachea: si se cacheara, un despliegue nuevo",
+          "no llegaría a quien ya visitó el sitio hasta que venza el TTL.",
+          "",
+          "Las dos rutas, y NO es redundancia. Los headers se evalúan contra la",
+          "URL que pidió el navegador, no contra el archivo que el rewrite",
+          "terminó sirviendo: quien entra a '/' --que es todo el mundo-- nunca",
+          "coincidiría con la regla de '/index.html'.",
+          "",
+          "Es el mismo error que ya se cometió una vez acá y que quedó anotado en",
+          "docs/plan/00-convenciones.md. Se comprueba con curl contra el sitio",
+          "publicado --ver docs/05-despliegue.md--, no leyendo este archivo."
+        ],
+        "source": "/",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      },
+      {
         "source": "/index.html",
         "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
       }

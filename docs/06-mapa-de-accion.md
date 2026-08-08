@@ -434,6 +434,18 @@ apps/web/
 - El circuito completo de aprobación desde el navegador.
 - Las citas enlazan al fragmento exacto del corpus.
 
+**Estado.** El chat con eventos en vivo, las citas con su vigencia y la bandeja
+de aprobaciones están construidos y con tests. El explorador de la ontología
+quedó reducido a la pantalla «Mi rol», que muestra el catálogo derivado del YAML;
+el panel de costos no se construyó —la colección `llm_usage` se escribe desde F1
+y no tiene consumidor—. Las dos cosas están declaradas abajo como lo que faltó.
+
+El circuito desde el navegador y el enlace al fragmento exacto siguen pendientes
+del despliegue, y **no por facturación**: Blaze ya está habilitado. Falta
+construir la imagen de la API —hace falta Docker o Cloud Build— y ejecutar el
+procedimiento de [docs/05-despliegue.md](05-despliegue.md), que incluye la lista
+de lo que hay que comprobar una vez publicado.
+
 ---
 
 ### F8 · Evaluación y CI de regresión

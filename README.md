@@ -23,11 +23,13 @@ Built on LangGraph and LangChain 1.x · deployed on Firebase
 </div>
 
 > [!NOTE]
-> **Work in progress.** The ontology and persistence layers are implemented and
-> tested. The agent graph, the API and the web console are still being built.
-> The [project status](#project-status) table says exactly what runs today and
-> what does not — and [Getting started](#getting-started) only documents
-> commands that actually work.
+> **The 43-commit plan is finished; the system is not deployed.** Every layer —
+> ontology, persistence, gateway, domain actions, RAG, governance, agent graph,
+> evals, API and console — is built and tested. What is missing is material and
+> stated as such: the container image has not been built, nothing has been
+> published, and two console features listed in the roadmap were not built.
+> The [project status](#project-status) table says exactly what runs today, and
+> [Getting started](#getting-started) only documents commands that actually work.
 
 ---
 
@@ -247,14 +249,22 @@ pass by proving nothing.
 | SSE streaming | ✅ | tool events before the answer; citations before the approval prompt |
 | Approval endpoints | ✅ | the proposer cannot approve their own action; approving sends no arguments |
 | Cloud Run image and deployment | 🚧 | multi-stage image and ADR-0006 written; `docker build` still pending |
-| Web console | 🚧 | chat, inspectable citations and the approval inbox; deployment pending |
+| Web console | ✅ | chat, inspectable citations and the approval inbox |
+| Deployment | 📋 | runbook written and verified against the config; nothing published yet |
 
 ✅ implemented and verified · 🚧 in progress · 📋 planned
 
-The [action map](docs/06-mapa-de-accion.md) breaks the remaining work into eight
-phases, each with its dependencies, deliverables and — most importantly — how it
-gets verified. It also tracks which of the project's five design commitments are
-actually operative and which are still just declared.
+The [action map](docs/06-mapa-de-accion.md) breaks the work into eight phases,
+each with its dependencies, deliverables and — most importantly — how it gets
+verified. All eight are done, and all five design commitments are operative.
+
+**What was not built**, stated plainly because a finished plan is not a finished
+product: the container image has never been built (`docker build` needs Docker or
+Cloud Build), nothing has been deployed, the ontology explorer was reduced to a
+single "my role" screen showing the compiled catalogue, and the cost dashboard
+was not built at all — `llm_usage` is written and has no reader.
+[Deployment](docs/05-despliegue.md) is written down and checked against the
+config, but never executed.
 
 **If you're picking up development**, start at [`docs/plan/`](docs/plan/), which
 holds the same roadmap broken down commit by commit. Don't guess where the
@@ -326,7 +336,7 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> The suite has 849 tests. **762 need nothing installed — no API key, no
+> The suite has 863 tests. **776 need nothing installed — no API key, no
 > network:** 95 cover the agent graph — routing, the verifier cycle, the
 > structural gate property — 93 the LLM gateway, registry, fake model and cost
 > accounting, 129 the API — identity, the SSE stream, the approval endpoints and
@@ -334,8 +344,9 @@ pytest
 > 91 governance, 84 the eval suite and its regression CI, 59 the deterministic
 > calculation and the compiled tool catalogue, 56 ingestion, citations and the
 > groundedness verifier, 45 properties of the generated data and the standards
-> corpus, 35 the ontology and the CLI, 58 the console — its client-side boundary, its event contract with
-> the API and the approval inbox — and 17 that the work plan is followable. The console adds 11 of its
+> corpus, 35 the ontology and the CLI, 72 the console — its client-side boundary, its event contract with
+> the API, the approval inbox and the deployment configuration — and 17 that the
+> work plan is followable. The console adds 11 of its
 > own, in `vitest`, over the only non-trivial client-side logic: the SSE reader.
 > Of the rest, 82 run
 > against the Firestore emulator — including the full P-2101-A journey — and 5
