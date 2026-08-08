@@ -399,6 +399,35 @@ vector, `find_nearest` con filtro de vigencia y recuperación correcta.
   tests marcados `emulator` siguen contra Firestore de verdad, que es lo que
   descubre que falta un índice o que un tipo no serializa.
 
+- `services/api/Dockerfile`: imagen multietapa sobre `python:3.11-slim`. **Las
+  dependencias se instalan antes de copiar el código**, que es la propiedad que
+  más fácil se pierde y que nada delata: con el código primero, cada cambio de
+  una línea reinstala el árbol entero y el build sigue funcionando.
+- La etapa de construcción no llega a la imagen final: se copia el virtualenv ya
+  resuelto, así que el compilador y las cabeceras quedan afuera.
+- **Sin credenciales adentro.** En Cloud Run la identidad sale del servicio
+  (ADC). Las claves de proveedores se inyectan por Secret Manager, nunca con
+  `--set-env-vars`, que las dejaría visibles en el manifiesto del servicio.
+- El proceso corre como usuario sin privilegios, escucha en el `PORT` que Cloud
+  Run inyecta —cablear 8080 funciona local y falla en el despliegue— y usa un
+  solo worker: Cloud Run escala por instancias, y dos workers compiten por la
+  misma CPU asignada.
+- `.dockerignore` excluye `.venv/` y los secretos. Sin él, un `COPY` distraído
+  mete `.env` en una capa, donde queda aunque un paso posterior lo borre.
+- `docs/adr/0006-cloud-run-sobre-cloud-functions.md`: por qué Cloud Run y no
+  Cloud Functions, App Engine o GKE. La razón es el control sobre el arranque en
+  frío con un árbol de dependencias de este tamaño; Cloud Functions de 2ª
+  generación corre **encima de Cloud Run** y solo quita el acceso a la palanca.
+- 22 tests sobre la imagen, en la línea del CI de evals: un `Dockerfile` que se
+  degrada no falla el build, solo tarda más, pesa más o expone más.
+
+### Pendiente
+
+- **La imagen todavía no se construyó.** `docker build` necesita Docker local o
+  una corrida de Cloud Build, y ninguno está disponible en el entorno donde se
+  escribió este commit. Los tests verifican las propiedades del `Dockerfile`, no
+  que produzca una imagen que arranque. Está declarado así también en el ADR.
+
 ### Verificado contra la librería instalada
 
 - **`create_agent` invoca el modelo con `ainvoke`, no con `astream`** —está en

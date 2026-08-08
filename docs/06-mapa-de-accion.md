@@ -408,6 +408,11 @@ services/api/
 - El streaming emite eventos de herramienta antes del texto final.
 - Prueba de arranque en frío con el árbol de dependencias completo.
 
+**Estado.** Cerrada salvo el arranque en frío: `docker build` necesita Docker
+local o Cloud Build, y ninguno estaba disponible cuando se escribió F6.4. Las
+propiedades del `Dockerfile` sí se verifican en el CI. Ver
+[ADR-0006](adr/0006-cloud-run-sobre-cloud-functions.md).
+
 ---
 
 ### F7 · Consola web

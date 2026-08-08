@@ -243,7 +243,7 @@ si no, la garantía podría estar pasando sin probar nada.
 | Identidad de la API: token de Firebase → contexto de ejecución | ✅ | un usuario sin rol válido recibe un 403, nunca un rol por defecto |
 | Streaming por SSE | ✅ | eventos de herramienta antes de la respuesta; citas antes del pedido de aprobación |
 | Endpoints de aprobación | ✅ | el proponente no aprueba lo suyo; aprobar no manda argumentos |
-| Imagen y despliegue en Cloud Run | 📋 | |
+| Imagen y despliegue en Cloud Run | 🚧 | imagen multietapa y ADR-0006 escritos; falta correr `docker build` |
 | Consola web | 📋 | |
 
 ✅ implementado y verificado · 🚧 en curso · 📋 planificado
@@ -323,11 +323,11 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> La suite tiene 769 tests. **682 no necesitan nada instalado —ni API key, ni
+> La suite tiene 791 tests. **704 no necesitan nada instalado —ni API key, ni
 > red—:** 95 cubren el grafo de agentes —ruteo, ciclo del verificador, propiedad
 > estructural de los gates—, 93 el gateway de LLM, el registry, el modelo falso y
-> la contabilidad de costo, 107 la API —identidad, flujo SSE y endpoints de
-> aprobación—, 91 la gobernanza, 84 la suite de evals y su CI de regresión, 59 el
+> la contabilidad de costo, 129 la API —identidad, flujo SSE, endpoints de
+> aprobación e imagen de Cloud Run—, 91 la gobernanza, 84 la suite de evals y su CI de regresión, 59 el
 > cálculo determinístico y el catálogo de herramientas compilado, 56 la ingesta,
 > las citas y el verificador de fundamento, 45 propiedades de los datos generados
 > y del corpus, 35 la ontología y la CLI, y 17 que el plan de trabajo sea
@@ -373,6 +373,7 @@ services/api/
   main.py                app de FastAPI; el grafo se arma por usuario, no por proceso
   streaming.py           astream_events → SSE; siempre un evento terminal
   aprobaciones.py        la bandeja y Command(resume=); lo aprobado es lo ejecutado
+  Dockerfile             multietapa; dependencias antes del código, sin credenciales
 scripts/
   estado.py              detector de la fase actual, derivada del código
   generar_datos.py       datos sintéticos reproducibles por semilla

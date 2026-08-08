@@ -1,0 +1,45 @@
+# Lo que no entra en el contexto de build.
+#
+# No es cosmético: el contexto se sube entero al daemon antes de ejecutar la
+# primera instrucción, así que `.venv/` —cientos de megas— haría lento cada
+# build sin aportar nada, porque las dependencias se reinstalan adentro.
+#
+# Y hay una razón de seguridad: `.env` tiene claves de proveedores. Sin esta
+# lista, un `COPY . .` distraído las mete en una capa de la imagen, donde quedan
+# aunque un paso posterior las borre.
+
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Credenciales. Nunca en una capa.
+.env
+.env.*
+*.pem
+*-key.json
+service-account*.json
+
+.git/
+.github/
+.gitignore
+
+# La consola se despliega en Firebase Hosting, no en Cloud Run.
+apps/web/node_modules/
+apps/web/dist/
+
+# Nada de esto lo lee el servicio en runtime.
+tests/
+evals/
+docs/
+scripts/
+data/generado/
+CHANGELOG.md
+CLAUDE.md
+cv/

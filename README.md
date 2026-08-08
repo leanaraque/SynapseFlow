@@ -246,7 +246,7 @@ pass by proving nothing.
 | API identity: Firebase token → execution context | ✅ | a user without a valid role gets a 403, never a default role |
 | SSE streaming | ✅ | tool events before the answer; citations before the approval prompt |
 | Approval endpoints | ✅ | the proposer cannot approve their own action; approving sends no arguments |
-| Cloud Run image and deployment | 📋 | |
+| Cloud Run image and deployment | 🚧 | multi-stage image and ADR-0006 written; `docker build` still pending |
 | Web console | 📋 | |
 
 ✅ implemented and verified · 🚧 in progress · 📋 planned
@@ -326,10 +326,11 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> The suite has 769 tests. **682 need nothing installed — no API key, no
+> The suite has 791 tests. **704 need nothing installed — no API key, no
 > network:** 95 cover the agent graph — routing, the verifier cycle, the
 > structural gate property — 93 the LLM gateway, registry, fake model and cost
-> accounting, 107 the API — identity, the SSE stream and the approval endpoints —
+> accounting, 129 the API — identity, the SSE stream, the approval endpoints and
+> the Cloud Run image —
 > 91 governance, 84 the eval suite and its regression CI, 59 the deterministic
 > calculation and the compiled tool catalogue, 56 ingestion, citations and the
 > groundedness verifier, 45 properties of the generated data and the standards
@@ -377,6 +378,7 @@ services/api/
   main.py                FastAPI app; the graph is built per user, not per process
   streaming.py           astream_events → SSE; one terminal event, always
   aprobaciones.py        the inbox and Command(resume=); what was approved is what runs
+  Dockerfile             multi-stage; dependencies before code, no credentials inside
 scripts/
   estado.py              current-phase detector, derived from the code
   generar_datos.py       synthetic data, reproducible from a seed

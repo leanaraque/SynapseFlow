@@ -17,6 +17,7 @@ original— se pregunta por qué el sistema está hecho así y la respuesta no e
 | [0003](0003-ontologia-declarativa-en-yaml.md) | La ontología del dominio es declarativa y vive fuera del código | aceptada |
 | [0004](0004-gateway-provider-agnostic.md) | Gateway de modelos con frontera de datos explícita | aceptada |
 | [0005](0005-hitl-con-interrupt-de-langgraph.md) | Los gates de aprobación humana usan `interrupt()` de LangGraph, no un flujo aparte | aceptada |
+| [0006](0006-cloud-run-sobre-cloud-functions.md) | La API se despliega en Cloud Run, no en Cloud Functions | aceptada |
 
 ## Escribir uno nuevo
 
