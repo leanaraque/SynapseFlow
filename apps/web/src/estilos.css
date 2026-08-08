@@ -156,3 +156,161 @@ code {
   font-size: 0.8rem;
   font-weight: 600;
 }
+
+/* ── Chat ──────────────────────────────────────────────────────────────── */
+
+.chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.conversacion {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+
+.sugerencia {
+  max-width: 42rem;
+  color: var(--texto-suave);
+}
+
+.turno {
+  max-width: 46rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.pregunta {
+  margin: 0;
+  padding: 0.6rem 0.9rem;
+  border-radius: 8px;
+  background: var(--fondo-suave);
+  font-weight: 600;
+}
+
+/* Los pasos son el punto del streaming: se ven mientras ocurren. El que está
+   en curso se distingue del terminado, porque «está pasando» y «ya pasó»
+   informan cosas distintas sobre si conviene seguir esperando. */
+.pasos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.88rem;
+}
+
+.pasos li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.25rem 0.6rem;
+  border-left: 3px solid var(--borde);
+  color: var(--texto-suave);
+}
+
+.pasos li.curso {
+  border-left-color: var(--acento);
+}
+
+.pasos li.hecho {
+  border-left-color: var(--borde);
+}
+
+.pasos .argumentos {
+  color: var(--texto);
+}
+
+.pasos .agente {
+  margin-left: auto;
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+
+.respuesta {
+  white-space: pre-wrap;
+}
+
+.fuentes {
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.9rem;
+}
+
+.fuentes summary {
+  cursor: pointer;
+  color: var(--texto-suave);
+}
+
+.fuentes ul {
+  list-style: none;
+  padding: 0.4rem 0 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+/* Un fragmento derogado citado sin decirlo es peor que no citar nada. */
+.derogado {
+  color: var(--alerta);
+  font-weight: 600;
+}
+
+.propuesta {
+  border: 2px solid var(--alerta);
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+}
+
+.propuesta h3 {
+  margin: 0 0 0.5rem;
+  color: var(--alerta);
+  font-size: 1rem;
+}
+
+.descripcion {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 0.9rem;
+  margin: 0.4rem 0 0;
+  color: var(--texto-suave);
+}
+
+.error {
+  color: var(--alerta);
+  border-left: 3px solid var(--alerta);
+  padding-left: 0.7rem;
+}
+
+.entrada {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.9rem 1.2rem;
+  border-top: 1px solid var(--borde);
+  background: var(--fondo-suave);
+}
+
+.entrada input {
+  flex: 1;
+  font: inherit;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  background: var(--fondo);
+  color: var(--texto);
+}
+
+.entrada input:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 1px;
+}

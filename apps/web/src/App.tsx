@@ -22,13 +22,17 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { ErrorDeApi, identidad, type Identidad } from "./api";
+import { Chat } from "./Chat";
 import { alCambiarLaSesion, cerrarSesion, iniciarSesion, type Usuario } from "./firebase";
+
+type Pantalla = "consulta" | "catalogo";
 
 export function App() {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [cargandoSesion, setCargandoSesion] = useState(true);
   const [quien, setQuien] = useState<Identidad | null>(null);
   const [errorDeIdentidad, setErrorDeIdentidad] = useState<string | null>(null);
+  const [pantalla, setPantalla] = useState<Pantalla>("consulta");
 
   useEffect(
     () =>
@@ -85,6 +89,22 @@ export function App() {
     <div className="consola">
       <header className="barra">
         <strong>SynapseFlow</strong>
+        <nav>
+          <button
+            type="button"
+            aria-current={pantalla === "consulta" ? "page" : undefined}
+            onClick={() => setPantalla("consulta")}
+          >
+            Consulta
+          </button>
+          <button
+            type="button"
+            aria-current={pantalla === "catalogo" ? "page" : undefined}
+            onClick={() => setPantalla("catalogo")}
+          >
+            Mi rol
+          </button>
+        </nav>
         <span className="identidad">
           {quien ? (
             <>
@@ -101,12 +121,14 @@ export function App() {
 
       {errorDeIdentidad ? (
         <SinRol motivo={errorDeIdentidad} />
-      ) : quien ? (
-        <Catalogo identidad={quien} />
-      ) : (
+      ) : !quien ? (
         <main className="centrado" aria-busy="true">
           <p>Cargando el dominio…</p>
         </main>
+      ) : pantalla === "consulta" ? (
+        <Chat />
+      ) : (
+        <Catalogo identidad={quien} />
       )}
     </div>
   );

@@ -447,6 +447,32 @@ vector, `find_nearest` con filtro de vigencia y recuperación correcta.
   tipos, así que sin eso `strict` es decoración.
 - 19 tests sobre la frontera del cliente y el scaffold. Corren en Python, dentro
   del CI que ya existe, sin instalar node.
+- `apps/web/src/sse.ts`: lector de SSE sobre `fetch`. **`EventSource` no sirve
+  acá**: solo hace GET y no admite cabeceras, así que no habría dónde poner el
+  `Authorization`. Una consulta es un POST con identidad obligatoria.
+- El flujo se acumula hasta tener el bloque completo y se decodifica con
+  `stream: true`. Partir por `\n\n` sobre cada trozo suelto funciona con
+  respuestas cortas —que es como se prueba a mano— y corrompe las largas. Con
+  texto en español, un carácter multibyte cortado al medio no es un caso raro.
+- `apps/web/src/Chat.tsx`: los eventos de herramienta se ven **mientras
+  ocurren**. En este dominio no es decoración: ver qué se consultó es parte de
+  poder defender la respuesta.
+- **Las citas se abren.** Una cita que no se puede inspeccionar no cumple su
+  función: firma la respuesta sin permitir verificarla. Cada una muestra
+  documento, sección y vigencia, porque el corpus tiene un procedimiento derogado
+  que contradice al vigente, a propósito.
+- El chat **no ofrece aprobar** la acción propuesta. La decisión se toma en la
+  bandeja, que es donde vive la validación de autoridad y donde puede entrar
+  alguien que no es quien preguntó; un botón acá le ofrecería al proponente
+  aprobarse a sí mismo.
+- Un evento que esta versión de la consola no conoce no la rompe: se ignora.
+- 11 tests en `vitest` sobre el lector de SSE —la única lógica no trivial del
+  cliente— y 22 más en Python, que incluyen el que ata las dos puntas del
+  protocolo: **los nombres de eventos de `streaming.py` y de `sse.ts` tienen que
+  coincidir**. Nada más lo obliga, y si divergen los dos lados siguen
+  compilando mientras la consola muestra una respuesta vacía.
+- El CI gana un job `consola`: `npm ci`, `npm test` y `npm run build`. Sin él,
+  estos tests solo corren en la máquina de quien los escribió.
 
 ### Pendiente
 

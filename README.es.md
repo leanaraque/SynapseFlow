@@ -244,7 +244,7 @@ si no, la garantía podría estar pasando sin probar nada.
 | Streaming por SSE | ✅ | eventos de herramienta antes de la respuesta; citas antes del pedido de aprobación |
 | Endpoints de aprobación | ✅ | el proponente no aprueba lo suyo; aprobar no manda argumentos |
 | Imagen y despliegue en Cloud Run | 🚧 | imagen multietapa y ADR-0006 escritos; falta correr `docker build` |
-| Consola web | 🚧 | scaffold y catálogo del rol; faltan el chat y la bandeja |
+| Consola web | 🚧 | chat con eventos de herramienta en vivo y citas inspeccionables; falta la bandeja |
 
 ✅ implementado y verificado · 🚧 en curso · 📋 planificado
 
@@ -323,15 +323,16 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> La suite tiene 810 tests. **723 no necesitan nada instalado —ni API key, ni
+> La suite tiene 832 tests. **745 no necesitan nada instalado —ni API key, ni
 > red—:** 95 cubren el grafo de agentes —ruteo, ciclo del verificador, propiedad
 > estructural de los gates—, 93 el gateway de LLM, el registry, el modelo falso y
 > la contabilidad de costo, 129 la API —identidad, flujo SSE, endpoints de
 > aprobación e imagen de Cloud Run—, 91 la gobernanza, 84 la suite de evals y su CI de regresión, 59 el
 > cálculo determinístico y el catálogo de herramientas compilado, 56 la ingesta,
 > las citas y el verificador de fundamento, 45 propiedades de los datos generados
-> y del corpus, 35 la ontología y la CLI, 19 la frontera del cliente de la consola, y 17 que el plan de
-> trabajo sea seguible. De los demás, 82 corren
+> y del corpus, 35 la ontología y la CLI, 41 la frontera del cliente de la consola y su contrato de eventos con
+> la API, y 17 que el plan de trabajo sea seguible. La consola suma 11 propios,
+> en `vitest`, sobre su única lógica no trivial: el lector de SSE. De los demás, 82 corren
 > contra el emulador de Firestore —incluido el recorrido completo de P-2101-A— y 5
 > llaman a un proveedor real; estos últimos llevan `live_llm` y **no** entran en
 > la corrida por defecto del CI.
@@ -377,6 +378,8 @@ services/api/
 apps/web/
   src/firebase.ts        única puerta al SDK: Auth, nunca Firestore
   src/api.ts             el único lugar donde se arma la cabecera de identidad
+  src/sse.ts             lector de SSE sobre fetch: EventSource no admite cabeceras
+  src/Chat.tsx           eventos de herramienta en vivo, citas con su vigencia
 scripts/
   estado.py              detector de la fase actual, derivada del código
   generar_datos.py       datos sintéticos reproducibles por semilla

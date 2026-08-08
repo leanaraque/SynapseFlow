@@ -89,3 +89,30 @@ export interface Identidad {
 export function identidad(): Promise<Identidad> {
   return json<Identidad>("/api/yo");
 }
+
+/**
+ * Abre el flujo de una consulta.
+ *
+ * Devuelve la respuesta cruda: el parseo de SSE vive en `sse.ts`, para que se
+ * pueda verificar sin red. Y usa `fetch` y no `EventSource` porque aquella solo
+ * hace GET y no admite cabeceras — no habría dónde poner el `Authorization`.
+ */
+export async function consultar(pregunta: string, hilo?: string): Promise<Response> {
+  const respuesta = await fetch("/api/consultas", {
+    method: "POST",
+    headers: await cabeceras(hilo),
+    body: JSON.stringify({ pregunta, thread_id: hilo ?? null }),
+  });
+  if (!respuesta.ok) await fallar(respuesta);
+  return respuesta;
+}
+
+/**
+ * El hilo de la conversación, que la API informa en una cabecera.
+ *
+ * Cuando lo genera el servidor la consola no lo conoce, y sin él no puede
+ * continuar la conversación ni aprobar el gate que ese mismo recorrido abre.
+ */
+export function hiloDe(respuesta: Response): string | null {
+  return respuesta.headers.get("X-Thread-Id");
+}

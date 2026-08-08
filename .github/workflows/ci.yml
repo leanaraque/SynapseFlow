@@ -80,6 +80,38 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+  consola:
+    name: Consola web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      # `npm ci` y no `npm install`: instala exactamente lo que dice el lock. Con
+      # `install`, el CI puede resolver versiones distintas de las que corren
+      # localmente, y entonces deja de verificar lo que se va a desplegar.
+      - name: Instalar dependencias
+        working-directory: apps/web
+        run: npm ci
+
+      # El parseo de SSE es la única lógica no trivial del cliente y sus casos
+      # feos —un bloque partido entre dos trozos de red, un carácter multibyte
+      # cortado al medio— no los detecta ningún test de Python.
+      - name: Tests de la consola
+        working-directory: apps/web
+        run: npm test
+
+      # `build` corre `tsc` primero. Vite transpila sin chequear tipos, así que
+      # sin ese paso `strict` no verifica nada.
+      - name: Build
+        working-directory: apps/web
+        run: npm run build
+
   traducciones:
     name: READMEs sincronizados
     runs-on: ubuntu-latest
