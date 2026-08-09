@@ -516,8 +516,10 @@ Un plan terminado no es un producto terminado. Queda escrito acá porque no
 enterarse es peor que faltar:
 
 - **La imagen del contenedor nunca se construyó** y **nada se desplegó**. No es
-  por facturación —Blaze está habilitado—: falta Docker o Cloud Build, y que
-  alguien ejecute el procedimiento.
+  por falta de código: la cuenta de facturación del proyecto está **cerrada**,
+  así que Artifact Registry, Cloud Build y Cloud Run responden `BILLING_DISABLED`.
+  El proyecto figura con `billingEnabled: true` porque está vinculado a esa
+  cuenta cerrada, que es precisamente lo que hace difícil de diagnosticar.
 - **El explorador de la ontología** quedó reducido a la pantalla «Mi rol», que
   muestra el catálogo compilado. Navegar entidades y relaciones no se hizo.
 - **El panel de costos no se construyó.** La colección `llm_usage` se escribe

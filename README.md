@@ -259,8 +259,9 @@ each with its dependencies, deliverables and — most importantly — how it get
 verified. All eight are done, and all five design commitments are operative.
 
 **What was not built**, stated plainly because a finished plan is not a finished
-product: the container image has never been built (`docker build` needs Docker or
-Cloud Build), nothing has been deployed, the ontology explorer was reduced to a
+product: the container image has never been built and nothing has been deployed —
+**the project's billing account is closed**, so Artifact Registry, Cloud Build and
+Cloud Run all answer `BILLING_DISABLED`; the ontology explorer was reduced to a
 single "my role" screen showing the compiled catalogue, and the cost dashboard
 was not built at all — `llm_usage` is written and has no reader.
 [Deployment](docs/05-despliegue.md) is written down and checked against the

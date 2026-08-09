@@ -5,11 +5,24 @@ Firebase Hosting, con `/api/**` reescrito hacia la primera. Ese rewrite ya está
 en `firebase.json` desde el inicio del proyecto, así que el frontend nunca
 conoció una URL de backend.
 
-> **Estado.** El plan Blaze ya está habilitado en `synapseflow-5fc52`, así que
-> nada de esto está bloqueado por facturación. Lo que falta es material: la
-> imagen de la API todavía no se construyó —hace falta Docker o Cloud Build— y
-> nadie ejecutó estos comandos. El código, los tests y el build de la consola no
-> necesitan ninguna de las dos cosas.
+> **Bloqueado por facturación.** Verificado el **2026-08-08**: el proyecto
+> figura con `billingEnabled: true`, y eso engaña — está *vinculado* a la cuenta
+> `0121D3-7A9980-1E468E`, que está **cerrada** (`open: false`). Las dos cuentas
+> visibles desde esta organización lo están. Con una cuenta cerrada, toda API
+> facturable responde `BILLING_DISABLED`: Artifact Registry, Cloud Build y Cloud
+> Run incluidos.
+>
+> Comprobalo antes de intentar cualquier cosa de este documento, porque el
+> síntoma es un `PERMISSION_DENIED` que no menciona la palabra facturación hasta
+> el final del mensaje:
+>
+> ```bash
+> gcloud beta billing accounts list   # mirá la columna OPEN, no solo que exista
+> ```
+>
+> Se resuelve en la consola de Cloud Billing, con un medio de pago válido. No hay
+> forma de hacerlo desde la CLI. El código, los tests y el build de la consola no
+> necesitan nada de esto.
 
 ---
 

@@ -1,0 +1,44 @@
+# Lo que NO se sube a Cloud Build.
+#
+# Sin este archivo, gcloud deriva uno de `.gitignore` — que excluye `.env` pero
+# también deja subir todo lo que git versiona, incluidos `tests/`, `docs/` y
+# `evals/`. Nada de eso lo lee el servicio en runtime y todo suma al contexto que
+# viaja por red antes de que empiece el build.
+#
+# La razón de seguridad es la misma que la del `.dockerignore`: `.env` tiene
+# claves de proveedores, y el contexto de build queda en un bucket del proyecto.
+
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Credenciales. Nunca al bucket de build.
+.env
+.env.*
+!.env.example
+*.pem
+*-key.json
+service-account*.json
+
+.git/
+.github/
+
+# La consola se despliega en Firebase Hosting, no en Cloud Run.
+apps/web/node_modules/
+apps/web/dist/
+
+# Nada de esto corre en el servicio.
+tests/
+evals/
+docs/
+scripts/
+data/generado/
+CHANGELOG.md
+CLAUDE.md
+cv/

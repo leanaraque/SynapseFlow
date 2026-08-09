@@ -256,8 +256,9 @@ cada una con sus dependencias, sus entregables y —sobre todo— cómo se verif
 Las ocho están hechas y los cinco compromisos de diseño están operativos.
 
 **Lo que no se construyó**, dicho sin vueltas porque un plan terminado no es un
-producto terminado: la imagen del contenedor nunca se construyó —`docker build`
-necesita Docker o Cloud Build—, no se desplegó nada, el explorador de la ontología
+producto terminado: la imagen del contenedor nunca se construyó y no se desplegó
+nada —**la cuenta de facturación del proyecto está cerrada**, así que Artifact
+Registry, Cloud Build y Cloud Run responden `BILLING_DISABLED`—; el explorador de la ontología
 quedó reducido a una pantalla «mi rol» con el catálogo compilado, y el panel de
 costos no se hizo: `llm_usage` se escribe y no tiene quien lo lea. El
 [despliegue](docs/05-despliegue.md) está escrito y verificado contra la

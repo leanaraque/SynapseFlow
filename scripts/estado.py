@@ -179,14 +179,14 @@ FASES: dict[str, Fase] = {
         "API en Cloud Run",
         "docs/plan/fases/F6-api.md",
         depende_de=("F5",),
-        bloqueo_externo="Construir la imagen: hace falta Docker o Cloud Build",
+        bloqueo_externo="Cuenta de facturación cerrada: toda API facturable la rechaza",
     ),
     "F7": Fase(
         "F7",
         "Consola web",
         "docs/plan/fases/F7-consola.md",
         depende_de=("F6",),
-        bloqueo_externo="Construir la imagen: hace falta Docker o Cloud Build",
+        bloqueo_externo="Cuenta de facturación cerrada: toda API facturable la rechaza",
     ),
     "F8": Fase(
         "F8",
@@ -606,7 +606,7 @@ COMMITS: list[Commit] = [
             Senal("docs/adr/0006-cloud-run-sobre-cloud-functions.md"),
         ),
         verificar="docker build -t synapseflow-api services/api",
-        notas="Escribir el ADR-0006 en este commit. Blaze ya está habilitado.",
+        notas="Escribir el ADR-0006 en este commit.",
     ),
     # ── F7 · Consola ────────────────────────────────────────────────────────
     Commit(
@@ -684,11 +684,11 @@ def _por_id(commit_id: str) -> Commit | None:
 PENDIENTE_AFUERA: tuple[tuple[str, str], ...] = (
     (
         "La imagen del contenedor nunca se construyó",
-        "docker build -f services/api/Dockerfile . — hace falta Docker o Cloud Build",
+        "bloqueado: Cloud Build responde BILLING_DISABLED. Ver docs/05-despliegue.md",
     ),
     (
         "Nada está desplegado",
-        "el procedimiento está en docs/05-despliegue.md; Blaze ya está habilitado",
+        "bloqueado: la cuenta de facturación está cerrada. Ver docs/05-despliegue.md",
     ),
     (
         "El explorador de la ontología quedó en la pantalla «Mi rol»",

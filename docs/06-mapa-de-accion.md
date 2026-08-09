@@ -113,7 +113,7 @@ Estado verificado contra el proyecto `synapseflow-5fc52` el **2026-08-06**:
 | Bloqueo | Bloquea | Estado |
 |---|---|---|
 | **API key de Gemini** | Verificar en vivo F1, F3, F5, F8 | ✅ resuelto — `GOOGLE_API_KEY` en `.env` |
-| **Plan Blaze en el proyecto Firebase** | Desplegar F6 y F7 | ✅ resuelto — facturación habilitada |
+| **Cuenta de facturación abierta** | Construir la imagen y desplegar F6 y F7 | ❌ **pendiente** — ver abajo |
 | **Firestore en la nube** | Salir del emulador: ingesta real de F3, y F6 | ✅ resuelto — base en `nam5`, reglas e índices desplegados |
 | **ADC apuntando a la cuenta correcta** | Escribir en la base real desde la máquina local | ❌ **pendiente** — requiere un login interactivo |
 
@@ -134,7 +134,33 @@ Los 15 índices compuestos están `READY`, incluidos los **cuatro vectoriales de
 base real: escritura de un fragmento con su vector, `find_nearest` con filtro de
 vigencia, y recuperación correcta.
 
-### El bloqueo que queda
+### Facturación · verificado el 2026-08-08
+
+**La cuenta de facturación del proyecto está cerrada**, y esta tabla decía lo
+contrario hasta hoy. El proyecto figura con `billingEnabled: true` porque está
+*vinculado* a `0121D3-7A9980-1E468E`, pero esa cuenta tiene `open: false` — y las
+dos que se ven desde la organización están igual. El efecto es que toda API
+facturable responde `BILLING_DISABLED`:
+
+```
+ERROR: (gcloud.artifacts.repositories.create) PERMISSION_DENIED:
+This API method requires billing to be enabled.
+```
+
+Bloquea construir la imagen (Artifact Registry, Cloud Build) y desplegar (Cloud
+Run). **No bloquea nada del desarrollo**: la suite corre contra el emulador.
+
+Se resuelve en la consola de Cloud Billing, con un medio de pago válido; no hay
+forma de hacerlo desde la CLI. Las APIs ya quedaron habilitadas —`cloudbuild`,
+`artifactregistry`, `run` y `secretmanager`—, así que al reabrir la cuenta el
+procedimiento de [docs/05-despliegue.md](05-despliegue.md) corre sin pasos
+previos.
+
+> Es la misma clase de deriva que este documento existe para evitar: un estado
+> escrito a mano que dejó de ser cierto. `billingEnabled: true` **no** significa
+> que se pueda facturar, y confiar en ese campo fue el error.
+
+### El otro bloqueo que queda
 
 Las credenciales por defecto de aplicación (ADC) de esta máquina pertenecen a
 `lean.araque@gmail.com`, y el proyecto le da acceso a `hey@leanaraque.com`. El
@@ -441,10 +467,9 @@ el panel de costos no se construyó —la colección `llm_usage` se escribe desd
 y no tiene consumidor—. Las dos cosas están declaradas abajo como lo que faltó.
 
 El circuito desde el navegador y el enlace al fragmento exacto siguen pendientes
-del despliegue, y **no por facturación**: Blaze ya está habilitado. Falta
-construir la imagen de la API —hace falta Docker o Cloud Build— y ejecutar el
-procedimiento de [docs/05-despliegue.md](05-despliegue.md), que incluye la lista
-de lo que hay que comprobar una vez publicado.
+del despliegue, y el despliegue está bloqueado por facturación. El
+procedimiento está en [docs/05-despliegue.md](05-despliegue.md), con la lista de
+lo que hay que comprobar una vez publicado.
 
 ---
 
