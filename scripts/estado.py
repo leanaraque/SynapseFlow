@@ -179,14 +179,14 @@ FASES: dict[str, Fase] = {
         "API en Cloud Run",
         "docs/plan/fases/F6-api.md",
         depende_de=("F5",),
-        bloqueo_externo="Cuenta de facturación cerrada: toda API facturable la rechaza",
+        bloqueo_externo="Desplegado. Falta sembrar el dominio: requiere ADC interactivo",
     ),
     "F7": Fase(
         "F7",
         "Consola web",
         "docs/plan/fases/F7-consola.md",
         depende_de=("F6",),
-        bloqueo_externo="Cuenta de facturación cerrada: toda API facturable la rechaza",
+        bloqueo_externo="Desplegado. Falta sembrar el dominio: requiere ADC interactivo",
     ),
     "F8": Fase(
         "F8",
@@ -683,12 +683,8 @@ def _por_id(commit_id: str) -> Commit | None:
 # falta es peor que no tener estado.
 PENDIENTE_AFUERA: tuple[tuple[str, str], ...] = (
     (
-        "La imagen del contenedor nunca se construyó",
-        "bloqueado: Cloud Build responde BILLING_DISABLED. Ver docs/05-despliegue.md",
-    ),
-    (
-        "Nada está desplegado",
-        "bloqueado: la cuenta de facturación está cerrada. Ver docs/05-despliegue.md",
+        "Las colecciones del dominio están vacías",
+        "el ADC local es de otra cuenta: `gcloud auth application-default login`",
     ),
     (
         "El explorador de la ontología quedó en la pantalla «Mi rol»",
@@ -698,6 +694,18 @@ PENDIENTE_AFUERA: tuple[tuple[str, str], ...] = (
         "El panel de costos no se construyó",
         "`llm_usage` se escribe desde F1 y no tiene ningún consumidor",
     ),
+    (
+        "La API acepta invocaciones sin autenticar",
+        "Hosting no tiene identidad para run.invoker; la protege su propio token",
+    ),
+)
+
+# Lo que sí está corriendo. Va acá por la misma razón que lo de arriba: quien
+# retoma el proyecto pregunta primero «¿esto está vivo?», y la respuesta no se
+# puede derivar del repositorio.
+DESPLEGADO: tuple[tuple[str, str], ...] = (
+    ("Consola", "https://synapseflow-5fc52.web.app"),
+    ("API", "https://synapseflow-api-kizmckhcuq-rj.a.run.app"),
 )
 
 
@@ -714,6 +722,13 @@ def _informar_cierre(hechos: int) -> None:
         c = _por_id(commit_id) if commit_id else None
         marca = MARCA_HECHO if commit_id is None or (c and c.hecho()) else MARCA_PENDIENTE
         print(f"  {marca} {numero}. {texto}")
+    print()
+
+    print(SEP)
+    print("  DESPLEGADO")
+    print(SEP)
+    for que, donde in DESPLEGADO:
+        print(f"  {MARCA_HECHO} {que:9s} {donde}")
     print()
 
     print(SEP)

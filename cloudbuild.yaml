@@ -1,0 +1,51 @@
+# Construcción de la imagen de la API en Cloud Build.
+#
+#     gcloud builds submit --config cloudbuild.yaml \
+#       --substitutions=_TAG=v1 --region=southamerica-east1 .
+#
+# ## Por qué un config y no `--tag`
+#
+# `gcloud builds submit --tag` exige un `Dockerfile` en la raíz del contexto, y
+# el de este proyecto vive en `services/api/`. Mover el Dockerfile a la raíz para
+# complacer a la CLI dejaría el artefacto de un servicio fuera de su servicio.
+#
+# ## Por qué el contexto es la raíz
+#
+# La imagen necesita `packages/`, `pyproject.toml` y `data/`, que están fuera de
+# `services/api/`. El `-f` apunta al Dockerfile y el `.` final es el contexto:
+# son dos cosas distintas y confundirlas es el primer error que se comete.
+#
+# Ver docs/adr/0006-cloud-run-sobre-cloud-functions.md
+
+substitutions:
+  _REGION: southamerica-east1
+  _REPO: synapseflow
+  _IMAGEN: synapseflow-api
+  _TAG: v1
+
+steps:
+  - id: construir
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - services/api/Dockerfile
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGEN}:${_TAG}
+      # `latest` además del tag concreto: el tag inmutable es el que se despliega
+      # y el que permite volver atrás; `latest` es para mirar a mano.
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGEN}:latest
+      - .
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGEN}:${_TAG}
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGEN}:latest
+
+options:
+  # El árbol de dependencias es grande y la máquina por defecto alarga el build
+  # sin necesidad. Es tiempo de máquina, no de nadie esperando.
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 1800s

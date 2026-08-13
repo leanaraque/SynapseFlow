@@ -23,13 +23,16 @@ Sobre LangGraph y LangChain 1.x · desplegada en Firebase
 </div>
 
 > [!NOTE]
-> **El plan de 43 commits está terminado; el sistema no está desplegado.** Todas
-> las capas —ontología, persistencia, gateway, acciones del dominio, RAG,
-> gobernanza, grafo de agentes, evals, API y consola— están construidas y con
-> tests. Lo que falta es material y está dicho como tal: la imagen del contenedor
-> no se construyó, no se publicó nada, y dos funciones de la consola que el mapa
-> listaba no se hicieron. El [estado del proyecto](#estado-del-proyecto) dice qué
-> corre hoy, y [Empezar](#empezar) solo documenta comandos que funcionan.
+> **El plan de 43 commits está terminado y el sistema está desplegado.**
+> Consola: <https://synapseflow-5fc52.web.app> · API en Cloud Run en
+> `southamerica-east1`. La identidad se aplica en producción: `/api/yo` devuelve
+> 401 sin token, y 401 —no 500— con uno inválido.
+>
+> **Las colecciones del dominio siguen vacías**, así que el agente todavía no
+> tiene sobre qué contestar; sembrarlas necesita un
+> `gcloud auth application-default login` interactivo. Dos funciones de la
+> consola que el mapa listaba no se hicieron. Las dos cosas están dichas abajo en
+> lugar de pasadas por alto.
 
 ---
 
@@ -88,10 +91,11 @@ SynapseFlow:
 
 El agente no ejecuta la parada. La propone, la fundamenta y espera a un humano.
 
-> Este es el diseño objetivo, no una sesión capturada: el grafo de agentes está
-> en construcción. Lo que sí está implementado y verificado hoy es el catálogo
-> de herramientas que se ve arriba —derivado de la ontología, filtrado por rol—
-> y el mecanismo de aprobación que sostiene ese último bloque.
+> Este es el diseño objetivo, no una sesión capturada. El grafo que lo produce
+> está construido y verificado de punta a punta —el recorrido de P-2101-A frena
+> en el gate con el activo todavía en servicio—, pero la base desplegada no tiene
+> datos del dominio, así que la consola en vivo no puede reproducirlo hasta que
+> se siembre.
 
 ## Arquitectura
 
@@ -247,7 +251,7 @@ si no, la garantía podría estar pasando sin probar nada.
 | Endpoints de aprobación | ✅ | el proponente no aprueba lo suyo; aprobar no manda argumentos |
 | Imagen y despliegue en Cloud Run | 🚧 | imagen multietapa y ADR-0006 escritos; falta correr `docker build` |
 | Consola web | ✅ | chat, citas inspeccionables y bandeja de aprobaciones |
-| Despliegue | 📋 | procedimiento escrito y verificado contra la configuración; nada publicado |
+| Despliegue | ✅ | en vivo; headers, rewrite de la API y los 401 verificados sobre lo servido |
 
 ✅ implementado y verificado · 🚧 en curso · 📋 planificado
 
@@ -255,10 +259,10 @@ El [mapa de acción](docs/06-mapa-de-accion.md) desglosa el trabajo en ocho fase
 cada una con sus dependencias, sus entregables y —sobre todo— cómo se verifica.
 Las ocho están hechas y los cinco compromisos de diseño están operativos.
 
-**Lo que no se construyó**, dicho sin vueltas porque un plan terminado no es un
-producto terminado: la imagen del contenedor nunca se construyó y no se desplegó
-nada —**la cuenta de facturación del proyecto está cerrada**, así que Artifact
-Registry, Cloud Build y Cloud Run responden `BILLING_DISABLED`—; el explorador de la ontología
+**Lo que no se construyó**, dicho sin vueltas porque un sistema desplegado no es
+un producto terminado: **las colecciones del dominio están vacías** —sembrarlas
+necesita un login de ADC interactivo, porque las credenciales por defecto de la
+máquina de desarrollo son de otra cuenta—; el explorador de la ontología
 quedó reducido a una pantalla «mi rol» con el catálogo compilado, y el panel de
 costos no se hizo: `llm_usage` se escribe y no tiene quien lo lea. El
 [despliegue](docs/05-despliegue.md) está escrito y verificado contra la

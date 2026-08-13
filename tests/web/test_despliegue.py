@@ -142,15 +142,37 @@ def test_la_cuenta_de_servicio_no_es_owner() -> None:
     nombra `roles/owner` justamente para decir que no se usa.
     """
     concedidos = {
-        linea.strip().removeprefix('--role="').removesuffix('"')
+        linea.strip().removeprefix('--role="').split('"')[0]
         for linea in DESPLIEGUE.splitlines()
         if linea.strip().startswith("--role=")
     }
 
-    assert concedidos == {"roles/datastore.user", "roles/secretmanager.secretAccessor"}, (
+    assert concedidos == {
+        "roles/datastore.user",
+        "roles/secretmanager.secretAccessor",
+        # De Cloud Build, no del servicio: sin esto el primer build de cualquier
+        # proyecto nuevo falla al leer su propio tarball de origen.
+        "roles/cloudbuild.builds.builder",
+    }, (
         f"el procedimiento concede {sorted(concedidos)}: cada rol de más amplía "
         "el alcance de cualquier falla de la API"
     )
+
+
+def test_las_concesiones_de_iam_no_abren_un_prompt() -> None:
+    """`gcloud` pide la condición IAM de forma interactiva si no se la pasan, y
+    el comando se cuelga en cualquier script. Pasó en el despliegue real."""
+    concesiones = [linea for linea in DESPLIEGUE.splitlines() if "add-iam-policy-binding" in linea]
+
+    assert concesiones
+    bloque = DESPLIEGUE
+    for concesion in concesiones:
+        if "projects add-iam-policy-binding" in concesion:
+            # El flag va unas líneas más abajo, en el mismo bloque de comando.
+            posicion = bloque.index(concesion)
+            assert "--condition=None" in bloque[posicion : posicion + 400], (
+                f"falta --condition=None en: {concesion.strip()}"
+            )
 
 
 def test_el_procedimiento_no_crea_claves_descargables() -> None:
@@ -160,5 +182,41 @@ def test_el_procedimiento_no_crea_claves_descargables() -> None:
 
 
 def test_el_procedimiento_declara_lo_que_no_se_ejecuto() -> None:
-    """**Documentar como hecho algo que no se hizo ya se cometió una vez acá.**"""
-    assert "Nada de este documento se ejecutó todavía" in DESPLIEGUE
+    """**Documentar como hecho algo que no se hizo ya se cometió una vez acá.**
+
+    Ahora el documento describe un despliegue que sí ocurrió, así que lo que hay
+    que sostener es lo contrario: que siga diciendo qué quedó sin hacer. Las
+    colecciones del dominio están vacías, y un procedimiento que lo omitiera
+    mandaría a alguien a probar el circuito completo contra una base sin datos.
+    """
+    assert "## Lo que falta" in DESPLIEGUE
+    assert "vacías" in DESPLIEGUE
+
+
+def test_el_procedimiento_usa_la_imagen_construida() -> None:
+    """`--source .` no sirve: `gcloud` busca el `Dockerfile` en la raíz del
+    contexto y el de este proyecto vive en `services/api/`."""
+    assert "--config cloudbuild.yaml" in DESPLIEGUE
+    assert "gcloud run deploy synapseflow-api \\\n  --image " in DESPLIEGUE
+
+
+def test_el_procedimiento_declara_el_proveedor_valido() -> None:
+    """**El contenedor arranca igual con un valor inválido.**
+
+    El gateway se construye perezosamente, así que un `SYNAPSEFLOW_PROVIDER`
+    equivocado no rompe el despliegue: rompe la primera consulta, con el usuario
+    esperando. Pasó en el despliegue real.
+    """
+    assert "SYNAPSEFLOW_PROVIDER=gemini" in DESPLIEGUE
+    assert "SYNAPSEFLOW_PROVIDER=google" not in DESPLIEGUE
+
+
+def test_se_explica_por_que_el_servicio_es_publico() -> None:
+    """El documento recomendaba `--no-allow-unauthenticated` y estaba mal:
+    Firebase Hosting no tiene identidad de servicio a la que darle `run.invoker`.
+
+    Lo que protege la API es su propia validación de token. Que eso esté escrito
+    importa: sin la explicación, `allUsers` parece un descuido.
+    """
+    assert "allUsers" in DESPLIEGUE
+    assert "no tiene una identidad de servicio" in DESPLIEGUE

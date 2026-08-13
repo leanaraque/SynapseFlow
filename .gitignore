@@ -14,11 +14,17 @@ dist/
 build/
 
 # Entorno y secretos
+#
+# `.env.*` y no solo `.env.local`: el patrón anterior dejaba afuera
+# `.env.production`, `.env.development` y cualquier variante que Vite reconoce.
+# El archivo de la consola no tiene secretos —la config de Firebase viaja en el
+# bundle— pero un patrón que cubre unas variantes y no otras enseña a confiar en
+# que el .gitignore te cubre, y ahí es donde entra la que sí tenía una clave.
 .env
-.env.local
+.env.*
+!.env.example
 *-service-account.json
 service-account*.json
-!.env.example
 
 # Node / web
 node_modules/

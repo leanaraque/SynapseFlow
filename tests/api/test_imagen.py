@@ -241,13 +241,20 @@ def test_el_adr_existe_y_esta_indexado() -> None:
     assert adr.name in (RAIZ / "docs" / "adr" / "README.md").read_text(encoding="utf-8")
 
 
-def test_el_adr_declara_lo_que_todavia_no_se_verifico() -> None:
-    """**Documentar código inexistente ya se cometió en este repositorio.**
+def test_el_adr_registra_lo_que_el_despliegue_corrigio() -> None:
+    """**Una decisión que resultó mal razonada no se corrige en silencio.**
 
-    El ADR no puede afirmar que la imagen se construyó si nadie la construyó.
+    Este test pedía que el ADR declarara la imagen como no construida. Ya se
+    construyó, así que lo que hay que sostener es lo otro: el ADR recomendaba
+    `--no-allow-unauthenticated` y desplegar demostró que con un rewrite de
+    Hosting no funciona. Borrar esa recomendación sin dejar rastro haría que la
+    próxima persona la volviera a proponer.
     """
     adr = (RAIZ / "docs" / "adr" / "0006-cloud-run-sobre-cloud-functions.md").read_text(
         encoding="utf-8"
     )
 
-    assert "pendiente" in adr.lower()
+    assert "## Corrección posterior" in adr
+    assert "no tiene\nuna identidad de servicio" in adr
+    # Y sigue diciendo qué falta: el circuito completo necesita datos sembrados.
+    assert "vacías" in adr

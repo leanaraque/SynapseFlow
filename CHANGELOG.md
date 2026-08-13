@@ -510,16 +510,55 @@ vector, `find_nearest` con filtro de vigencia y recuperación correcta.
   a la API. Son los errores que **no** fallan al desplegar: dejan el sitio
   andando y mal.
 
+### Desplegado · 2026-08-12
+
+- **La imagen se construyó y el sistema está en vivo.** Consola en
+  <https://synapseflow-5fc52.web.app>, API en Cloud Run
+  (`southamerica-east1`). `cloudbuild.yaml` produce la imagen en 1 m 26 s.
+- Verificado sobre **lo servido**, no sobre la configuración: `/` con
+  `no-cache`, los assets con `immutable`, el rewrite llegando a `/api/roles` con
+  los cinco roles del YAML, y `/api/yo` devolviendo 401 sin token **y también con
+  un token inválido** — que es lo que prueba que `firebase_admin` se inicializó
+  con la identidad del servicio y rechaza de verdad.
+- La regla de caché sobre `/` que se agregó en F7.4 quedó confirmada contra la
+  respuesta real: sin ella el shell de la SPA se habría cacheado.
+
+### Corregido al desplegar
+
+Tres cosas que estaban mal escritas y que solo desplegando se supieron:
+
+- **`--no-allow-unauthenticated` no funciona con un rewrite de Hosting.** El
+  argumento era que el tráfico legítimo entra por Hosting, «que sí está
+  autorizado». No lo está: Firebase Hosting **no tiene identidad de servicio** a
+  la que darle `roles/run.invoker` —`gcloud beta services identity create`
+  responde `Invalid service producer`— y con el servicio privado el rewrite
+  devuelve 403. Lo que protege la API es su propia validación de token; queda
+  como deuda poner Cloud Armor o un balanceador delante.
+- **`--source .` no sirve**: `gcloud` busca el `Dockerfile` en la raíz del
+  contexto y el de este proyecto vive en `services/api/`. Se agregó
+  `cloudbuild.yaml`.
+- **`SYNAPSEFLOW_PROVIDER=google` no es un valor válido** —el enum dice
+  `gemini`— y el contenedor **arrancó igual**, porque el gateway se construye
+  perezosamente. Habría fallado en la primera consulta, con el usuario esperando.
+- Se agregó `--condition=None` a las concesiones de IAM: sin él `gcloud` abre un
+  prompt interactivo y el comando se cuelga en cualquier script. Y hubo que dar
+  `roles/cloudbuild.builds.builder` a la cuenta de compute por defecto, porque
+  desde 2024 **el primer build de todo proyecto nuevo falla** al leer su propio
+  tarball de origen.
+- `.gitignore` cubría `.env.local` pero no `.env.production` ni las demás
+  variantes que Vite reconoce. Un patrón que cubre unas y no otras enseña a
+  confiar en que te cubre.
+
 ### Lo que el plan no construyó
 
 Un plan terminado no es un producto terminado. Queda escrito acá porque no
 enterarse es peor que faltar:
 
-- **La imagen del contenedor nunca se construyó** y **nada se desplegó**. No es
-  por falta de código: la cuenta de facturación del proyecto está **cerrada**,
-  así que Artifact Registry, Cloud Build y Cloud Run responden `BILLING_DISABLED`.
-  El proyecto figura con `billingEnabled: true` porque está vinculado a esa
-  cuenta cerrada, que es precisamente lo que hace difícil de diagnosticar.
+- **Las colecciones del dominio están vacías.** Sembrarlas necesita
+  `gcloud auth application-default login`: el ADC de la máquina de desarrollo
+  pertenece a otra cuenta y Firestore responde `403 Missing or insufficient
+  permissions`. Es el bloqueo que el mapa de acción declaraba desde el inicio y
+  el único paso del despliegue que no se pudo ejecutar.
 - **El explorador de la ontología** quedó reducido a la pantalla «Mi rol», que
   muestra el catálogo compilado. Navegar entidades y relaciones no se hizo.
 - **El panel de costos no se construyó.** La colección `llm_usage` se escribe
@@ -534,13 +573,6 @@ enterarse es peor que faltar:
   el estado no se pueda desincronizar, así que esto no era un detalle. Ahora la
   señal es el procedimiento de despliegue versionado; publicar de verdad pasa en
   Firebase y no se puede derivar del repositorio.
-
-### Pendiente
-
-- **La imagen todavía no se construyó.** `docker build` necesita Docker local o
-  una corrida de Cloud Build, y ninguno está disponible en el entorno donde se
-  escribió este commit. Los tests verifican las propiedades del `Dockerfile`, no
-  que produzca una imagen que arranque. Está declarado así también en el ADR.
 
 ### Verificado contra la librería instalada
 

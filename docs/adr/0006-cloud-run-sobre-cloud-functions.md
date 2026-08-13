@@ -118,8 +118,30 @@ La imagen es multi-etapa sobre `python:3.11-slim` (`services/api/Dockerfile`):
 - `.dockerignore` excluye `.env` y las claves. Hay un test que lo comprueba,
   porque el modo de falla —una clave dentro de una capa de la imagen— no se ve
   mirando la imagen que arranca.
-- `docker build -f services/api/Dockerfile -t synapseflow-api .` desde la raíz
-  del repositorio, y una prueba de arranque en frío con el árbol completo, siguen
-  pendientes de una máquina con Docker o de una corrida de Cloud Build. Está
-  declarado como tal en el estado del proyecto: nada de este ADR afirma que la
-  imagen ya se construyó.
+- **La imagen se construyó y el servicio corre.** Cloud Build la produjo en
+  1 m 26 s con `cloudbuild.yaml`, y `synapseflow-api` responde en
+  `southamerica-east1`. Verificado sobre lo servido: `/health` da 200, el rewrite
+  de Hosting llega a `/api/roles` con los roles del YAML, y `/api/yo` sin token
+  devuelve 401 — con un token inválido también, que es lo que prueba que la capa
+  de identidad funciona contra Firebase de verdad.
+- Falta la prueba de arranque en frío medida y el circuito completo desde el
+  navegador: las colecciones del dominio están vacías. Ver
+  [docs/05-despliegue.md](../05-despliegue.md).
+
+## Corrección posterior
+
+**Este ADR decía que el servicio correría con `--no-allow-unauthenticated`**, con
+el argumento de que el tráfico legítimo entra por el rewrite de Hosting, «que sí
+está autorizado». Al desplegar se comprobó que no: Firebase Hosting **no tiene
+una identidad de servicio** a la que darle `roles/run.invoker`, y con el servicio
+privado el rewrite devuelve 403.
+
+El servicio acepta `allUsers` en `roles/run.invoker`. **Lo que protege la API es
+su propia validación de token**, no la red: sin `Authorization: Bearer` responde
+401. Lo que se pierde es la barrera previa —tráfico no autenticado llega al
+contenedor y puede provocar arranques en frío—, y eso queda como deuda: para un
+piloto real va Cloud Armor delante o un balanceador en lugar del rewrite.
+
+No se reemplaza este ADR porque la decisión de fondo —Cloud Run sobre Cloud
+Functions— no cambió. Cambió un detalle de configuración que estaba mal
+razonado, y queda escrito acá en vez de corregido en silencio.

@@ -5,24 +5,23 @@ Firebase Hosting, con `/api/**` reescrito hacia la primera. Ese rewrite ya está
 en `firebase.json` desde el inicio del proyecto, así que el frontend nunca
 conoció una URL de backend.
 
-> **Bloqueado por facturación.** Verificado el **2026-08-08**: el proyecto
-> figura con `billingEnabled: true`, y eso engaña — está *vinculado* a la cuenta
-> `0121D3-7A9980-1E468E`, que está **cerrada** (`open: false`). Las dos cuentas
-> visibles desde esta organización lo están. Con una cuenta cerrada, toda API
-> facturable responde `BILLING_DISABLED`: Artifact Registry, Cloud Build y Cloud
-> Run incluidos.
+> **Ejecutado el 2026-08-12.** Este procedimiento ya corrió de punta a punta
+> contra `synapseflow-5fc52`. Lo que sigue es lo que se hizo, no lo que se
+> planea, y las secciones llevan las correcciones que la ejecución obligó a
+> hacer — estaban mal escritas y solo desplegando se supo.
 >
-> Comprobalo antes de intentar cualquier cosa de este documento, porque el
-> síntoma es un `PERMISSION_DENIED` que no menciona la palabra facturación hasta
-> el final del mensaje:
+> - API: <https://synapseflow-api-kizmckhcuq-rj.a.run.app>
+> - Consola: <https://synapseflow-5fc52.web.app>
+>
+> **Antes de intentarlo en un proyecto nuevo, comprobá la facturación.** Que el
+> proyecto figure con `billingEnabled: true` **no** alcanza: puede estar
+> vinculado a una cuenta cerrada, y entonces toda API facturable responde
+> `BILLING_DISABLED` con un `PERMISSION_DENIED` que no menciona la palabra
+> facturación hasta el final del mensaje.
 >
 > ```bash
 > gcloud beta billing accounts list   # mirá la columna OPEN, no solo que exista
 > ```
->
-> Se resuelve en la consola de Cloud Billing, con un medio de pago válido. No hay
-> forma de hacerlo desde la CLI. El código, los tests y el build de la consola no
-> necesitan nada de esto.
 
 ---
 
@@ -74,7 +73,26 @@ gcloud iam service-accounts create synapseflow-api \
 
 gcloud projects add-iam-policy-binding synapseflow-5fc52 \
   --member="serviceAccount:synapseflow-api@synapseflow-5fc52.iam.gserviceaccount.com" \
-  --role="roles/datastore.user"
+  --role="roles/datastore.user" --condition=None
+```
+
+**`--condition=None` no es opcional**: sin él, `gcloud` abre un prompt
+interactivo pidiendo la condición IAM y el comando se cuelga en cualquier
+script.
+
+Y hace falta una más, que no es del servicio sino de Cloud Build: desde 2024 la
+cuenta por defecto de compute ya no trae permisos, así que **el primer build de
+todo proyecto nuevo falla** al leer su propio tarball de origen:
+
+```
+ERROR: could not resolve source: 723018546496-compute@developer.gserviceaccount.com
+       does not have storage.objects.get access
+```
+
+```bash
+gcloud projects add-iam-policy-binding synapseflow-5fc52 \
+  --member="serviceAccount:PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
+  --role="roles/cloudbuild.builds.builder" --condition=None
 ```
 
 `roles/datastore.user`, no `roles/owner`. Una cuenta con más permisos de los que
@@ -89,18 +107,24 @@ servicio (ADC) y en el CI, de Workload Identity Federation.
 
 ## 3 · La API
 
+El `Dockerfile` no está en la raíz, así que `--source .` **no sirve**: `gcloud`
+busca un `Dockerfile` en la raíz del contexto y no lo encuentra. Se construye
+primero con `cloudbuild.yaml` y se despliega la imagen ya construida.
+
 ```bash
+gcloud builds submit --config cloudbuild.yaml --region=southamerica-east1 .
+
 gcloud run deploy synapseflow-api \
-  --source . \
+  --image southamerica-east1-docker.pkg.dev/synapseflow-5fc52/synapseflow/synapseflow-api:v1 \
   --region southamerica-east1 \
   --service-account synapseflow-api@synapseflow-5fc52.iam.gserviceaccount.com \
   --set-secrets GOOGLE_API_KEY=synapseflow-google-api-key:latest \
-  --set-env-vars SYNAPSEFLOW_PROVIDER=google,GOOGLE_CLOUD_PROJECT=synapseflow-5fc52 \
-  --no-allow-unauthenticated \
+  --set-env-vars SYNAPSEFLOW_PROVIDER=gemini,GOOGLE_CLOUD_PROJECT=synapseflow-5fc52 \
+  --memory 2Gi --cpu 1 --timeout 600 \
   --min-instances 0
 ```
 
-Tres cosas que no son ajustables sin pensarlo:
+Cuatro cosas que no son ajustables sin pensarlo:
 
 - **`--set-secrets`, nunca `--set-env-vars`, para las claves.** Con la segunda
   quedan en el manifiesto del servicio, visibles para cualquiera con permiso de
@@ -108,12 +132,45 @@ Tres cosas que no son ajustables sin pensarlo:
 - **`--region southamerica-east1`** tiene que coincidir con `firebase.json`. Si
   no, el rewrite apunta a un servicio que no existe y la consola recibe 404 en
   cada llamada — con el servicio corriendo perfecto en otra región.
-- **`--no-allow-unauthenticated`**: el tráfico legítimo entra por el rewrite de
-  Hosting, que sí está autorizado. Abrirlo al público expondría la API sin más
-  defensa que su propia validación de token.
+- **`SYNAPSEFLOW_PROVIDER=gemini`**, no `google`. Es un valor del enum `Provider`
+  y ningún otro nombre vale. El contenedor **arranca igual** con un valor
+  inválido, porque el gateway se construye perezosamente: falla en la primera
+  consulta, con el usuario esperando. Pasó en el despliegue real.
+- **`--timeout 600`**: un recorrido completo con RAG y varios especialistas pasa
+  cómodo del minuto por defecto, y el corte llega justo cuando la consulta era
+  difícil.
 
 El nombre `synapseflow-api` no es libre: es el `serviceId` que declara
 `firebase.json`, y hay un test que compara las dos declaraciones.
+
+### Por qué el servicio acepta invocaciones sin autenticar
+
+**Este documento decía `--no-allow-unauthenticated` y estaba mal.** El argumento
+era que el tráfico legítimo entra por el rewrite de Hosting, «que sí está
+autorizado». No lo está: Firebase Hosting **no tiene una identidad de servicio**
+que se le pueda dar `roles/run.invoker`.
+
+```
+ERROR: Service account service-PROJECT@gcp-sa-firebasehosting.iam.gserviceaccount.com
+       does not exist.
+ERROR: (gcloud.beta.services.identity.create) INVALID_ARGUMENT:
+       Invalid service producer: firebasehosting.googleapis.com
+```
+
+Con el servicio privado, el rewrite devuelve **403 con un cuerpo HTML** — no un
+error de la API, sino de Cloud Run rechazando a Hosting. Así que:
+
+```bash
+gcloud run services add-iam-policy-binding synapseflow-api \
+  --region southamerica-east1 --member=allUsers --role=roles/run.invoker
+```
+
+**Lo que protege la API es su propia validación de token, no la red.** Sin
+`Authorization: Bearer` devuelve 401, y con un token inválido también; `/health`
+y `/api/roles` son públicos a propósito. Lo que se pierde al abrirla es la
+barrera *previa*: tráfico no autenticado llega al contenedor y puede provocar
+arranques en frío. Para un piloto real se pone Cloud Armor delante, o se cambia
+el rewrite por un balanceador. Está anotado como deuda, no resuelto.
 
 ### Arranque en frío
 
@@ -249,14 +306,35 @@ desplegarlo, porque el rollback del código no lo acompaña.
 
 ---
 
-## Estado
+## Estado · verificado el 2026-08-12
 
-Nada de este documento se ejecutó todavía: el despliegue necesita plan Blaze, y
-la construcción de la imagen necesita Docker o Cloud Build. Lo que sí está
-verificado es todo lo anterior — la imagen, sus propiedades, la API y la consola
-tienen tests, y `python -m scripts.estado` reporta qué falta.
+Ejecutado contra `synapseflow-5fc52`. Lo comprobado con `curl` sobre lo servido,
+no sobre la configuración escrita:
 
-El estado de este commit se deriva de que exista **este procedimiento**, no de un
-artefacto de build: `apps/web/dist/` está en `.gitignore`, y un detector que
-dependiera de él daría el despliegue por hecho apenas alguien corriera
-`npm run build`.
+| Prueba | Resultado |
+|---|---|
+| `GET /` | `200` · `cache-control: no-cache` ✅ |
+| `GET /assets/index-*.js` | `200` · `public,max-age=31536000,immutable` ✅ |
+| `GET /api/roles` por el rewrite | `200` · los cinco roles del YAML ✅ |
+| `GET /api/yo` sin token | `401` · «Falta el header 'Authorization: Bearer'» ✅ |
+| `GET /api/yo` con token inválido | `401`, **no 500** ✅ |
+| `GET /api/aprobaciones` sin token | `401` ✅ |
+
+La regla de caché sobre `/` es la que se agregó al corregir el error registrado
+en las convenciones. **Sin ella el shell de la SPA se habría cacheado**, y esta
+tabla lo confirma sobre la respuesta real.
+
+El 401 con token inválido importa más de lo que parece: prueba que
+`firebase_admin` se inicializó con la identidad del servicio y que rechaza un
+token falso — la capa de identidad, verificada contra Firebase de verdad.
+
+### Lo que falta
+
+**Las colecciones del dominio están vacías.** Sembrarlas necesita
+`gcloud auth application-default login` en una máquina con los datos generados:
+el ADC de la máquina de desarrollo pertenece a otra cuenta y Firestore devuelve
+`403 Missing or insufficient permissions`. Es el bloqueo que el mapa de acción ya
+declaraba, y el único paso de este documento que no se pudo ejecutar.
+
+Hasta que se siembre, la API responde y aplica identidad, pero el agente no tiene
+sobre qué contestar.

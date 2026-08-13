@@ -23,13 +23,15 @@ Built on LangGraph and LangChain 1.x · deployed on Firebase
 </div>
 
 > [!NOTE]
-> **The 43-commit plan is finished; the system is not deployed.** Every layer —
-> ontology, persistence, gateway, domain actions, RAG, governance, agent graph,
-> evals, API and console — is built and tested. What is missing is material and
-> stated as such: the container image has not been built, nothing has been
-> published, and two console features listed in the roadmap were not built.
-> The [project status](#project-status) table says exactly what runs today, and
-> [Getting started](#getting-started) only documents commands that actually work.
+> **The 43-commit plan is finished and the system is deployed.**
+> Console: <https://synapseflow-5fc52.web.app> · API on Cloud Run in
+> `southamerica-east1`. Identity is enforced in production: `/api/yo` returns 401
+> without a token and 401 — not 500 — with an invalid one.
+>
+> **The domain collections are still empty**, so the agent has nothing to answer
+> about yet; seeding needs an interactive `gcloud auth application-default login`.
+> Two console features listed in the roadmap were not built. Both are stated
+> below rather than glossed over.
 
 ---
 
@@ -90,10 +92,10 @@ SynapseFlow:
 The agent does not execute the shutdown. It proposes it, justifies it, and waits
 for a human.
 
-> That transcript is the target design, not a captured session: the agent graph
-> is still being built. What *is* implemented and verified today is the tool
-> catalogue shown above — derived from the ontology and filtered by role — and
-> the approval mechanism behind that last block.
+> That transcript is the target design, not a captured session. The graph that
+> produces it is built and tested end to end — the P-2101-A journey stops at the
+> gate with the asset still in service — but the deployed database has no domain
+> data yet, so the live console cannot reproduce it until it is seeded.
 >
 > The domain is modelled in Spanish, so tool names and output are in Spanish.
 > See [Project language](#project-language).
@@ -250,7 +252,7 @@ pass by proving nothing.
 | Approval endpoints | ✅ | the proposer cannot approve their own action; approving sends no arguments |
 | Cloud Run image and deployment | 🚧 | multi-stage image and ADR-0006 written; `docker build` still pending |
 | Web console | ✅ | chat, inspectable citations and the approval inbox |
-| Deployment | 📋 | runbook written and verified against the config; nothing published yet |
+| Deployment | ✅ | live; headers, the API rewrite and the 401s verified against what is served |
 
 ✅ implemented and verified · 🚧 in progress · 📋 planned
 
@@ -258,10 +260,10 @@ The [action map](docs/06-mapa-de-accion.md) breaks the work into eight phases,
 each with its dependencies, deliverables and — most importantly — how it gets
 verified. All eight are done, and all five design commitments are operative.
 
-**What was not built**, stated plainly because a finished plan is not a finished
-product: the container image has never been built and nothing has been deployed —
-**the project's billing account is closed**, so Artifact Registry, Cloud Build and
-Cloud Run all answer `BILLING_DISABLED`; the ontology explorer was reduced to a
+**What was not built**, stated plainly because a deployed system is not a
+finished product: **the domain collections are empty** — seeding needs an
+interactive ADC login, because the dev machine's default credentials belong to a
+different account; the ontology explorer was reduced to a
 single "my role" screen showing the compiled catalogue, and the cost dashboard
 was not built at all — `llm_usage` is written and has no reader.
 [Deployment](docs/05-despliegue.md) is written down and checked against the
