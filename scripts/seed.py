@@ -39,6 +39,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -92,11 +93,29 @@ def _describir_destino(permitir_produccion: bool) -> str:
 
     Se llama antes de leer un solo archivo: si el destino no es admisible, no
     tiene sentido hacer nada más.
+
+    ## Por qué se lee `os.environ` y no `Settings`
+
+    **Porque es lo que lee el SDK de Firestore**, y esta función existe para
+    decir la verdad sobre a dónde van las escrituras.
+
+    `Settings` toma `FIRESTORE_EMULATOR_HOST` del archivo `.env`; el cliente de
+    Firestore la toma del entorno del proceso, y `pydantic-settings` **no**
+    escribe en `os.environ`. Cuando la variable está en `.env` y no en el
+    entorno —que es el caso de cualquier `python -m scripts.seed` en una consola
+    limpia— las dos fuentes discrepan: esta función anunciaba «emulador
+    localhost:8080» y el SDK escribía en la base real, sin exigir
+    `--permitir-produccion`.
+
+    Pasó de verdad el 2026-08-12: 398 registros entraron a producción con el
+    script informando que iban al emulador. Una guarda que miente sobre el
+    destino es peor que no tener guarda, porque se confía en ella.
     """
     settings = get_settings()
+    emulador = os.environ.get("FIRESTORE_EMULATOR_HOST", "").strip()
 
-    if settings.using_emulator:
-        return f"emulador {settings.firestore_emulator_host} (proyecto {settings.gcp_project})"
+    if emulador:
+        return f"emulador {emulador} (proyecto {settings.gcp_project})"
 
     if not permitir_produccion:
         raise SeedError(

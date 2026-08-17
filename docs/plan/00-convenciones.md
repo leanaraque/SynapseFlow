@@ -423,6 +423,30 @@ aprobación después rechaza.
 
 ---
 
+## Hallazgo 13 · Gemini rechaza el «prefilling»
+
+Verificado contra la API real el **2026-08-12**, en la primera consulta al
+sistema desplegado. **Ningún test lo detectó**, y no podían: el modelo falso
+acepta cualquier secuencia de mensajes.
+
+    Model 'gemini-3.5-flash-lite' does not support model prefilling.
+    The final request turn must be a user message or a function response.
+
+El último turno que se le manda a Gemini tiene que ser un mensaje humano o una
+respuesta de herramienta. En este grafo eso se rompe cuando el supervisor rutea a
+un **segundo** especialista: el historial termina en la respuesta del primero,
+que es un `AIMessage`.
+
+Por eso `_cerrar_con_turno_humano` en `agents/graph.py` agrega un turno humano
+antes de invocar a cada especialista, si hace falta. No es relleno: le dice al
+especialista qué se espera de él.
+
+**La lección más amplia**: el modelo falso verifica el cableado del grafo, no las
+reglas del proveedor. Un recorrido contra un proveedor real es una clase de
+verificación distinta, y hasta este despliegue el proyecto no la tenía.
+
+---
+
 # Errores ya cometidos en este repositorio
 
 No los repitas.

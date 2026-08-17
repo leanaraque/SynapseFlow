@@ -43,6 +43,7 @@ import functools
 from typing import Any
 
 from langchain_core.documents import Document
+from langchain_core.messages import HumanMessage
 from langgraph.graph import END, START, StateGraph
 
 from synapseflow.agents.especialistas import (
@@ -145,8 +146,10 @@ def _nodo_de_especialista(nombre: str, agente: Any) -> Any:
 
     async def nodo(estado: AgentState) -> dict[str, Any]:
         previos = list(estado.get("messages") or [])
-        resultado = await agente.ainvoke({"messages": previos})
-        nuevos = list(resultado.get("messages") or [])[len(previos) :]
+        entrada = _cerrar_con_turno_humano(previos, nombre)
+
+        resultado = await agente.ainvoke({"messages": entrada})
+        nuevos = list(resultado.get("messages") or [])[len(entrada) :]
 
         actualizacion: dict[str, Any] = {"messages": nuevos}
         actualizacion.update(_extraer_del_artifact(nombre, nuevos, estado))
@@ -154,6 +157,40 @@ def _nodo_de_especialista(nombre: str, agente: Any) -> Any:
 
     nodo.__name__ = f"nodo_{nombre}"
     return nodo
+
+
+def _cerrar_con_turno_humano(mensajes: list[Any], especialista: str) -> list[Any]:
+    """Garantiza que la conversación no termine en un mensaje del modelo.
+
+    **Gemini rechaza el «prefilling»**: el último turno tiene que ser un mensaje
+    humano o una respuesta de herramienta. Cuando el supervisor rutea a un
+    segundo especialista, el historial termina en la respuesta del primero —un
+    `AIMessage`— y el proveedor devuelve:
+
+        Model 'gemini-3.5-flash-lite' does not support model prefilling.
+        The final request turn must be a user message or a function response.
+
+    El modelo falso acepta cualquier secuencia, así que esto **no se puede
+    descubrir con los tests**: apareció en la primera consulta real contra el
+    sistema desplegado, después de que el agente de datos contestara bien.
+
+    El mensaje que se agrega no es relleno: le dice al especialista qué se espera
+    de él, que es información que antes solo estaba en su prompt de sistema. No
+    entra al estado del grafo —se arma por invocación— para que el historial siga
+    siendo la conversación y no las costuras del ruteo.
+    """
+    # Una conversación vacía tampoco termina en un mensaje del modelo, así que no
+    # hay nada que arreglar: agregarle un turno sería inventar contexto.
+    if not mensajes or getattr(mensajes[-1], "type", None) != "ai":
+        return mensajes
+
+    pedido = HumanMessage(
+        content=(
+            f"Continuá con lo que le corresponde al agente de {especialista}, "
+            "usando tus herramientas sobre la consulta original."
+        )
+    )
+    return [*mensajes, pedido]
 
 
 def _extraer_del_artifact(nombre: str, mensajes: list[Any], estado: AgentState) -> dict[str, Any]:

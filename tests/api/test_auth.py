@@ -327,3 +327,95 @@ async def test_los_roles_son_publicos(cliente: Any) -> None:
 
     assert respuesta.status_code == 200
     assert set(respuesta.json()["roles"]) == {r.id for r in ONTOLOGIA.roles}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# El SDK de Firebase
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Esta sección existe porque el sistema se desplegó y la identidad NO funcionaba:
+# `firebase_admin.initialize_app()` no se llamaba en ningún lado, así que
+# `verify_id_token` lanzaba «The default Firebase app does not exist» y el
+# `except Exception` lo convertía en «el token no es válido o expiró».
+#
+# **Todos los tokens recibían 401, incluidos los buenos**, y el mensaje mandaba a
+# revisar el token en lugar del servidor. Es la degradación silenciosa que este
+# repositorio ya tiene anotada como error cometido.
+
+
+def test_la_app_de_firebase_se_inicializa_con_el_proyecto_explicito() -> None:
+    """**El bug que rompía la identidad en producción.**
+
+    Sin app inicializada, `verify_id_token` no sabe contra qué proyecto validar
+    el `aud`. Y el `projectId` va explícito: en Cloud Run saldría del metadata
+    server, pero en un contenedor local no hay metadata server y el fallo vuelve
+    a ser silencioso.
+    """
+    import inspect
+
+    from services.api.auth import _app
+
+    fuente = inspect.getsource(_app)
+
+    assert "initialize_app" in fuente
+    assert "projectId" in fuente
+
+
+def test_un_fallo_del_sdk_no_se_reporta_como_token_invalido() -> None:
+    """**Es lo que escondió el bug durante todo el despliegue.**
+
+    Un 401 le dice a la persona «tu token está mal» y la manda a reautenticarse
+    para siempre, mientras el problema está del lado del servidor.
+    """
+    import services.api.auth as modulo
+
+    class _Roto:
+        InvalidIdTokenError = type("InvalidIdTokenError", (Exception,), {})
+        ExpiredIdTokenError = type("ExpiredIdTokenError", (Exception,), {})
+        RevokedIdTokenError = type("RevokedIdTokenError", (Exception,), {})
+        UserDisabledError = type("UserDisabledError", (Exception,), {})
+
+        @staticmethod
+        def verify_id_token(_token: str, app: Any = None) -> dict[str, Any]:
+            raise ValueError("The default Firebase app does not exist.")
+
+    import sys
+    import types
+
+    falso = types.ModuleType("firebase_admin")
+    falso.auth = _Roto  # type: ignore[attr-defined]
+    falso.get_app = lambda: object()  # type: ignore[attr-defined]
+    anterior_admin = sys.modules.get("firebase_admin")
+    anterior_auth = sys.modules.get("firebase_admin.auth")
+    sys.modules["firebase_admin"] = falso
+    sys.modules["firebase_admin.auth"] = _Roto  # type: ignore[assignment]
+    modulo._app.cache_clear()
+
+    try:
+        with pytest.raises(modulo.PlataformaMalConfiguradaError) as excinfo:
+            modulo.verificar_token("lo-que-sea")
+    finally:
+        modulo._app.cache_clear()
+        if anterior_admin is not None:
+            sys.modules["firebase_admin"] = anterior_admin
+        else:
+            sys.modules.pop("firebase_admin", None)
+        if anterior_auth is not None:
+            sys.modules["firebase_admin.auth"] = anterior_auth
+        else:
+            sys.modules.pop("firebase_admin.auth", None)
+
+    assert "problema del servidor" in str(excinfo.value)
+
+
+def test_un_token_realmente_invalido_si_da_401() -> None:
+    """La otra mitad: el error del token sigue siendo del token."""
+    import inspect
+
+    from services.api.auth import verificar_token
+
+    fuente = inspect.getsource(verificar_token)
+
+    assert "auth.InvalidIdTokenError" in fuente
+    assert "auth.ExpiredIdTokenError" in fuente
+    assert "HTTP_401_UNAUTHORIZED" in fuente

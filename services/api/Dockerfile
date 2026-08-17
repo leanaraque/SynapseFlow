@@ -90,6 +90,16 @@ COPY packages/ ./packages/
 COPY services/ ./services/
 COPY data/ ./data/
 
+# `firestore.indexes.json` NO es solo configuración de despliegue: el registry lo
+# lee EN RUNTIME para comprobar que la dimensión del modelo de embeddings
+# coincide con la del índice vectorial, y esa comprobación corre al construir el
+# gateway.
+#
+# Sin este archivo la verificación no puede hacerse y el gateway **falla
+# cerrado**, que es lo correcto — pero convierte un archivo faltante en un 500 en
+# la primera consulta. Pasó en el despliegue del 2026-08-12.
+COPY firestore.indexes.json ./
+
 # Usuario sin privilegios. Cloud Run no lo exige y da lo mismo hasta el día que
 # una dependencia tiene un RCE, que es el día en que deja de dar lo mismo.
 RUN useradd --create-home --uid 1000 synapseflow && chown -R synapseflow:synapseflow /app

@@ -25,6 +25,10 @@ build/
 !.env.example
 *-service-account.json
 service-account*.json
+# Tokens de sesión de las pruebas contra el sistema desplegado. Son credenciales
+# de vida corta y no tienen por qué existir fuera de la máquina que las pidió.
+.token-*.tmp
+.clave.tmp
 
 # Node / web
 node_modules/

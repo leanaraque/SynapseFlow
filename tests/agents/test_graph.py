@@ -188,3 +188,49 @@ def test_el_checkpointer_se_puede_inyectar() -> None:
 def test_sin_checkpointer_el_grafo_igual_compila() -> None:
     """Para los tests que no necesitan persistencia."""
     assert grafo().checkpointer is None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# El turno humano de cierre
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Gemini rechaza el «prefilling»: el último turno tiene que ser un mensaje humano
+# o una respuesta de herramienta. Cuando el supervisor rutea a un SEGUNDO
+# especialista, el historial termina en la respuesta del primero —un AIMessage—
+# y el proveedor devuelve 400.
+#
+# El modelo falso acepta cualquier secuencia, así que estos tests no lo habrían
+# detectado solos: apareció en la primera consulta real contra el sistema
+# desplegado. Quedan acá para que la invariante no se pierda.
+
+
+def test_una_conversacion_que_termina_en_el_modelo_recibe_un_turno_humano() -> None:
+    """**El fallo que solo aparece con un proveedor real.**"""
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    from synapseflow.agents.graph import _cerrar_con_turno_humano
+
+    previos = [HumanMessage(content="¿P-2101-A sigue apto?"), AIMessage(content="Consulté datos.")]
+
+    entrada = _cerrar_con_turno_humano(previos, "normativa")
+
+    assert len(entrada) == len(previos) + 1
+    assert entrada[-1].type == "human"
+    assert "normativa" in entrada[-1].content
+
+
+def test_una_conversacion_que_ya_termina_en_humano_no_se_toca() -> None:
+    """Agregar un turno de más ensucia el historial sin resolver nada."""
+    from langchain_core.messages import HumanMessage
+
+    from synapseflow.agents.graph import _cerrar_con_turno_humano
+
+    previos = [HumanMessage(content="¿P-2101-A sigue apto?")]
+
+    assert _cerrar_con_turno_humano(previos, "datos") == previos
+
+
+def test_una_conversacion_vacia_no_se_toca() -> None:
+    from synapseflow.agents.graph import _cerrar_con_turno_humano
+
+    assert _cerrar_con_turno_humano([], "datos") == []

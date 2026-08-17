@@ -24,10 +24,12 @@ Ver docs/plan/fases/F6-api.md § F6.1
 
 from __future__ import annotations
 
+import functools
 from typing import Any
 
 from fastapi import Header, HTTPException, status
 
+from synapseflow.config import get_settings
 from synapseflow.governance.rbac import ExecutionContext
 from synapseflow.ontology import Ontology, get_ontology
 
@@ -47,6 +49,38 @@ class ErrorDeIdentidad(HTTPException):
     """
 
 
+class PlataformaMalConfiguradaError(RuntimeError):
+    """El SDK de Firebase no pudo verificar por un problema **nuestro**.
+
+    Tipo propio porque la respuesta correcta es 500, no 401. Un 401 le dice a la
+    persona «tu token está mal» y la manda a volver a autenticarse una y otra
+    vez, mientras el problema está del lado del servidor y nadie lo mira.
+    """
+
+
+@functools.lru_cache(maxsize=1)
+def _app() -> Any:
+    """La app de `firebase_admin`, inicializada una sola vez.
+
+    **Esto faltaba y hacía que la identidad no funcionara en producción.**
+    `verify_id_token` necesita una app inicializada para conocer el proyecto
+    contra el cual validar el `aud` del token; sin ella lanza «The default
+    Firebase app does not exist», que el `except Exception` original convertía
+    en «el token no es válido». Resultado: **todos** los tokens, incluidos los
+    buenos, recibían 401 — y el mensaje mandaba a mirar el lugar equivocado.
+
+    El `projectId` va explícito y no se deja adivinar por el entorno: en Cloud
+    Run saldría del metadata server, pero en cualquier otro lado —un contenedor
+    local, un job— no hay metadata server y el fallo vuelve a ser silencioso.
+    """
+    import firebase_admin
+
+    try:
+        return firebase_admin.get_app()
+    except ValueError:
+        return firebase_admin.initialize_app(options={"projectId": get_settings().gcp_project})
+
+
 def verificar_token(token: str) -> dict[str, Any]:
     """Valida el token contra Firebase Auth y devuelve sus claims.
 
@@ -54,15 +88,31 @@ def verificar_token(token: str) -> dict[str, Any]:
     tests de la capa de permisos no necesiten inicializar el SDK ni tener
     credenciales: lo que se testea es la resolución del rol, no la criptografía
     de Google.
+
+    **Solo los errores del token dan 401.** Un certificado que no se pudo
+    descargar, o una app mal inicializada, son fallas de la plataforma: se
+    distinguen para que no se escondan detrás de un mensaje que culpa al usuario.
     """
     from firebase_admin import auth
 
+    # Errores que sí son del token: la persona tiene que volver a autenticarse.
+    del_token = (
+        auth.InvalidIdTokenError,
+        auth.ExpiredIdTokenError,
+        auth.RevokedIdTokenError,
+        auth.UserDisabledError,
+    )
+
     try:
-        return dict(auth.verify_id_token(token))
-    except Exception as exc:
+        return dict(auth.verify_id_token(token, app=_app()))
+    except del_token as exc:
         raise ErrorDeIdentidad(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="El token de Firebase no es válido o expiró.",
+        ) from exc
+    except Exception as exc:
+        raise PlataformaMalConfiguradaError(
+            f"no se pudo verificar el token por un problema del servidor: {exc}"
         ) from exc
 
 

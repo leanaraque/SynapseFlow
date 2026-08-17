@@ -258,3 +258,60 @@ def test_el_adr_registra_lo_que_el_despliegue_corrigio() -> None:
     assert "no tiene\nuna identidad de servicio" in adr
     # Y sigue diciendo qué falta: el circuito completo necesita datos sembrados.
     assert "vacías" in adr
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Lo que el runtime lee del repositorio
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Esta sección existe porque la imagen se desplegó sin `firestore.indexes.json` y
+# la primera consulta dio 500. El archivo parece configuración de despliegue —lo
+# usa `firebase deploy`— pero el registry lo lee EN RUNTIME para comprobar que la
+# dimensión del modelo de embeddings coincide con la del índice vectorial.
+#
+# El gateway falló cerrado, que es lo correcto. El problema es que un archivo
+# faltante no se nota hasta que alguien pregunta algo.
+
+
+def _archivos_que_lee_el_paquete() -> set[str]:
+    """Archivos de la raíz del repositorio referenciados desde `packages/`.
+
+    Se detectan por la forma en que el proyecto los resuelve: `parents[N]` sobre
+    `__file__`, que sale del paquete hacia la raíz.
+    """
+    import re
+
+    encontrados: set[str] = set()
+    for modulo in (RAIZ / "packages").rglob("*.py"):
+        texto = modulo.read_text(encoding="utf-8")
+        for linea in texto.splitlines():
+            if "parents[" not in linea or "Path(__file__)" not in linea:
+                continue
+            nombre = re.search(r'/\s*"([^"]+\.(?:json|yaml|yml|md))"', linea)
+            if nombre:
+                encontrados.add(nombre.group(1))
+    return encontrados
+
+
+def test_la_imagen_copia_todo_lo_que_el_paquete_lee_de_la_raiz() -> None:
+    """**El fallo del despliegue del 2026-08-12, fijado.**
+
+    Un archivo que el paquete resuelve contra la raíz del repositorio tiene que
+    entrar en la imagen. Si no, el contenedor arranca —la sonda de salud no lo
+    toca— y revienta en la primera consulta.
+    """
+    leidos = _archivos_que_lee_el_paquete()
+
+    assert leidos, "no se detectó ningún archivo de la raíz; ¿cambió la forma de resolverlos?"
+
+    faltantes = [nombre for nombre in leidos if f"COPY {nombre}" not in TEXTO]
+
+    assert not faltantes, (
+        f"el paquete lee {faltantes} desde la raíz y el Dockerfile no los copia. "
+        "El contenedor va a arrancar igual y fallar en la primera consulta."
+    )
+
+
+def test_el_indice_vectorial_esta_en_la_imagen() -> None:
+    """El caso concreto, escrito aparte para que el motivo quede a la vista."""
+    assert "COPY firestore.indexes.json" in TEXTO
