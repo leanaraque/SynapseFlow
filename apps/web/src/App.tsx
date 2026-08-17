@@ -90,7 +90,10 @@ export function App() {
     <div className="consola">
       <header className="barra">
         <strong>SynapseFlow</strong>
-        <nav>
+        {/* Sin rol no hay nada que navegar: las tres pantallas necesitan el
+            catálogo. Mostrar el menú igual invita a clickearlo y no pasa nada,
+            que es peor que no ofrecerlo. */}
+        <nav hidden={!quien}>
           <button
             type="button"
             aria-current={pantalla === "consulta" ? "page" : undefined}
@@ -165,6 +168,10 @@ function SinRol({ motivo }: { motivo: string }) {
         No se asigna un rol por defecto a propósito: eso convertiría un problema de
         aprovisionamiento de identidad en un acceso silencioso. Pedile a quien administra la
         plataforma que configure tu rol.
+      </p>
+      <p className="nota">
+        Si te lo acaban de asignar, <strong>cerrá sesión y volvé a entrar</strong>: el rol viaja
+        en el token, y el que tenés en la mano se emitió antes.
       </p>
     </main>
   );
