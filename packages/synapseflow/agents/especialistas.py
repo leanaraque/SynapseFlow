@@ -138,12 +138,37 @@ significa que el activo ya está por debajo de su espesor mínimo requerido."""
 def _herramientas_de(
     especialista: str, ontologia: Ontology, ctx: ExecutionContext
 ) -> list[BaseTool]:
-    """Subconjunto del catálogo del rol que le toca a un especialista.
+    """Lo que el especialista pide, **intersecado** con el catálogo del rol.
 
-    Raises:
-        ValueError: si el rol no puede ver alguna de las herramientas que el
-            especialista necesita. Falla al construir el grafo y no en la
-            primera consulta, que es donde el usuario lo pagaría.
+    Un especialista solo puede estrechar los permisos del rol, nunca ampliarlos:
+    si el rol no tiene una herramienta, no hay agente que se la dé. Esa parte
+    nunca estuvo en duda.
+
+    Lo que sí estaba mal era exigirlas todas. **El catálogo de acciones depende
+    del rol por diseño**: un inspector puede reclasificar criticidad y un
+    supervisor de mantenimiento no, porque así lo declara el YAML. Con la
+    versión anterior eso hacía que un supervisor **no pudiera construir el
+    grafo**:
+
+        ValueError: el rol 'supervisor_mantenimiento' no puede ver
+        ['reclasificar_criticidad'], que el especialista 'acciones' necesita.
+
+    Es decir: el rol que existe para *aprobar* no podía usar el sistema. Se
+    descubrió al aprobar una parada contra el sistema desplegado.
+
+    Que a un rol le falte una herramienta no es una falla de configuración: es la
+    ontología funcionando.
+
+    ## Una lista vacía es un resultado válido
+
+    Se intentó tratarla como error dos veces seguidas y las dos estaban mal:
+    `tecnico` no ve `calcular_vida_remanente` y `auditor` no ve ninguna acción.
+    En los dos casos es **el YAML diciendo lo que ese rol puede hacer**, no una
+    configuración rota.
+
+    Quién decide qué hacer con un especialista vacío es `especialistas_utiles`:
+    el grafo no construye ese nodo, así que el supervisor no puede rutear a un
+    agente que no tiene con qué contestar.
     """
     pedidas = (
         HERRAMIENTAS_DE_ACCION
@@ -152,17 +177,27 @@ def _herramientas_de(
     )
     catalogo = {h.name: h for h in compile_tools(ontologia, ctx.rol, context=ctx)}
 
-    faltantes = [nombre for nombre in pedidas if nombre not in catalogo]
-    if faltantes:
-        raise ValueError(
-            f"el rol '{ctx.rol}' no puede ver {faltantes}, que el especialista "
-            f"'{especialista}' necesita.\n"
-            f"  Herramientas disponibles para el rol: {sorted(catalogo)}.\n"
-            "  Un especialista solo puede estrechar los permisos del rol, nunca "
-            "ampliarlos: si el rol no la tiene, no hay agente que se la dé."
-        )
+    # El orden lo fija el especialista, no el catálogo: es deliberado y está
+    # documentado en HERRAMIENTAS_POR_ESPECIALISTA.
+    disponibles = [catalogo[nombre] for nombre in pedidas if nombre in catalogo]
 
-    return [catalogo[nombre] for nombre in pedidas]
+    return disponibles
+
+
+def especialistas_utiles(ontologia: Ontology, ctx: ExecutionContext) -> tuple[str, ...]:
+    """Los especialistas consultivos que este rol puede usar de verdad.
+
+    **El grafo no construye los que quedan vacíos**, así que el supervisor no
+    puede rutear a un agente que no tiene con qué contestar. Es el mismo
+    principio que el filtrado del catálogo por rol: lo que el modelo no ve, no lo
+    puede elegir ni alucinar como disponible.
+
+    `acciones` no está acá —no es un destino que se elija— y se construye siempre:
+    además de proponer, es el nodo que redacta la respuesta final.
+    """
+    return tuple(
+        nombre for nombre in especialistas_disponibles() if _herramientas_de(nombre, ontologia, ctx)
+    )
 
 
 def _construir(

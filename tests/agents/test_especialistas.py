@@ -121,24 +121,35 @@ def test_los_ids_declarados_existen_en_la_ontologia() -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def test_un_rol_sin_la_herramienta_no_puede_armar_el_especialista() -> None:
+def test_un_rol_sin_la_herramienta_no_la_recibe() -> None:
     """**El mínimo privilegio no depende de que el autor se acuerde.**
 
-    El rol `consulta` solo lee normativa pública: no ve `consultar_activo`. Armar
-    el agente de datos para ese rol tiene que fallar al construir, no producir un
-    agente que dé error en la primera consulta.
+    El rol `consulta` solo lee normativa pública: no ve `consultar_activo`. El
+    agente de datos para ese rol se arma **sin** esa herramienta.
+
+    Antes esto lanzaba `ValueError`, y estaba mal: el catálogo depende del rol
+    por diseño, así que exigir las herramientas dejaba a tres de los cinco roles
+    sin poder construir el grafo. Quien decide qué hacer con un especialista
+    vacío es `especialistas_utiles`, que directamente no lo construye.
     """
-    with pytest.raises(ValueError, match="consulta"):
-        agente_datos(ONTOLOGIA, CONSULTA, gateway=gateway_falso(), settings=ajustes())
+    from synapseflow.agents.especialistas import _herramientas_de
+
+    del_rol = {h.name for h in compile_tools(ONTOLOGIA, CONSULTA.rol, context=CONSULTA)}
+    assert "consultar_activo" not in del_rol
+
+    assert _herramientas_de("datos", ONTOLOGIA, CONSULTA) == []
 
 
-def test_el_error_dice_que_herramientas_si_tiene_el_rol() -> None:
-    """Un error de permisos sin la lista obliga a ir a leer el YAML."""
-    with pytest.raises(ValueError) as excinfo:
-        agente_calculo(ONTOLOGIA, CONSULTA, gateway=gateway_falso(), settings=ajustes())
+def test_un_especialista_vacio_no_entra_al_grafo() -> None:
+    """La otra mitad: si no le queda ninguna, el nodo no existe y el supervisor
+    no puede rutear a un agente que no tiene con qué contestar."""
+    from synapseflow.agents.especialistas import especialistas_utiles
 
-    assert "buscar_normativa" in str(excinfo.value)
-    assert "nunca ampliarlos" in str(excinfo.value)
+    utiles = especialistas_utiles(ONTOLOGIA, CONSULTA)
+
+    assert "normativa" in utiles
+    assert "datos" not in utiles
+    assert "calculo" not in utiles
 
 
 def test_el_rol_de_consulta_si_puede_armar_el_de_normativa() -> None:
@@ -216,3 +227,59 @@ def test_el_prompt_de_calculo_declara_valida_la_vida_negativa() -> None:
 
 def test_los_tres_especialistas_estan_declarados() -> None:
     assert set(especialistas_disponibles()) == {"normativa", "datos", "calculo"}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# El grafo se construye para TODOS los roles
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Esta sección existe porque un supervisor de mantenimiento no podía construir el
+# grafo: el especialista de acciones exigía `reclasificar_criticidad`, que el
+# YAML solo le da al inspector.
+#
+# El rol que existe para APROBAR no podía usar el sistema, y se descubrió
+# aprobando una parada contra el sistema desplegado. Los tests previos usaban
+# `inspector`, que tiene el catálogo más amplio, así que ninguno lo tocaba.
+
+
+@pytest.mark.parametrize("rol", [r.id for r in ONTOLOGIA.roles])
+def test_todo_rol_puede_construir_su_grafo(rol: str) -> None:
+    """**El test que faltaba.**
+
+    Un rol que no puede construir el grafo no puede usar la plataforma, y eso no
+    se ve hasta que alguien con ese rol entra.
+    """
+    from synapseflow.agents.graph import construir_grafo
+
+    ctx = ExecutionContext(usuario=f"uid-{rol}", rol=rol, thread_id="hilo-1")
+    ajustes = Settings(SYNAPSEFLOW_PROVIDER=Provider.FAKE, GOOGLE_API_KEY="x")
+
+    grafo = construir_grafo(
+        ONTOLOGIA,
+        ctx,
+        gateway=Gateway(settings=ajustes, falso=FakeChatModel(ciclico=True)),
+        settings=ajustes,
+    )
+
+    assert grafo is not None
+
+
+@pytest.mark.parametrize("rol", [r.id for r in ONTOLOGIA.roles])
+def test_ningun_especialista_recibe_herramientas_fuera_del_rol(rol: str) -> None:
+    """La invariante que sí valía desde el principio: un especialista estrecha
+    los permisos del rol, nunca los amplía."""
+    from synapseflow.agents.especialistas import _herramientas_de
+
+    ctx = ExecutionContext(usuario=f"uid-{rol}", rol=rol, thread_id="hilo-1")
+    del_rol = {h.name for h in compile_tools(ONTOLOGIA, rol, context=ctx)}
+
+    for especialista in ("datos", "calculo", "normativa", "acciones"):
+        try:
+            herramientas = _herramientas_de(especialista, ONTOLOGIA, ctx)
+        except ValueError:
+            # Un rol al que no le queda ninguna herramienta de ese especialista.
+            # Es legítimo —`consulta` no ejecuta acciones— y el error lo dice.
+            continue
+
+        fuera = {h.name for h in herramientas} - del_rol
+        assert not fuera, f"'{especialista}' le dio a '{rol}' herramientas que no tiene: {fuera}"

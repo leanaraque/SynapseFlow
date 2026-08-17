@@ -13,8 +13,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from synapseflow.agents.especialistas import HERRAMIENTAS_DE_ACCION
 from synapseflow.agents.graph import (
     NODO_ACCIONES,
@@ -162,15 +160,31 @@ def test_el_nodo_de_acciones_tiene_las_escrituras() -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def test_un_rol_sin_las_herramientas_no_puede_armar_el_grafo() -> None:
+def test_el_grafo_de_un_rol_restringido_solo_tiene_sus_especialistas() -> None:
     """**El agente hereda los permisos del usuario, no los de la cuenta.**
 
-    El rol `consulta` no ve las acciones de datos ni de escritura. Armar su grafo
-    tiene que fallar al construir y no producir un grafo que dé error a mitad de
-    una conversación.
+    El rol `consulta` solo lee normativa pública. Su grafo se arma —antes fallaba
+    al construir, y eso dejaba a tres de los cinco roles sin poder usar la
+    plataforma— pero **sin** los nodos que ese rol no puede usar. El supervisor no
+    puede rutear a un agente que no tiene con qué contestar.
     """
-    with pytest.raises(ValueError, match="consulta"):
-        grafo(CONSULTA)
+    compilado = grafo(CONSULTA)
+    presentes = set(compilado.get_graph().nodes)
+
+    assert "normativa" in presentes
+    assert "datos" not in presentes
+    assert "calculo" not in presentes
+    # El de acciones existe siempre: además de proponer, redacta la respuesta.
+    assert NODO_ACCIONES in presentes
+
+
+def test_todo_rol_del_dominio_puede_armar_su_grafo() -> None:
+    """El test que faltaba y que habría atrapado el bug antes de desplegarlo."""
+    from synapseflow.governance.rbac import ExecutionContext
+
+    for rol in (r.id for r in ONTOLOGIA.roles):
+        ctx = ExecutionContext(usuario=f"uid-{rol}", rol=rol, thread_id="hilo-1")
+        assert grafo(ctx) is not None, f"el rol '{rol}' no puede armar su grafo"
 
 
 def test_el_checkpointer_se_puede_inyectar() -> None:

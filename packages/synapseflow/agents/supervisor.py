@@ -80,16 +80,26 @@ class Ruteo(BaseModel):
     )
 
 
-async def nodo_supervisor(estado: AgentState, *, gateway: Gateway | None = None) -> Command[Any]:
+async def nodo_supervisor(
+    estado: AgentState,
+    *,
+    gateway: Gateway | None = None,
+    especialistas: tuple[str, ...] | None = None,
+) -> Command[Any]:
     """Elige el próximo especialista, o manda a verificar si ya no falta ninguno.
 
     Args:
         estado: el estado del grafo. Lee `messages` para decidir y
             `especialistas_consultados` para no repetir.
         gateway: para el perfil `router`. Inyectable en los tests.
+        especialistas: los que el grafo construyó para **este rol**. No todos los
+            roles pueden usar los tres: `tecnico` no ve `calcular_vida_remanente`,
+            así que su grafo no tiene nodo de cálculo. Rutear a un nodo que no
+            existe termina el grafo con un warning y sin respuesta.
     """
     consultados = list(estado.get("especialistas_consultados") or [])
-    disponibles = [e for e in especialistas_disponibles() if e not in consultados]
+    del_rol = especialistas if especialistas is not None else especialistas_disponibles()
+    disponibles = [e for e in del_rol if e not in consultados]
 
     if not disponibles:
         # Ya se consultó a los tres. Insistir no aporta y el modelo, si se lo
@@ -157,6 +167,15 @@ async def _elegir(gateway: Gateway, estado: AgentState, disponibles: list[str]) 
     return resultado if isinstance(resultado, Ruteo) else Ruteo.model_validate(resultado)
 
 
-def destinos_posibles() -> tuple[str, ...]:
-    """Nodos a los que el supervisor puede rutear. Lo consume el ensamblado."""
-    return (*especialistas_disponibles(), NODO_VERIFICADOR)
+def destinos_posibles(especialistas: tuple[str, ...] | None = None) -> tuple[str, ...]:
+    """Nodos a los que el supervisor puede rutear. Lo consume el ensamblado.
+
+    Se le pasan los especialistas que el grafo construyó para el rol: declarar un
+    destino que no existe como nodo hace que LangGraph lo ignore con un warning y
+    termine el recorrido — silenciosamente, que es como ya falló una vez en este
+    repositorio con el nodo `emitir`.
+    """
+    return (
+        *(especialistas if especialistas is not None else especialistas_disponibles()),
+        NODO_VERIFICADOR,
+    )

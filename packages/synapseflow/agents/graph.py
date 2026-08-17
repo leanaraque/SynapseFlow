@@ -51,7 +51,7 @@ from synapseflow.agents.especialistas import (
     agente_calculo,
     agente_datos,
     agente_normativa,
-    especialistas_disponibles,
+    especialistas_utiles,
 )
 from synapseflow.agents.state import AgentState
 from synapseflow.agents.supervisor import NODO_VERIFICADOR, destinos_posibles, nodo_supervisor
@@ -103,16 +103,21 @@ def construir_grafo(
 
     grafo: Any = StateGraph(AgentState)
 
+    # Solo los especialistas que este rol puede usar de verdad. Un nodo cuyo
+    # agente no tiene herramientas no puede contestar nada, y ofrecérselo al
+    # supervisor le hace gastar una llamada para llegar a un callejón.
+    utiles = especialistas_utiles(ontologia, ctx)
+
     grafo.add_node(
         NODO_SUPERVISOR,
-        functools.partial(nodo_supervisor, gateway=gateway),
+        functools.partial(nodo_supervisor, gateway=gateway, especialistas=utiles),
         # Los destinos se declaran porque el nodo devuelve `Command(goto=...)`:
         # sin esto el grafo no sabe qué aristas existen y no se puede dibujar ni
         # verificar estructuralmente, que es justo lo que hace el test de F5.6.
-        destinations=destinos_posibles(),
+        destinations=destinos_posibles(utiles),
     )
 
-    for nombre in especialistas_disponibles():
+    for nombre in utiles:
         agente = CONSTRUCTORES[nombre](ontologia, ctx, **comun)
         grafo.add_node(nombre, _nodo_de_especialista(nombre, agente))
         # Cada especialista vuelve al supervisor, que decide si falta otro.
@@ -255,6 +260,14 @@ def gates_del_grafo(ontologia: Ontology, rol: str) -> dict[str, Any]:
     return interrupt_config(ontologia, rol)
 
 
-def nodos_del_grafo() -> tuple[str, ...]:
-    """Nombres de todos los nodos, en orden de aparición en el flujo."""
-    return (NODO_SUPERVISOR, *especialistas_disponibles(), NODO_VERIFICADOR, NODO_ACCIONES)
+def nodos_del_grafo(especialistas: tuple[str, ...] | None = None) -> tuple[str, ...]:
+    """Nombres de todos los nodos, en orden de aparición en el flujo.
+
+    Los especialistas dependen del rol: `tecnico` no ve `calcular_vida_remanente`
+    y su grafo no tiene nodo de cálculo. Sin argumento devuelve los tres, que es
+    lo que ve un rol con el catálogo completo.
+    """
+    from synapseflow.agents.especialistas import especialistas_disponibles
+
+    del_rol = especialistas if especialistas is not None else especialistas_disponibles()
+    return (NODO_SUPERVISOR, *del_rol, NODO_VERIFICADOR, NODO_ACCIONES)
