@@ -29,6 +29,11 @@ service-account*.json
 # de vida corta y no tienen por qué existir fuera de la máquina que las pidió.
 .token-*.tmp
 .clave.tmp
+# Volcados de curl de las pruebas contra el sistema desplegado. Pueden contener
+# respuestas del agente con datos del dominio.
+sse*.txt
+cab*.txt
+apr*.txt
 
 # Node / web
 node_modules/
