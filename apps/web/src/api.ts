@@ -5,12 +5,31 @@
  * falla de manera visible en desarrollo —donde puede haber un proxy permisivo—
  * y falla con 401 en producción. Con una sola puerta, olvidarse no es posible.
  *
- * Las rutas son **relativas**. En desarrollo las reenvía el proxy de Vite y en
- * producción el rewrite de Firebase Hosting hacia Cloud Run: una URL cableada
- * funciona en una máquina y falla en las otras dos.
+ * ## Las rutas son relativas, con una excepción medida
+ *
+ * En desarrollo las reenvía el proxy de Vite y en producción el rewrite de
+ * Firebase Hosting: una URL cableada funciona en una máquina y falla en las
+ * otras dos.
+ *
+ * La excepción es `VITE_API_BASE`, y existe por un límite duro:
+ * **el rewrite de Hosting corta a los 60 segundos**. Un recorrido completo tarda
+ * ~52 s, así que la consulta que se pase un poco devuelve 502 — medido: 502 a
+ * los 60,29 s por el rewrite, 200 contra la URL de Cloud Run.
+ *
+ * Con la variable puesta, todo va directo a Cloud Run, que tiene su propio
+ * timeout de 600 s. Sin ella, las rutas siguen siendo relativas y el proxy de
+ * Vite hace su trabajo en desarrollo.
  */
 
 import { token } from "./firebase";
+
+/** Vacío en desarrollo: las rutas quedan relativas y las reenvía Vite. */
+const BASE = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
+
+/** Une la base con una ruta que siempre empieza en `/api`. */
+export function url(ruta: string): string {
+  return `${BASE}${ruta}`;
+}
 
 export class ErrorDeApi extends Error {
   constructor(
@@ -53,7 +72,7 @@ export async function fallar(respuesta: Response): Promise<never> {
 }
 
 async function json<T>(ruta: string): Promise<T> {
-  const respuesta = await fetch(ruta, { headers: await cabeceras() });
+  const respuesta = await fetch(url(ruta), { headers: await cabeceras() });
   if (!respuesta.ok) await fallar(respuesta);
   return (await respuesta.json()) as T;
 }
@@ -98,7 +117,7 @@ export function identidad(): Promise<Identidad> {
  * hace GET y no admite cabeceras — no habría dónde poner el `Authorization`.
  */
 export async function consultar(pregunta: string, hilo?: string): Promise<Response> {
-  const respuesta = await fetch("/api/consultas", {
+  const respuesta = await fetch(url("/api/consultas"), {
     method: "POST",
     headers: await cabeceras(hilo),
     body: JSON.stringify({ pregunta, thread_id: hilo ?? null }),
@@ -162,7 +181,7 @@ export async function decidir(
   if (decision === "editar" && extra.argumentos) cuerpo.argumentos = extra.argumentos;
   if (extra.motivo) cuerpo.motivo = extra.motivo;
 
-  const respuesta = await fetch(`/api/aprobaciones/${encodeURIComponent(hilo)}`, {
+  const respuesta = await fetch(url(`/api/aprobaciones/${encodeURIComponent(hilo)}`), {
     method: "POST",
     headers: await cabeceras(hilo),
     body: JSON.stringify(cuerpo),

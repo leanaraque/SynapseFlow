@@ -220,3 +220,62 @@ def test_se_explica_por_que_el_servicio_es_publico() -> None:
     """
     assert "allUsers" in DESPLIEGUE
     assert "no tiene una identidad de servicio" in DESPLIEGUE
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# El límite de 60 segundos del rewrite
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Medido contra el sistema desplegado: un recorrido completo de P-2101-A tarda
+# ~52 s. Por `synapseflow-5fc52.web.app` devolvió **502 a los 60,29 s**; contra
+# la URL de Cloud Run, 200.
+#
+# El rewrite sigue sirviendo para los endpoints cortos, pero el flujo de
+# `/api/consultas` no puede depender de él.
+
+API_TS = (RAIZ / "apps" / "web" / "src" / "api.ts").read_text(encoding="utf-8")
+MAIN_PY = (RAIZ / "services" / "api" / "main.py").read_text(encoding="utf-8")
+
+
+def test_el_cliente_acepta_una_url_base() -> None:
+    """Sin esto, la consola pasa por el rewrite y la consulta lenta da 502."""
+    assert "VITE_API_BASE" in API_TS
+
+
+def test_todas_las_llamadas_pasan_por_la_url_base() -> None:
+    """Una que se olvide sigue yendo por el rewrite, y falla solo con las
+    consultas largas — el modo de falla más difícil de reproducir."""
+    import re
+
+    llamadas = re.findall(r"fetch\(([^,]+),", API_TS)
+
+    assert llamadas
+    for llamada in llamadas:
+        assert llamada.strip().startswith("url("), f"fetch sin url(): {llamada.strip()}"
+
+
+def test_la_base_vacia_deja_las_rutas_relativas() -> None:
+    """En desarrollo el proxy de Vite tiene que seguir funcionando."""
+    assert '(import.meta.env.VITE_API_BASE ?? "")' in API_TS
+
+
+def test_la_api_permite_el_origen_de_la_consola() -> None:
+    """Llamar a Cloud Run directo es una petición de otro origen: sin CORS, el
+    navegador la bloquea aunque la API responda bien."""
+    assert "CORSMiddleware" in MAIN_PY
+    assert "https://synapseflow-5fc52.web.app" in MAIN_PY
+
+
+def test_cors_no_admite_cualquier_origen() -> None:
+    """**`*` deja que cualquier página monte una interfaz sobre tus datos.**
+
+    Y con credenciales el navegador lo rechaza igual.
+    """
+    assert 'allow_origins=["*"]' not in MAIN_PY
+    assert "allow_origins=list(ORIGENES)" in MAIN_PY
+
+
+def test_el_hilo_se_expone_al_navegador() -> None:
+    """Sin `expose_headers`, el navegador no deja leer `X-Thread-Id` — y sin el
+    hilo la consola no puede aprobar el gate que ese recorrido abrió."""
+    assert 'expose_headers=["X-Thread-Id"]' in MAIN_PY

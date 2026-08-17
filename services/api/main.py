@@ -35,6 +35,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -62,6 +63,40 @@ app = FastAPI(
     title="SynapseFlow",
     description="Plataforma de agentes gobernados para industrias reguladas.",
     version="0.1.0",
+)
+
+# Orígenes de la consola. **No es `*`**: con credenciales el navegador lo
+# rechaza, y aunque no fuera así, una API que acepta cualquier origen deja que
+# cualquier página monte una interfaz sobre los datos de tu dominio.
+#
+# Se listan los dos dominios que Firebase Hosting sirve por defecto y el de
+# desarrollo. Un dominio propio se agrega acá.
+ORIGENES = (
+    "https://synapseflow-5fc52.web.app",
+    "https://synapseflow-5fc52.firebaseapp.com",
+    "http://localhost:5173",
+)
+
+# ## Por qué la consola llama a Cloud Run directo y no por el rewrite
+#
+# **El rewrite de Firebase Hosting corta a los 60 segundos.** Medido: un
+# recorrido completo de P-2101-A tarda ~52 s y devolvió 502 exactamente a los
+# 60,29 s cuando se pidió por `synapseflow-5fc52.web.app`, y 200 contra la URL
+# de Cloud Run. Una consulta más lenta que el promedio falla siempre.
+#
+# El rewrite sigue existiendo y sirve para los endpoints cortos, pero el flujo
+# de `/api/consultas` no puede depender de él. Por eso la consola acepta una URL
+# base: es la excepción a «las rutas son relativas», y está acá para que se lea
+# junto con su motivo.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list(ORIGENES),
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type", "X-Thread-Id"],
+    # Sin esto el navegador no deja leer el hilo que devuelve la respuesta, y sin
+    # el hilo la consola no puede aprobar el gate que ese recorrido abrió.
+    expose_headers=["X-Thread-Id"],
 )
 
 
