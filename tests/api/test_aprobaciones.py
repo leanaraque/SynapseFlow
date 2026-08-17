@@ -116,23 +116,22 @@ async def test_un_rol_sin_autoridad_no_puede_aprobar(propuesto: ClienteEnMemoria
 
 
 async def test_el_proponente_no_puede_aprobar_su_propia_accion(
-    propuesto: ClienteEnMemoria,
+    db: ClienteEnMemoria,
 ) -> None:
     """**El segundo negativo, y el que más fácil se deja pasar.**
 
     Un supervisor que propone una parada y la aprueba él mismo produce
     exactamente el mismo registro de auditoría que uno que la aprobó sin leerla.
     Separación de funciones: en una empresa regulada no es una preferencia.
+
+    El hilo arranca limpio a propósito: el proponente de un hilo se fija con su
+    primer gate y no se reescribe, así que para probar esto el supervisor tiene
+    que ser quien abrió la conversación.
     """
-    await registrar_pendiente(
-        SUPERVISOR.model_copy(update={"thread_id": HILO}),
-        gate(),
-        cliente=propuesto,
-        ontologia=ONTOLOGIA,
-    )
+    await registrar_pendiente(SUPERVISOR, gate(), cliente=db, ontologia=ONTOLOGIA)
 
     with pytest.raises(AutoridadInsuficienteError) as excinfo:
-        await aprobar(SUPERVISOR, propuesto)
+        await aprobar(SUPERVISOR, db)
 
     assert "no puede aprobarla" in str(excinfo.value)
 
@@ -766,3 +765,60 @@ async def test_una_decision_que_no_existe_se_rechaza_por_esquema(cliente: Any, c
     respuesta = await cliente.post(f"/api/aprobaciones/{HILO}", json={"decision": "ignorar"})
 
     assert respuesta.status_code == 422
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# El proponente no se reescribe al reanudar
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Se vio en producción: un inspector propuso, un supervisor aprobó, el grafo
+# siguió y abrió otro gate. Como el id del documento es el hilo, ese registro
+# **pisó** al anterior con `propuesta_por = quien aprobó` y `estado = pendiente`.
+#
+# Una aprobación resuelta volvía a la bandeja como pendiente, y la separación de
+# funciones pasaba a evaluarse contra la persona equivocada.
+
+
+async def test_un_gate_posterior_conserva_al_proponente_original(
+    propuesto: ClienteEnMemoria,
+) -> None:
+    """**El bug que se vio en producción.**
+
+    Quien aprueba no se convierte en proponente de lo que el grafo abra después.
+    """
+    await registrar_pendiente(
+        SUPERVISOR.model_copy(update={"thread_id": HILO}),
+        gate(),
+        cliente=propuesto,
+        ontologia=ONTOLOGIA,
+    )
+
+    fila = propuesto.contenido(Collections.APPROVALS)[HILO]
+    assert fila["propuesta_por"] == INSPECTOR.usuario
+    assert fila["rol_proponente"] == INSPECTOR.rol
+
+
+async def test_el_proponente_original_sigue_sin_poder_aprobar(
+    propuesto: ClienteEnMemoria,
+) -> None:
+    """La consecuencia que importa: quien abrió la conversación no puede aprobar
+    nada de lo que su propia consulta produzca, por más veces que se reanude."""
+    await registrar_pendiente(
+        SUPERVISOR.model_copy(update={"thread_id": HILO}),
+        gate(),
+        cliente=propuesto,
+        ontologia=ONTOLOGIA,
+    )
+
+    # Y el supervisor que aprobó el gate anterior sí puede resolver el nuevo.
+    comando, _ = await aprobar(SUPERVISOR, propuesto)
+    assert comando.resume["decisions"] == [{"type": "approve"}]
+
+
+async def test_el_primer_gate_de_un_hilo_si_registra_a_quien_pregunta(
+    db: ClienteEnMemoria,
+) -> None:
+    """El control positivo: sin registro previo, el proponente es quien corre."""
+    await registrar_pendiente(INSPECTOR, gate(), cliente=db, ontologia=ONTOLOGIA)
+
+    assert db.contenido(Collections.APPROVALS)[HILO]["propuesta_por"] == INSPECTOR.usuario

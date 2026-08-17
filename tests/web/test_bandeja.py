@@ -158,3 +158,16 @@ def test_la_bandeja_se_recarga_despues_de_decidir() -> None:
     """Si no, la propuesta resuelta sigue en pantalla y alguien la aprueba otra
     vez — para recibir un 409 que no esperaba."""
     assert "await recargar();" in BANDEJA
+
+
+def test_la_bandeja_no_anuncia_ejecutado_sin_saberlo() -> None:
+    """**`herramienta_fin` significa que la herramienta corrió, no que el efecto
+    ocurrió.**
+
+    La acción de dominio valida y puede negarse. Pasó en producción: el modelo
+    propuso con un id de inspección inventado, el supervisor aprobó y la
+    escritura se negó —«no existe la inspección…»— con el activo intacto.
+    Anunciar «ejecutado» ahí le hace creer que la parada se materializó.
+    """
+    assert "ejecutado:" not in BANDEJA
+    assert "evento.datos.contenido" in BANDEJA

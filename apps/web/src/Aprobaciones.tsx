@@ -77,7 +77,16 @@ export function Aprobaciones() {
         for await (const evento of eventos(respuesta)) {
           if (evento.tipo === TIPOS.token) texto += String(evento.datos.texto ?? "");
           if (evento.tipo === TIPOS.herramientaFin) {
-            texto += `\n· ejecutado: ${String(evento.datos.herramienta ?? "")}`;
+            // **No dice «ejecutado».** `herramienta_fin` significa que la
+            // herramienta corrió, no que el efecto ocurrió: la acción de dominio
+            // valida y puede negarse —pasó en producción, con un id de
+            // inspección que el modelo había inventado— y anunciar «ejecutado»
+            // ahí le hace creer al supervisor que la parada se materializó.
+            //
+            // Se muestra lo que devolvió, que es lo que lo dice.
+            const nombre = String(evento.datos.herramienta ?? "");
+            const salida = String(evento.datos.contenido ?? "").split("\n")[0] ?? "";
+            texto += `\n· ${nombre}: ${salida}`;
           }
           if (evento.tipo === TIPOS.error) texto += `\n${String(evento.datos.error ?? "")}`;
         }

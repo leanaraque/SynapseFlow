@@ -120,6 +120,26 @@ async def registrar_pendiente(
     abierto, y usar el hilo como id hace que reanudar dos veces la misma
     propuesta sobreescriba en lugar de duplicar la bandeja.
 
+    ## El proponente es el dueño de la conversación, y no se reescribe
+
+    **Esto estaba mal y se vio en producción.** Cuando alguien aprueba, el grafo
+    sigue y puede abrir un gate nuevo en el mismo hilo. Con la versión anterior,
+    ese gate se registraba con `propuesta_por = quien aprobó`, y como el id del
+    documento es el hilo, **pisaba el registro anterior**: una aprobación ya
+    resuelta volvía a aparecer como pendiente y con otro proponente.
+
+    Dos cosas se rompían con eso. La bandeja mostraba como pendiente algo ya
+    decidido —y el 409 de «alguien llegó antes» dejaba de protegerlo—, y la
+    separación de funciones pasaba a evaluarse contra la persona equivocada.
+
+    El proponente de cualquier gate de un hilo es **quien abrió la conversación**.
+    Se registra la primera vez y no se toca: así, quien pregunta no puede aprobar
+    nada de lo que su propia consulta produzca, por más veces que el grafo se
+    reanude, y quien aprueba no se convierte en proponente de lo que sigue.
+
+    El log de auditoría no dependía de esto —es append-only y registró bien al
+    inspector— pero la bandeja es lo que la gente mira.
+
     Los `aprobadores` se copian de la ontología al crear el pendiente. Es
     información derivada, y se guarda igual para que la consola pueda decir «esto
     lo aprueba un supervisor» sin cargar el dominio.
@@ -130,6 +150,12 @@ async def registrar_pendiente(
     nombre = str(accion.get("herramienta") or "")
     declarada = _accion_de_la_ontologia(onto, nombre)
 
+    referencia = db.collection(Collections.APPROVALS).document(str(ctx.thread_id))
+    previo = (await referencia.get()).to_dict() or {}
+    # Si el hilo ya tuvo un gate, su proponente manda.
+    propuesta_por = previo.get("propuesta_por") or ctx.usuario
+    rol_proponente = previo.get("rol_proponente") or ctx.rol
+
     documento = {
         "thread_id": ctx.thread_id,
         "checkpoint_id": checkpoint_id,
@@ -138,14 +164,14 @@ async def registrar_pendiente(
         "argumentos": dict(accion.get("argumentos") or {}),
         "descripcion": str(accion.get("descripcion") or ""),
         "decisiones": list(accion.get("decisiones") or []),
-        "propuesta_por": ctx.usuario,
-        "rol_proponente": ctx.rol,
+        "propuesta_por": propuesta_por,
+        "rol_proponente": rol_proponente,
         "aprobadores": sorted(declarada.approver_roles) if declarada else [],
         "estado": PENDIENTE,
         "creado_en": dt.datetime.now(dt.UTC).isoformat(),
     }
 
-    await db.collection(Collections.APPROVALS).document(str(ctx.thread_id)).set(documento)
+    await referencia.set(documento)
     return str(ctx.thread_id)
 
 
