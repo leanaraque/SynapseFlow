@@ -549,6 +549,24 @@ Tres cosas que estaban mal escritas y que solo desplegando se supieron:
   variantes que Vite reconoce. Un patrón que cubre unas y no otras enseña a
   confiar en que te cubre.
 
+### Verificado contra producción · 2026-08-17
+
+- **El recorrido de P-2101-A corre de punta a punta contra el sistema
+  desplegado**, con datos reales y un token de Firebase de verdad: consulta el
+  activo, el historial, calcula la vida remanente, cita `API-570-2016 §7.4` y
+  **propone** la parada sin ejecutarla.
+- El activo sigue `en_servicio` después de la propuesta; el supervisor ve la
+  propuesta en su bandeja y **el proponente no la ve**; al proponente le da 403
+  intentar aprobar la suya.
+- **La barrera que nadie esperaba usar.** Al aprobar, la acción se negó: el
+  modelo había propuesto con un identificador inventado —la fecha de la
+  inspección en vez de su id— y el supervisor aprobó sin notarlo. La validación
+  de la escritura lo frenó y el activo quedó intacto. El gate humano no es la
+  última barrera: es la penúltima.
+- Expone un límite de calidad real: el agente de `acciones` no tiene
+  `historial_inspecciones`, así que el id solo le llega en la prosa de otro
+  especialista. Queda anotado y sin resolver.
+
 ### Lo que el plan no construyó
 
 Un plan terminado no es un producto terminado. Queda escrito acá porque no

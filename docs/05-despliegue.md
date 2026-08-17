@@ -183,6 +183,17 @@ costo aunque nadie pregunte**. Es una decisión de operación, no de arquitectur
 
 ## 4 · La consola
 
+**La consola llama a Cloud Run directo, no por el rewrite.** El rewrite de
+Firebase Hosting **corta a los 60 segundos** y un recorrido completo tarda ~52 s:
+medido, 502 a los 60,29 s por `web.app` y 200 contra la URL de Cloud Run. La
+consulta que se pase un poco falla siempre.
+
+El rewrite sigue sirviendo para los endpoints cortos —`/api/yo`, `/api/roles`, la
+bandeja— pero el flujo de `/api/consultas` no puede depender de él. Por eso
+`.env.production` lleva `VITE_API_BASE` con la URL del servicio, y la API declara
+CORS para los dominios de la consola.
+
+
 ```bash
 cd apps/web
 cp .env.example .env.production   # completar con los valores del proyecto
@@ -328,13 +339,71 @@ El 401 con token inválido importa más de lo que parece: prueba que
 `firebase_admin` se inicializó con la identidad del servicio y que rechaza un
 token falso — la capa de identidad, verificada contra Firebase de verdad.
 
-### Lo que falta
+### El recorrido completo, verificado
 
-**Las colecciones del dominio están vacías.** Sembrarlas necesita
-`gcloud auth application-default login` en una máquina con los datos generados:
-el ADC de la máquina de desarrollo pertenece a otra cuenta y Firestore devuelve
-`403 Missing or insufficient permissions`. Es el bloqueo que el mapa de acción ya
-declaraba, y el único paso de este documento que no se pudo ejecutar.
+Con los datos sembrados y un token de Firebase real, el recorrido de referencia
+corre de punta a punta contra el sistema desplegado:
 
-Hasta que se siembre, la API responde y aplica identidad, pero el agente no tiene
-sobre qué contestar.
+```
+consultar_activo(P-2101-A)        t_min 7,1 mm · criticidad A · en_servicio
+historial_inspecciones(P-2101-A)  6,8 mm · severidad critico
+calcular_vida_remanente(P-2101-A) −1,42 años
+buscar_normativa(...)             API-570-2016 §7.4 y tres más, todas vigentes
+⚠ solicitar_parada_equipo         PROPUESTA, no ejecutada
+```
+
+Y las tres cosas que hacen verdadero al gate:
+
+| Prueba | Resultado |
+|---|---|
+| El activo después de la propuesta | sigue `en_servicio` ✅ |
+| La bandeja del supervisor | ve la propuesta ✅ |
+| La bandeja del proponente | **no** la ve ✅ |
+| El proponente intenta aprobarla | 403 con el motivo ✅ |
+
+### La barrera que nadie esperaba usar
+
+Al aprobar, la acción **se negó a ejecutarse**:
+
+```
+No existe la inspección '2026-02-18'. Una parada de equipo necesita un
+hallazgo trazable que la respalde, así que no se solicitó nada.
+```
+
+El modelo había propuesto con un identificador inventado —la *fecha* de la
+inspección en lugar de su id, que es `INS-2026-00004`— y el supervisor aprobó sin
+notarlo. La validación de la acción de escritura lo frenó, y el activo quedó
+`en_servicio`.
+
+**Es defensa en profundidad funcionando**: el gate humano no es la última
+barrera, es la penúltima. Un humano que aprueba rápido no alcanza para
+materializar una acción sobre un hallazgo que no existe.
+
+También expone un límite real de calidad: el agente de `acciones` **no tiene
+`historial_inspecciones`** entre sus herramientas, así que el id solo le llega en
+la prosa de otro especialista. Proponer con un identificador que no puede
+verificar es un problema de diseño del catálogo por especialista, no del modelo.
+Queda anotado y sin resolver.
+
+### Usuarios
+
+Firebase Authentication no viene inicializado en un proyecto nuevo. Se activa con:
+
+```bash
+TOKEN=$(gcloud auth print-access-token)
+curl -X POST "https://identitytoolkit.googleapis.com/v2/projects/PROJECT/identityPlatform:initializeAuth"   -H "Authorization: Bearer $TOKEN" -H "X-Goog-User-Project: PROJECT" -d '{}'
+```
+
+**`X-Goog-User-Project` no es opcional**: sin esa cabecera, la API responde 403
+diciendo que faltan credenciales de cuota, no que falte un permiso.
+
+Cada persona necesita el custom claim `synapseflow_rol`. **Sin él recibe 403**, y
+eso es el diseño: solo los usuarios habilitados usan la plataforma.
+
+```python
+auth.set_custom_user_claims(uid, {"synapseflow_rol": "inspector"})
+```
+
+Un `create_custom_token` con ADC de usuario **no funciona** —necesita una cuenta
+de servicio que firme— así que para probar por script conviene email+contraseña,
+que no requiere firma.

@@ -181,16 +181,33 @@ def test_el_procedimiento_no_crea_claves_descargables() -> None:
     assert "gcloud iam service-accounts keys create" not in DESPLIEGUE
 
 
-def test_el_procedimiento_declara_lo_que_no_se_ejecuto() -> None:
+def test_el_procedimiento_no_afirma_de_mas() -> None:
     """**Documentar como hecho algo que no se hizo ya se cometió una vez acá.**
 
-    Ahora el documento describe un despliegue que sí ocurrió, así que lo que hay
-    que sostener es lo contrario: que siga diciendo qué quedó sin hacer. Las
-    colecciones del dominio están vacías, y un procedimiento que lo omitiera
-    mandaría a alguien a probar el circuito completo contra una base sin datos.
+    El documento describe un despliegue que ocurrió y un recorrido que se
+    verificó, así que lo que hay que sostener ahora es que las afirmaciones
+    lleven su evidencia: el recorrido con los números medidos, y el gate con las
+    cuatro comprobaciones que lo hacen verdadero.
     """
-    assert "## Lo que falta" in DESPLIEGUE
-    assert "vacías" in DESPLIEGUE
+    assert "El recorrido completo, verificado" in DESPLIEGUE
+    # Lo que hace real al gate: el activo no se tocó y el proponente no aprueba.
+    assert "sigue `en_servicio`" in DESPLIEGUE
+    assert "**no** la ve" in DESPLIEGUE
+
+
+def test_el_procedimiento_explica_como_habilitar_usuarios() -> None:
+    """Sin el custom claim la persona recibe 403, y eso es el diseño: solo los
+    usuarios habilitados usan la plataforma. Si el procedimiento no dice cómo
+    habilitarlos, ese 403 parece un bug."""
+    assert "synapseflow_rol" in DESPLIEGUE
+    assert "initializeAuth" in DESPLIEGUE
+
+
+def test_el_procedimiento_avisa_del_limite_del_rewrite() -> None:
+    """Es lo que obliga a la consola a llamar a Cloud Run directo, y sin la
+    explicación esa URL parece un descuido."""
+    assert "60 segundos" in DESPLIEGUE
+    assert "VITE_API_BASE" in DESPLIEGUE
 
 
 def test_el_procedimiento_usa_la_imagen_construida() -> None:

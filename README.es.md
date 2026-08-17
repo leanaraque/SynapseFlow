@@ -28,11 +28,14 @@ Sobre LangGraph y LangChain 1.x · desplegada en Firebase
 > `southamerica-east1`. La identidad se aplica en producción: `/api/yo` devuelve
 > 401 sin token, y 401 —no 500— con uno inválido.
 >
-> **Las colecciones del dominio siguen vacías**, así que el agente todavía no
-> tiene sobre qué contestar; sembrarlas necesita un
-> `gcloud auth application-default login` interactivo. Dos funciones de la
-> consola que el mapa listaba no se hicieron. Las dos cosas están dichas abajo en
-> lugar de pasadas por alto.
+> **El recorrido de P-2101-A corre de punta a punta contra el sistema
+> desplegado**: lee el activo y su historial, calcula la vida remanente, cita
+> API-570-2016 §7.4 y **propone** la parada sin ejecutarla. El activo sigue
+> `en_servicio`, el supervisor ve la propuesta, el proponente no, y al proponente
+> le da 403 intentar aprobar la suya.
+>
+> Dos funciones de la consola que el mapa listaba no se hicieron; están dichas
+> abajo en lugar de pasadas por alto.
 
 ---
 
@@ -91,11 +94,11 @@ SynapseFlow:
 
 El agente no ejecuta la parada. La propone, la fundamenta y espera a un humano.
 
-> Este es el diseño objetivo, no una sesión capturada. El grafo que lo produce
-> está construido y verificado de punta a punta —el recorrido de P-2101-A frena
-> en el gate con el activo todavía en servicio—, pero la base desplegada no tiene
-> datos del dominio, así que la consola en vivo no puede reproducirlo hasta que
-> se siembre.
+> **Esta transcripción es lo que hace el sistema desplegado.** Verificado contra
+> producción el 2026-08-17: cuatro herramientas, `API-570-2016 §7.4` entre las
+> citas, la parada propuesta y no ejecutada, y el activo todavía `en_servicio`
+> después. La redacción varía —es un modelo de lenguaje— pero las herramientas,
+> las citas y el gate no.
 
 ## Arquitectura
 
@@ -259,10 +262,8 @@ El [mapa de acción](docs/06-mapa-de-accion.md) desglosa el trabajo en ocho fase
 cada una con sus dependencias, sus entregables y —sobre todo— cómo se verifica.
 Las ocho están hechas y los cinco compromisos de diseño están operativos.
 
-**Lo que no se construyó**, dicho sin vueltas porque un sistema desplegado no es
-un producto terminado: **las colecciones del dominio están vacías** —sembrarlas
-necesita un login de ADC interactivo, porque las credenciales por defecto de la
-máquina de desarrollo son de otra cuenta—; el explorador de la ontología
+**Lo que no se construyó**, dicho sin vueltas porque un sistema que funciona no
+es un producto terminado: el explorador de la ontología
 quedó reducido a una pantalla «mi rol» con el catálogo compilado, y el panel de
 costos no se hizo: `llm_usage` se escribe y no tiene quien lo lea. El
 [despliegue](docs/05-despliegue.md) está escrito y verificado contra la

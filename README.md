@@ -28,9 +28,13 @@ Built on LangGraph and LangChain 1.x · deployed on Firebase
 > `southamerica-east1`. Identity is enforced in production: `/api/yo` returns 401
 > without a token and 401 — not 500 — with an invalid one.
 >
-> **The domain collections are still empty**, so the agent has nothing to answer
-> about yet; seeding needs an interactive `gcloud auth application-default login`.
-> Two console features listed in the roadmap were not built. Both are stated
+> **The P-2101-A journey runs end to end against the deployed system**: it reads
+> the asset and its history, computes remaining life, cites API-570-2016 §7.4 and
+> **proposes** the shutdown without executing it. The asset stays `en_servicio`,
+> the supervisor sees the proposal, the proposer does not, and the proposer gets
+> a 403 for trying to approve their own.
+>
+> Two console features listed in the roadmap were not built; they are stated
 > below rather than glossed over.
 
 ---
@@ -92,10 +96,11 @@ SynapseFlow:
 The agent does not execute the shutdown. It proposes it, justifies it, and waits
 for a human.
 
-> That transcript is the target design, not a captured session. The graph that
-> produces it is built and tested end to end — the P-2101-A journey stops at the
-> gate with the asset still in service — but the deployed database has no domain
-> data yet, so the live console cannot reproduce it until it is seeded.
+> **That transcript is what the deployed system does.** Verified against
+> production on 2026-08-17: four tools, `API-570-2016 §7.4` among the citations,
+> the shutdown proposed and not executed, and the asset still `en_servicio`
+> afterwards. The wording varies — it is a language model — but the tools, the
+> citations and the gate do not.
 >
 > The domain is modelled in Spanish, so tool names and output are in Spanish.
 > See [Project language](#project-language).
@@ -260,10 +265,8 @@ The [action map](docs/06-mapa-de-accion.md) breaks the work into eight phases,
 each with its dependencies, deliverables and — most importantly — how it gets
 verified. All eight are done, and all five design commitments are operative.
 
-**What was not built**, stated plainly because a deployed system is not a
-finished product: **the domain collections are empty** — seeding needs an
-interactive ADC login, because the dev machine's default credentials belong to a
-different account; the ontology explorer was reduced to a
+**What was not built**, stated plainly because a working system is not a
+finished product: the ontology explorer was reduced to a
 single "my role" screen showing the compiled catalogue, and the cost dashboard
 was not built at all — `llm_usage` is written and has no reader.
 [Deployment](docs/05-despliegue.md) is written down and checked against the
