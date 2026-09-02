@@ -59,8 +59,8 @@ UNICODE = _consola_soporta_unicode()
 
 SEP = ("─" if UNICODE else "-") * 74
 BULLET = "·" if UNICODE else "*"
-MARCA_HECHO = "✅" if UNICODE else "[OK]"
-MARCA_PENDIENTE = "○ " if UNICODE else "[  ]"
+MARCA_HECHO = "[OK]"
+MARCA_PENDIENTE = "[  ]"
 MARCA_ITEM = "✓" if UNICODE else "x"
 
 

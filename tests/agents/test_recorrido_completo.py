@@ -5,7 +5,7 @@
       → consultar_activo(P-2101-A)          t_min = 7,1 mm · criticidad A
       → calcular_vida_remanente(P-2101-A)   Python, no el modelo
       → buscar_normativa(...)               con documento y sección
-      → solicitar_parada_equipo(P-2101-A)   ⚠ FRENA acá, esperando a un humano
+      → solicitar_parada_equipo(P-2101-A)   FRENA acá, esperando a un humano
 
 **Es el test que hace verdadero lo que el README promete.** Corre el grafo real
 contra el emulador, con el modelo falso programado y los datos del caso crítico

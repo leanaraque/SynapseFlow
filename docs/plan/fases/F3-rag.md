@@ -167,5 +167,5 @@ general del modelo.
 
 - Reemplazar la implementación provisoria de `buscar_normativa` de F2.2 por la
   versión con retriever híbrido y citas validadas.
-- El compromiso 4 pasa a ✅.
+- El compromiso 4 pasa a Cumplido.
 - Actualizar ambos READMEs y el `CHANGELOG.md`.

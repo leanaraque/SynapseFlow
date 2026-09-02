@@ -177,6 +177,6 @@ Agregar también `tests/llm/test_pricing_freshness.py`, que falla si el
 ## Al cerrar F1
 
 - Actualizar la fila del gateway en la tabla de estado de **ambos** READMEs
-  (🚧 → ✅).
+  (En curso → Hecho).
 - Anotar en el `CHANGELOG.md`.
 - `python -m scripts.estado` debe mostrar F0 o F2 como fase siguiente.

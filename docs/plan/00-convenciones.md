@@ -458,7 +458,7 @@ No los repitas.
 | `pytest -m "not emulator"` documentado como suite unitaria | Deselecciona los 8 tests y no corre ninguno. | Ejecutar lo que se documenta antes de documentarlo |
 | Regla de cache sobre `/index.html` | Con `cleanUrls` la ruta servida es `/`, así que la regla nunca coincidía | Verificar los headers servidos, no la configuración escrita |
 | Documentar código inexistente | Un manual describía módulos no construidos sin avisarlo | Marcar siempre qué está implementado y qué es diseño |
-| Firma de `description` en el gate | El compilador la escribía con un argumento y el middleware la llama con tres. El gate lanzaba `TypeError` en la primera acción irreversible. La capa de ontología figuraba ✅ en el README y no tenía un solo test. | Una fila ✅ sin test es una afirmación, no un hecho |
+| Firma de `description` en el gate | El compilador la escribía con un argumento y el middleware la llama con tres. El gate lanzaba `TypeError` en la primera acción irreversible. La capa de ontología figuraba como Hecho en el README y no tenía un solo test. | Una fila marcada Hecho sin test es una afirmación, no un hecho |
 | Lista blanca de placeholders en `approval_prompt` | Se admitían `{tag}` y `{prioridad}` «aportados por la entidad objetivo». Nada los aportaba: el gate mostraba «no informado» donde iba el equipo. | Una degradación silenciosa no la reporta nadie |
 
 ---

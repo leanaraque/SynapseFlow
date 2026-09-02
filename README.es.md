@@ -87,7 +87,7 @@ SynapseFlow:
 
   Fuentes: API-570-2016 §7.4 · API-570-2016 §5.6 · PROC-INT-014 §3.2
 
-  ⚠ Acción irreversible propuesta: solicitar_parada_equipo(P-2101-A)
+  ATENCIÓN: acción irreversible propuesta: solicitar_parada_equipo(P-2101-A)
     Requiere aprobación de un supervisor de mantenimiento.
     [ Aprobar ]  [ Rechazar ]
 ```
@@ -159,7 +159,7 @@ flowchart TB
 
 ## Las cinco decisiones que definen el proyecto
 
-**1. La ontología es declarativa, no código.** ✅ implementado
+**1. La ontología es declarativa, no código.** Implementado.
 Entidades, relaciones y acciones viven en
 [`oil_and_gas.yaml`](packages/synapseflow/ontology/definitions/oil_and_gas.yaml).
 De ese archivo se derivan en tiempo de arranque los modelos de validación, el
@@ -167,7 +167,7 @@ catálogo de herramientas que ven los agentes, los permisos por rol y la
 clasificación de datos. Cambiar de dominio es cambiar el YAML.
 → [ADR-0003](docs/adr/0003-ontologia-declarativa-en-yaml.md)
 
-**2. La reversibilidad es un atributo del dominio, no un `if` en el código.** ✅ implementado
+**2. La reversibilidad es un atributo del dominio, no un `if` en el código.** Implementado.
 Cada acción declara `reversible` y `requires_approval`. El compilador de
 herramientas lee esos campos y produce la configuración del gate de aprobación.
 Un desarrollador no puede olvidarse de poner el gate: si la acción es
@@ -182,7 +182,7 @@ escritura no es un gate.
 → [ADR-0005](docs/adr/0005-hitl-con-interrupt-de-langgraph.md) ·
 [`test_recorrido_completo.py`](tests/agents/test_recorrido_completo.py)
 
-**3. El modelo no calcula números.** ✅ implementado
+**3. El modelo no calcula números.** Implementado.
 Velocidad de corrosión y vida remanente se computan en Python determinístico y
 se le entregan al modelo como hecho. El LLM redacta y fundamenta; no estima
 magnitudes que después firma un ingeniero. Siguiendo API 570 §7 se calculan la
@@ -191,7 +191,7 @@ corroyó despacio durante años y se aceleró en la última campaña tiene un pr
 nuevo, y promediarlo lo esconde justo cuando importa.
 → [`calculos.py`](packages/synapseflow/domain/calculos.py)
 
-**4. Sin cita no hay respuesta.** ✅ implementado
+**4. Sin cita no hay respuesta.** Implementado.
 El agente de normativa está obligado a devolver documento y sección. Un
 verificador comprueba que cada afirmación tenga respaldo en el contexto
 recuperado antes de emitir. Si no lo tiene, el sistema dice que no sabe — y la
@@ -202,7 +202,7 @@ contra el corpus: un modelo que cita una cláusula real que no estaba en su
 contexto no la leyó.
 → [`fundamento.py`](packages/synapseflow/rag/fundamento.py)
 
-**5. Los datos sensibles no salen del perímetro.** ✅ implementado
+**5. Los datos sensibles no salen del perímetro.** Implementado.
 Los campos marcados `pii` o `restricted` en la ontología se tokenizan antes de
 la llamada al proveedor y se rehidratan en la respuesta. El modelo externo ve
 `«INSPECTOR_1»`, nunca un legajo. El token es un **contador por conversación, no
@@ -221,42 +221,40 @@ si no, la garantía podría estar pasando sin probar nada.
 
 | Componente | Estado | Verificación |
 |---|---|---|
-| Ontología: meta-esquema y validación | ✅ | invariantes forzadas al cargar; probadas por mutación |
-| Ontología: compilador a herramientas de LangChain | ✅ | 9 acciones, schemas con enums, filtrado por rol |
-| Ontología: RBAC y campos PII derivados | ✅ | ningún rol actúa por encima de su clasificación — si pudiera, la carga falla |
-| Gates de aprobación derivados de la ontología | ✅ | un agente real se detiene en el gate; aprobar ejecuta lo propuesto |
-| `FirestoreSaver` — checkpointer de LangGraph | ✅ | 8 tests contra el emulador |
-| `FirestoreVectorStore` — `find_nearest` nativo | ✅ | implementado; tests de integración pendientes |
-| CLI de inspección | ✅ | `synapseflow ontology validate` |
-| Reglas e índices de Firestore | ✅ | declarados y versionados |
-| Datos sintéticos del dominio | ✅ | 60 activos y 292 inspecciones, reproducibles por semilla |
-| Corpus de normativa | ✅ | 6 documentos, 42 secciones citables, uno derogado |
-| Carga idempotente a Firestore | ✅ | cargado dos veces contra el emulador, el conteo no cambia |
-| Tests de coherencia de los datos | ✅ | 45 tests sobre tres semillas |
-| Registry de modelos: perfil + proveedor → modelo | ✅ | un modelo de embeddings que no coincide con el índice vectorial no se puede resolver |
-| Gateway de LLM multi-proveedor | ✅ | cuatro adapters detrás de un único punto de salida; se pide un perfil de tarea, nunca un nombre de modelo |
-| Las nueve acciones del dominio, implementadas | ✅ | el catálogo completo compila para todos los roles — antes se negaba |
-| Cálculo determinístico de vida remanente | ✅ | API 570 §7, velocidades de largo y corto plazo, gobierna la mayor |
-| RAG híbrido con citas | ✅ | vectorial + BM25; el filtro de vigencia vale en **las dos** ramas |
-| Verificador de fundamento | ✅ | tres veredictos; una cita inventada se rechaza sin llamar al modelo |
-| Middleware de gobernanza | ✅ | tokenización reversible de PII, gates desde la ontología, techo de llamadas |
-| Log de auditoría inmutable | ✅ | append-only; guarda `thread_id` y `checkpoint_id` para reconstruir el razonamiento |
-| Separación de funciones en la aprobación | ✅ | el proponente no puede aprobar su propia acción |
-| Grafo de agentes: supervisor, especialistas, verificador | ✅ | el recorrido completo de P-2101-A frena en el gate y el activo sigue en servicio |
-| Gates aplicados sobre el grafo en ejecución | ✅ | test estructural sobre todos los roles: ninguna acción irreversible es alcanzable sin gate |
-| Suite de evals y CI de regresión | ✅ | cuatro métricas determinísticas y una juzgada; el rechazo se penaliza en **las dos** direcciones |
-| Firestore aprovisionado en la nube | ✅ | `nam5`, reglas e índices desplegados, búsqueda vectorial de 768 dim verificada contra la base real |
-| Política de zero-training aplicada en el gateway | ✅ | un proveedor que el catálogo no respalda se rechaza al arrancar |
-| Un solo camino de salida, garantizado por estructura | ✅ | se recorre el AST de cada módulo; un segundo camino rompe el build |
-| Contabilidad de costo por llamada | ✅ | se tarifa por el modelo que corrió de verdad, no por el perfil pedido |
-| Identidad de la API: token de Firebase → contexto de ejecución | ✅ | un usuario sin rol válido recibe un 403, nunca un rol por defecto |
-| Streaming por SSE | ✅ | eventos de herramienta antes de la respuesta; citas antes del pedido de aprobación |
-| Endpoints de aprobación | ✅ | el proponente no aprueba lo suyo; aprobar no manda argumentos |
-| Imagen y despliegue en Cloud Run | 🚧 | imagen multietapa y ADR-0006 escritos; falta correr `docker build` |
-| Consola web | ✅ | chat, citas inspeccionables y bandeja de aprobaciones |
-| Despliegue | ✅ | en vivo; headers, rewrite de la API y los 401 verificados sobre lo servido |
-
-✅ implementado y verificado · 🚧 en curso · 📋 planificado
+| Ontología: meta-esquema y validación | Hecho | invariantes forzadas al cargar; probadas por mutación |
+| Ontología: compilador a herramientas de LangChain | Hecho | 9 acciones, schemas con enums, filtrado por rol |
+| Ontología: RBAC y campos PII derivados | Hecho | ningún rol actúa por encima de su clasificación — si pudiera, la carga falla |
+| Gates de aprobación derivados de la ontología | Hecho | un agente real se detiene en el gate; aprobar ejecuta lo propuesto |
+| `FirestoreSaver` — checkpointer de LangGraph | Hecho | 8 tests contra el emulador |
+| `FirestoreVectorStore` — `find_nearest` nativo | Hecho | implementado; tests de integración pendientes |
+| CLI de inspección | Hecho | `synapseflow ontology validate` |
+| Reglas e índices de Firestore | Hecho | declarados y versionados |
+| Datos sintéticos del dominio | Hecho | 60 activos y 292 inspecciones, reproducibles por semilla |
+| Corpus de normativa | Hecho | 6 documentos, 42 secciones citables, uno derogado |
+| Carga idempotente a Firestore | Hecho | cargado dos veces contra el emulador, el conteo no cambia |
+| Tests de coherencia de los datos | Hecho | 45 tests sobre tres semillas |
+| Registry de modelos: perfil + proveedor → modelo | Hecho | un modelo de embeddings que no coincide con el índice vectorial no se puede resolver |
+| Gateway de LLM multi-proveedor | Hecho | cuatro adapters detrás de un único punto de salida; se pide un perfil de tarea, nunca un nombre de modelo |
+| Las nueve acciones del dominio, implementadas | Hecho | el catálogo completo compila para todos los roles — antes se negaba |
+| Cálculo determinístico de vida remanente | Hecho | API 570 §7, velocidades de largo y corto plazo, gobierna la mayor |
+| RAG híbrido con citas | Hecho | vectorial + BM25; el filtro de vigencia vale en **las dos** ramas |
+| Verificador de fundamento | Hecho | tres veredictos; una cita inventada se rechaza sin llamar al modelo |
+| Middleware de gobernanza | Hecho | tokenización reversible de PII, gates desde la ontología, techo de llamadas |
+| Log de auditoría inmutable | Hecho | append-only; guarda `thread_id` y `checkpoint_id` para reconstruir el razonamiento |
+| Separación de funciones en la aprobación | Hecho | el proponente no puede aprobar su propia acción |
+| Grafo de agentes: supervisor, especialistas, verificador | Hecho | el recorrido completo de P-2101-A frena en el gate y el activo sigue en servicio |
+| Gates aplicados sobre el grafo en ejecución | Hecho | test estructural sobre todos los roles: ninguna acción irreversible es alcanzable sin gate |
+| Suite de evals y CI de regresión | Hecho | cuatro métricas determinísticas y una juzgada; el rechazo se penaliza en **las dos** direcciones |
+| Firestore aprovisionado en la nube | Hecho | `nam5`, reglas e índices desplegados, búsqueda vectorial de 768 dim verificada contra la base real |
+| Política de zero-training aplicada en el gateway | Hecho | un proveedor que el catálogo no respalda se rechaza al arrancar |
+| Un solo camino de salida, garantizado por estructura | Hecho | se recorre el AST de cada módulo; un segundo camino rompe el build |
+| Contabilidad de costo por llamada | Hecho | se tarifa por el modelo que corrió de verdad, no por el perfil pedido |
+| Identidad de la API: token de Firebase → contexto de ejecución | Hecho | un usuario sin rol válido recibe un 403, nunca un rol por defecto |
+| Streaming por SSE | Hecho | eventos de herramienta antes de la respuesta; citas antes del pedido de aprobación |
+| Endpoints de aprobación | Hecho | el proponente no aprueba lo suyo; aprobar no manda argumentos |
+| Imagen y despliegue en Cloud Run | En curso | imagen multietapa y ADR-0006 escritos; falta correr `docker build` |
+| Consola web | Hecho | chat, citas inspeccionables y bandeja de aprobaciones |
+| Despliegue | Hecho | en vivo; headers, rewrite de la API y los 401 verificados sobre lo servido |
 
 El [mapa de acción](docs/06-mapa-de-accion.md) desglosa el trabajo en ocho fases,
 cada una con sus dependencias, sus entregables y —sobre todo— cómo se verifica.

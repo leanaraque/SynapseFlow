@@ -75,7 +75,7 @@ PERFILES_DE_CHAT: tuple[str, ...] = ("router", "synthesis", "verifier")
 # Además la suite de evals de F8 mide regresión entre corridas, y con temperatura
 # el ruido del muestreo se confunde con el efecto de un cambio de prompt.
 #
-# ⚠ PEDIRLA NO ES OBTENERLA. Verificado el 2026-08-06: `gemini-3.5-flash-lite`
+# ATENCIÓN: PEDIRLA NO ES OBTENERLA. Verificado el 2026-08-06: `gemini-3.5-flash-lite`
 # —el modelo de los perfiles `router` y `verifier`— avisa por `UserWarning` que
 # usa sampling fijo y que **ignora** el parámetro. Se sigue pasando porque los
 # modelos que sí lo respetan lo necesitan, pero el determinismo de esos dos

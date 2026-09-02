@@ -237,6 +237,6 @@ def _con_advertencia(respuesta: str, sin_respaldo: list[Afirmacion]) -> str:
     listado = "\n".join(f"  · {a.texto}" for a in sin_respaldo)
     return (
         f"{respuesta}\n\n"
-        f"⚠ Lo siguiente NO está respaldado por la normativa recuperada y "
+        f"ATENCIÓN: lo siguiente NO está respaldado por la normativa recuperada y "
         f"requiere verificación:\n{listado}"
     )

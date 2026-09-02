@@ -88,7 +88,7 @@ SynapseFlow:
 
   Fuentes: API-570-2016 §7.4 · API-570-2016 §5.6 · PROC-INT-014 §3.2
 
-  ⚠ Acción irreversible propuesta: solicitar_parada_equipo(P-2101-A)
+  ATENCIÓN: acción irreversible propuesta: solicitar_parada_equipo(P-2101-A)
     Requiere aprobación de un supervisor de mantenimiento.
     [ Aprobar ]  [ Rechazar ]
 ```
@@ -164,7 +164,7 @@ flowchart TB
 
 ## The five decisions that define the project
 
-**1. The ontology is declarative, not code.** ✅ implemented
+**1. The ontology is declarative, not code.** Implemented.
 Entities, relations and actions live in
 [`oil_and_gas.yaml`](packages/synapseflow/ontology/definitions/oil_and_gas.yaml).
 At startup that single file produces the validation models, the tool catalogue
@@ -172,7 +172,7 @@ the agents see, the per-role permissions and the data classification. Changing
 domain means changing the YAML.
 → [ADR-0003](docs/adr/0003-ontologia-declarativa-en-yaml.md)
 
-**2. Reversibility is a property of the domain, not an `if` in the code.** ✅ implemented
+**2. Reversibility is a property of the domain, not an `if` in the code.** Implemented.
 Every action declares `reversible` and `requires_approval`. The tool compiler
 reads those fields and emits the approval gate configuration. A developer cannot
 forget to add the gate: if the action is irreversible, the gate exists.
@@ -185,7 +185,7 @@ Firestore. A gate that fires after the write is not a gate.
 → [ADR-0005](docs/adr/0005-hitl-con-interrupt-de-langgraph.md) ·
 [`test_recorrido_completo.py`](tests/agents/test_recorrido_completo.py)
 
-**3. The model does not compute numbers.** ✅ implemented
+**3. The model does not compute numbers.** Implemented.
 Corrosion rate and remaining life are computed in deterministic Python and handed
 to the model as fact. The LLM writes and justifies; it does not estimate
 magnitudes that an engineer will later sign off on. Following API 570 §7, both
@@ -195,7 +195,7 @@ campaign has a new problem, and averaging it away hides it exactly when it
 matters.
 → [`calculos.py`](packages/synapseflow/domain/calculos.py)
 
-**4. No citation, no answer.** ✅ implemented
+**4. No citation, no answer.** Implemented.
 The standards agent is required to return document and clause. A verifier checks
 that every claim is supported by the retrieved context before the answer is
 emitted. If it is not, the system says it does not know — and the refusal is
@@ -205,7 +205,7 @@ Citations are validated against **what was actually retrieved**, not against the
 corpus: a model citing a real clause that was not in its context did not read it.
 → [`fundamento.py`](packages/synapseflow/rag/fundamento.py)
 
-**5. Sensitive data does not leave the perimeter.** ✅ implemented
+**5. Sensitive data does not leave the perimeter.** Implemented.
 Fields marked `pii` or `restricted` in the ontology are tokenised before the
 provider call and rehydrated in the response. The external model sees
 `«INSPECTOR_1»`, never an employee ID. The token is a **per-conversation
@@ -224,42 +224,40 @@ pass by proving nothing.
 
 | Component | Status | Verification |
 |---|---|---|
-| Ontology: meta-schema and validation | ✅ | invariants enforced at load time; mutation-tested |
-| Ontology: compiler to LangChain tools | ✅ | 9 actions, enum-typed schemas, role filtering |
-| Ontology: derived RBAC and PII fields | ✅ | no role can act above its classification — the load fails if one could |
-| Approval gates derived from the ontology | ✅ | a real agent stops at the gate; approving runs exactly what was proposed |
-| `FirestoreSaver` — LangGraph checkpointer | ✅ | 8 tests against the emulator |
-| `FirestoreVectorStore` — native `find_nearest` | ✅ | implemented; integration tests pending |
-| Inspection CLI | ✅ | `synapseflow ontology validate` |
-| Firestore rules and indexes | ✅ | declared and versioned |
-| Synthetic domain data | ✅ | 60 assets and 292 inspections, reproducible from a seed |
-| Standards corpus | ✅ | 6 documents, 42 citable clauses, one superseded |
-| Idempotent Firestore seeding | ✅ | loaded twice against the emulator, counts unchanged |
-| Data coherence tests | ✅ | 45 tests over three seeds |
-| Model registry: profile + provider → model | ✅ | an embeddings model that does not match the vector index cannot be resolved |
-| Multi-provider LLM gateway | ✅ | four adapters behind one exit point; a task profile is asked for, never a model name |
-| The nine domain actions, implemented | ✅ | the full catalogue compiles for every role — before this it refused to |
-| Deterministic remaining-life calculation | ✅ | API 570 §7, long- and short-term rates, the higher one governs |
-| Hybrid RAG with citations | ✅ | vector + BM25; the currency filter applies to **both** branches |
-| Groundedness verifier | ✅ | three verdicts; an invented citation is rejected without calling the model |
-| Governance middleware | ✅ | reversible PII tokenisation, gates from the ontology, per-turn call ceiling |
-| Immutable audit log | ✅ | append-only; keeps `thread_id` and `checkpoint_id` to rebuild the reasoning |
-| Separation of duties on approvals | ✅ | the proposer cannot approve their own action |
-| Agent graph: supervisor, specialists, verifier | ✅ | the full P-2101-A journey stops at the gate and the asset stays in service |
-| Approval gates applied on the running graph | ✅ | structural test over every role: no irreversible action is reachable without its gate |
-| Eval suite and regression CI | ✅ | four deterministic metrics and one judged; refusal is scored in **both** directions |
-| Firestore provisioned in the cloud | ✅ | `nam5`, rules and indexes deployed, 768-dim vector search verified against the real base |
-| Zero-training policy enforced at the gateway | ✅ | a provider the catalogue does not vouch for is rejected at startup |
-| Single data-exit path, structurally enforced | ✅ | the AST of every module is walked; a second exit path fails the build |
-| Per-call cost accounting | ✅ | priced by the model that actually ran, not the profile requested |
-| API identity: Firebase token → execution context | ✅ | a user without a valid role gets a 403, never a default role |
-| SSE streaming | ✅ | tool events before the answer; citations before the approval prompt |
-| Approval endpoints | ✅ | the proposer cannot approve their own action; approving sends no arguments |
-| Cloud Run image and deployment | 🚧 | multi-stage image and ADR-0006 written; `docker build` still pending |
-| Web console | ✅ | chat, inspectable citations and the approval inbox |
-| Deployment | ✅ | live; headers, the API rewrite and the 401s verified against what is served |
-
-✅ implemented and verified · 🚧 in progress · 📋 planned
+| Ontology: meta-schema and validation | Done | invariants enforced at load time; mutation-tested |
+| Ontology: compiler to LangChain tools | Done | 9 actions, enum-typed schemas, role filtering |
+| Ontology: derived RBAC and PII fields | Done | no role can act above its classification — the load fails if one could |
+| Approval gates derived from the ontology | Done | a real agent stops at the gate; approving runs exactly what was proposed |
+| `FirestoreSaver` — LangGraph checkpointer | Done | 8 tests against the emulator |
+| `FirestoreVectorStore` — native `find_nearest` | Done | implemented; integration tests pending |
+| Inspection CLI | Done | `synapseflow ontology validate` |
+| Firestore rules and indexes | Done | declared and versioned |
+| Synthetic domain data | Done | 60 assets and 292 inspections, reproducible from a seed |
+| Standards corpus | Done | 6 documents, 42 citable clauses, one superseded |
+| Idempotent Firestore seeding | Done | loaded twice against the emulator, counts unchanged |
+| Data coherence tests | Done | 45 tests over three seeds |
+| Model registry: profile + provider → model | Done | an embeddings model that does not match the vector index cannot be resolved |
+| Multi-provider LLM gateway | Done | four adapters behind one exit point; a task profile is asked for, never a model name |
+| The nine domain actions, implemented | Done | the full catalogue compiles for every role — before this it refused to |
+| Deterministic remaining-life calculation | Done | API 570 §7, long- and short-term rates, the higher one governs |
+| Hybrid RAG with citations | Done | vector + BM25; the currency filter applies to **both** branches |
+| Groundedness verifier | Done | three verdicts; an invented citation is rejected without calling the model |
+| Governance middleware | Done | reversible PII tokenisation, gates from the ontology, per-turn call ceiling |
+| Immutable audit log | Done | append-only; keeps `thread_id` and `checkpoint_id` to rebuild the reasoning |
+| Separation of duties on approvals | Done | the proposer cannot approve their own action |
+| Agent graph: supervisor, specialists, verifier | Done | the full P-2101-A journey stops at the gate and the asset stays in service |
+| Approval gates applied on the running graph | Done | structural test over every role: no irreversible action is reachable without its gate |
+| Eval suite and regression CI | Done | four deterministic metrics and one judged; refusal is scored in **both** directions |
+| Firestore provisioned in the cloud | Done | `nam5`, rules and indexes deployed, 768-dim vector search verified against the real base |
+| Zero-training policy enforced at the gateway | Done | a provider the catalogue does not vouch for is rejected at startup |
+| Single data-exit path, structurally enforced | Done | the AST of every module is walked; a second exit path fails the build |
+| Per-call cost accounting | Done | priced by the model that actually ran, not the profile requested |
+| API identity: Firebase token → execution context | Done | a user without a valid role gets a 403, never a default role |
+| SSE streaming | Done | tool events before the answer; citations before the approval prompt |
+| Approval endpoints | Done | the proposer cannot approve their own action; approving sends no arguments |
+| Cloud Run image and deployment | In progress | multi-stage image and ADR-0006 written; `docker build` still pending |
+| Web console | Done | chat, inspectable citations and the approval inbox |
+| Deployment | Done | live; headers, the API rewrite and the 401s verified against what is served |
 
 The [action map](docs/06-mapa-de-accion.md) breaks the work into eight phases,
 each with its dependencies, deliverables and — most importantly — how it gets

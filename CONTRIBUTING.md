@@ -136,7 +136,7 @@ de cada uno:
 - Si el cambio afecta comportamiento, tiene que venir con un test que falle sin
   el cambio.
 - Actualizá la tabla de [estado del proyecto](README.md#estado-del-proyecto) si
-  tu cambio mueve un componente de 📋 a 🚧 o a ✅.
+  tu cambio mueve un componente de Planificado a En curso o a Hecho.
 
 ## Reportar problemas
 

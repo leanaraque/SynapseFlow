@@ -208,9 +208,9 @@ argumentos ejecutados sean idénticos a los propuestos.
 
 ## Al cerrar F5
 
-- El compromiso 2 pasa a ✅. **Los cinco compromisos quedan cumplidos.**
+- El compromiso 2 pasa a Cumplido. **Los cinco compromisos quedan cumplidos.**
 - Actualizar la tabla de estado de ambos READMEs: grafo de agentes, RAG y
-  gobernanza pasan a ✅.
+  gobernanza pasan a Hecho.
 - Anotar en el `CHANGELOG.md` como el hito que es.
 - Actualizar los módulos § 13, § 15 y § 20 del manual de estudio, que hoy están
   marcados «todavía no construido» y pasan a implementados.

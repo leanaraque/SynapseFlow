@@ -197,7 +197,7 @@ el estructural prueba que hay un único camino, este prueba que ese camino redac
 
 ## Al cerrar F4
 
-- El compromiso 5 pasa a ✅.
+- El compromiso 5 pasa a Cumplido.
 - Actualizar ambos READMEs y el `CHANGELOG.md`.
 - Si el ensamblado tomó decisiones no obvias sobre el orden del pipeline, escribir
   un ADR.

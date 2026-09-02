@@ -324,12 +324,12 @@ no sobre la configuración escrita:
 
 | Prueba | Resultado |
 |---|---|
-| `GET /` | `200` · `cache-control: no-cache` ✅ |
-| `GET /assets/index-*.js` | `200` · `public,max-age=31536000,immutable` ✅ |
-| `GET /api/roles` por el rewrite | `200` · los cinco roles del YAML ✅ |
-| `GET /api/yo` sin token | `401` · «Falta el header 'Authorization: Bearer'» ✅ |
-| `GET /api/yo` con token inválido | `401`, **no 500** ✅ |
-| `GET /api/aprobaciones` sin token | `401` ✅ |
+| `GET /` | `200` · `cache-control: no-cache` |
+| `GET /assets/index-*.js` | `200` · `public,max-age=31536000,immutable` |
+| `GET /api/roles` por el rewrite | `200` · los cinco roles del YAML |
+| `GET /api/yo` sin token | `401` · «Falta el header 'Authorization: Bearer'» |
+| `GET /api/yo` con token inválido | `401`, **no 500** |
+| `GET /api/aprobaciones` sin token | `401` |
 
 La regla de caché sobre `/` es la que se agregó al corregir el error registrado
 en las convenciones. **Sin ella el shell de la SPA se habría cacheado**, y esta
@@ -349,17 +349,17 @@ consultar_activo(P-2101-A)        t_min 7,1 mm · criticidad A · en_servicio
 historial_inspecciones(P-2101-A)  6,8 mm · severidad critico
 calcular_vida_remanente(P-2101-A) −1,42 años
 buscar_normativa(...)             API-570-2016 §7.4 y tres más, todas vigentes
-⚠ solicitar_parada_equipo         PROPUESTA, no ejecutada
+solicitar_parada_equipo           PROPUESTA, no ejecutada
 ```
 
 Y las tres cosas que hacen verdadero al gate:
 
 | Prueba | Resultado |
 |---|---|
-| El activo después de la propuesta | sigue `en_servicio` ✅ |
-| La bandeja del supervisor | ve la propuesta ✅ |
-| La bandeja del proponente | **no** la ve ✅ |
-| El proponente intenta aprobarla | 403 con el motivo ✅ |
+| El activo después de la propuesta | sigue `en_servicio` |
+| La bandeja del supervisor | ve la propuesta |
+| La bandeja del proponente | **no** la ve |
+| El proponente intenta aprobarla | 403 con el motivo |
 
 ### La barrera que nadie esperaba usar
 

@@ -28,14 +28,14 @@ se actualiza al cerrar cada fase.
 
 | # | Compromiso | Estado | Qué falta |
 |---|---|---|---|
-| 1 | La ontología es declarativa, no código | ✅ **Cumplido** | — |
-| 2 | La reversibilidad es un atributo del dominio | ✅ **Cumplido** | El grafo aplica los gates derivados del YAML. Un test estructural recorre todos los roles, y el recorrido completo de P-2101-A frena en el gate con el activo todavía en servicio |
-| 3 | El modelo no calcula números | ✅ **Cumplido** | `domain/calculos.py` implementa el método de API 570 §7 en Python determinístico. Gobierna la mayor entre la velocidad de largo y la de corto plazo |
-| 4 | Sin cita no hay respuesta | ✅ **Cumplido** | Recuperación híbrida con filtro de vigencia en ambas ramas, validación de citas contra lo recuperado, y verificador de fundamento con tres veredictos |
-| 5 | Los datos sensibles no salen del perímetro | ✅ **Cumplido** | Un solo camino de salida garantizado por AST, tokenización reversible en `wrap_model_call`, y un test sobre un agente que corre —con control negativo— que verifica que el legajo no cruza y que el usuario lo recibe de vuelta |
+| 1 | La ontología es declarativa, no código | **Cumplido** | — |
+| 2 | La reversibilidad es un atributo del dominio | **Cumplido** | El grafo aplica los gates derivados del YAML. Un test estructural recorre todos los roles, y el recorrido completo de P-2101-A frena en el gate con el activo todavía en servicio |
+| 3 | El modelo no calcula números | **Cumplido** | `domain/calculos.py` implementa el método de API 570 §7 en Python determinístico. Gobierna la mayor entre la velocidad de largo y la de corto plazo |
+| 4 | Sin cita no hay respuesta | **Cumplido** | Recuperación híbrida con filtro de vigencia en ambas ramas, validación de citas contra lo recuperado, y verificador de fundamento con tres veredictos |
+| 5 | Los datos sensibles no salen del perímetro | **Cumplido** | Un solo camino de salida garantizado por AST, tokenización reversible en `wrap_model_call`, y un test sobre un agente que corre —con control negativo— que verifica que el legajo no cruza y que el usuario lo recibe de vuelta |
 
 > Un compromiso declarado y no implementado es deuda visible. El objetivo de este
-> plan es que la tabla quede en ✅ de arriba a abajo.
+> plan es que la tabla quede en **Cumplido** de arriba a abajo.
 
 ## 2 · Qué existe hoy
 
@@ -43,19 +43,19 @@ Verificado sobre el repositorio, no sobre la memoria:
 
 ```
 packages/synapseflow/
-  cli.py               ✅  inspección del dominio sin credenciales
-  config.py            ✅  configuración centralizada
-  ontology/            ✅  schema · loader · compiler · oil_and_gas.yaml
-  persistence/         ✅  client · vectorstore · checkpointer
-  llm/                 ✅  registry · gateway · callbacks · fake · models.yaml
-  domain/              ✅  contexto · repository · lecturas · calculos · escrituras
-  rag/                 ✅  ingesta · retrievers · citas · fundamento
-  governance/          ✅  rbac · pii · auditoria · politica · middleware
-  agents/              ✅  state · especialistas · verificador · supervisor · graph
-evals/                 ✅  datasets · evaluadores · run.py con línea base
-scripts/               ✅  estado.py · generar_datos.py · seed.py
-data/corpus/           ✅  seis documentos de normativa, uno derogado
-tests/                 ✅  662 tests; 575 sin dependencia externa
+  cli.py               inspección del dominio sin credenciales
+  config.py            configuración centralizada
+  ontology/            schema · loader · compiler · oil_and_gas.yaml
+  persistence/         client · vectorstore · checkpointer
+  llm/                 registry · gateway · callbacks · fake · models.yaml
+  domain/              contexto · repository · lecturas · calculos · escrituras
+  rag/                 ingesta · retrievers · citas · fundamento
+  governance/          rbac · pii · auditoria · politica · middleware
+  agents/              state · especialistas · verificador · supervisor · graph
+evals/                 datasets · evaluadores · run.py con línea base
+scripts/               estado.py · generar_datos.py · seed.py
+data/corpus/           seis documentos de normativa, uno derogado
+tests/                 662 tests; 575 sin dependencia externa
 ```
 
 No existen todavía: `services/api/`, `apps/web/`.
@@ -112,10 +112,10 @@ Estado verificado contra el proyecto `synapseflow-5fc52` el **2026-08-06**:
 
 | Bloqueo | Bloquea | Estado |
 |---|---|---|
-| **API key de Gemini** | Verificar en vivo F1, F3, F5, F8 | ✅ resuelto — `GOOGLE_API_KEY` en `.env` |
-| **Cuenta de facturación abierta** | Construir la imagen y desplegar F6 y F7 | ✅ resuelto el 2026-08-12 — reabierta, imagen construida y sistema desplegado |
-| **Firestore en la nube** | Salir del emulador: ingesta real de F3, y F6 | ✅ resuelto — base en `nam5`, reglas e índices desplegados |
-| **ADC apuntando a la cuenta correcta** | Escribir en la base real desde la máquina local | ❌ **pendiente** — requiere un login interactivo |
+| **API key de Gemini** | Verificar en vivo F1, F3, F5, F8 | resuelto — `GOOGLE_API_KEY` en `.env` |
+| **Cuenta de facturación abierta** | Construir la imagen y desplegar F6 y F7 | resuelto el 2026-08-12 — reabierta, imagen construida y sistema desplegado |
+| **Firestore en la nube** | Salir del emulador: ingesta real de F3, y F6 | resuelto — base en `nam5`, reglas e índices desplegados |
+| **ADC apuntando a la cuenta correcta** | Escribir en la base real desde la máquina local | **pendiente** — requiere un login interactivo |
 
 **El código de todas las fases se puede escribir y testear sin ninguno de los
 cuatro**, usando el modelo falso y el emulador de Firestore. La suite completa

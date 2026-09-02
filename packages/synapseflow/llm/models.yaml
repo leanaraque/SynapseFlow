@@ -5,7 +5,7 @@
 # resuelve perfil + proveedor → modelo concreto. Cambiar la política de costos
 # de toda la plataforma es editar acá. Ver docs/adr/0004-gateway-provider-agnostic.md
 #
-# ⚠ LOS PRECIOS SE DESACTUALIZAN.
+# ATENCIÓN: LOS PRECIOS SE DESACTUALIZAN.
 #
 # `verified_on` es la fecha en que se contrastaron contra la página de precios
 # del proveedor. `tests/llm/test_pricing_freshness.py` falla cuando pasan más de
@@ -20,7 +20,7 @@
 # `text-embedding-004` directamente no existe. Un catálogo que nombra modelos
 # retirados no falla al cargar: falla en la primera llamada, en producción.
 #
-# ⚠ LOS PRECIOS DE ESTA REVISIÓN NO ESTÁN CONTRASTADOS. Se arrastran de la
+# ATENCIÓN: LOS PRECIOS DE ESTA REVISIÓN NO ESTÁN CONTRASTADOS. Se arrastran de la
 # familia anterior como estimación de orden de magnitud. Antes de usar la
 # contabilidad de costos para decidir algo, contrastarlos contra
 # ai.google.dev/pricing y actualizar esta fecha.
@@ -54,7 +54,7 @@ providers:
         note: >
           Clasificación y ruteo. Es la llamada más frecuente del sistema, así
           que va el modelo más barato que sostenga tool calling confiable.
-          ⚠ Este modelo usa sampling fijo e IGNORA `temperature`: avisa por
+          ATENCIÓN: este modelo usa sampling fijo e IGNORA `temperature`: avisa por
           UserWarning al invocarlo. El gateway la pide igual, pero el
           determinismo de este perfil depende del proveedor. Verificado el
           2026-08-06.

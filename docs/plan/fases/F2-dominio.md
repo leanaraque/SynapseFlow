@@ -190,6 +190,6 @@ devuelve `ToolResult`, recorriendo el registro.
 
 ## Al cerrar F2
 
-- El compromiso 3 pasa a ✅ en `docs/06-mapa-de-accion.md` y en `scripts/estado.py`
+- El compromiso 3 pasa a Cumplido en `docs/06-mapa-de-accion.md` y en `scripts/estado.py`
   lo detecta solo.
 - Actualizar ambos READMEs y el `CHANGELOG.md`.
