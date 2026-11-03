@@ -81,7 +81,14 @@ pythonpath = ["packages", "."]
 # La alternativa era sembrar `__init__.py` en cada carpeta de tests, o renombrar
 # archivos para esquivar la colisión. Lo primero es ruido; lo segundo deja que
 # una limitación del arnés decida cómo se llaman los tests.
-addopts = "--import-mode=importlib"
+#
+# `-m "not live_llm"`: los tests que llaman a un proveedor real no corren por
+# defecto. Así lo prometían las convenciones y el docstring de
+# test_catalogo_en_vivo.py, y no era cierto: la única barrera era un `skipif`
+# por clave vacía, y el paso de integración del CI define una clave de mentira.
+# Esos cinco tests llamaban a Gemini con ella y dejaban el CI en rojo. Se corren
+# con `pytest -m live_llm`, que reemplaza a este filtro.
+addopts = "--import-mode=importlib -m 'not live_llm'"
 
 # Un solo event loop para toda la sesión.
 #

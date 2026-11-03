@@ -175,7 +175,10 @@ jobs:
           npm install -g firebase-tools
 
       - name: Tests unitarios
-        run: pytest -m "not emulator" -v
+        # `-m` en la línea de comandos reemplaza al de `addopts`, así que la
+        # exclusión de `live_llm` se repite acá: sin ella, estos tests llaman a
+        # un proveedor real.
+        run: pytest -m "not emulator and not live_llm" -v
 
       # `emulators:exec` levanta el emulador, corre el comando y lo baja,
       # devolviendo el código de salida del comando. Evita el patrón frágil de
@@ -188,4 +191,4 @@ jobs:
           firebase emulators:exec \
             --only firestore \
             --project synapseflow-5fc52 \
-            "pytest -v"
+            "pytest -v -m 'not live_llm'"
