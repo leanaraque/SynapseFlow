@@ -19,14 +19,14 @@ Verificá que quedó bien:
 
 ```bash
 synapseflow ontology validate
-pytest -m "not emulator"
+pytest -m "not emulator and not live_llm"
 ```
 
 ## Correr los tests
 
 ```bash
 # Unitarios: sin dependencias externas
-pytest -m "not emulator"
+pytest -m "not emulator and not live_llm"
 
 # Todo, incluyendo integración contra Firestore
 firebase emulators:start --only firestore --project synapseflow-5fc52
@@ -108,7 +108,7 @@ Después de editar el YAML:
 ```bash
 synapseflow ontology validate
 synapseflow ontology tools --role inspector    # revisá que el RBAC quedó como esperabas
-pytest -m "not emulator"
+pytest -m "not emulator and not live_llm"
 ```
 
 ## Decisiones de arquitectura

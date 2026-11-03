@@ -34,8 +34,12 @@ Built on LangGraph and LangChain 1.x · deployed on Firebase
 > the supervisor sees the proposal, the proposer does not, and the proposer gets
 > a 403 for trying to approve their own.
 >
-> Two console features listed in the roadmap were not built; they are stated
-> below rather than glossed over.
+> **Closed after the plan, on 2026-11-03**: CI is green again, after failing
+> since August; a conversation thread can no longer be hijacked to approve your
+> own proposal; two simultaneous approvals can no longer both execute; the audit
+> log records proposals and denied attempts, not only approvals; and cost
+> accounting is finally wired in, with a dashboard that reads it. What is still
+> missing is stated below rather than glossed over.
 
 ---
 
@@ -243,7 +247,7 @@ pass by proving nothing.
 | Hybrid RAG with citations | Done | vector + BM25; the currency filter applies to **both** branches |
 | Groundedness verifier | Done | three verdicts; an invented citation is rejected without calling the model |
 | Governance middleware | Done | reversible PII tokenisation, gates from the ontology, per-turn call ceiling |
-| Immutable audit log | Done | append-only; keeps `thread_id` and `checkpoint_id` to rebuild the reasoning |
+| Immutable audit log | Done | append-only; keeps `thread_id` and `checkpoint_id` to rebuild the reasoning; records proposals, approvals and denied attempts — executed actions and answers are not logged yet |
 | Separation of duties on approvals | Done | the proposer cannot approve their own action |
 | Agent graph: supervisor, specialists, verifier | Done | the full P-2101-A journey stops at the gate and the asset stays in service |
 | Approval gates applied on the running graph | Done | structural test over every role: no irreversible action is reachable without its gate |
@@ -251,24 +255,28 @@ pass by proving nothing.
 | Firestore provisioned in the cloud | Done | `nam5`, rules and indexes deployed, 768-dim vector search verified against the real base |
 | Zero-training policy enforced at the gateway | Done | a provider the catalogue does not vouch for is rejected at startup |
 | Single data-exit path, structurally enforced | Done | the AST of every module is walked; a second exit path fails the build |
-| Per-call cost accounting | Done | priced by the model that actually ran, not the profile requested |
+| Per-call cost accounting | Done | priced by the model that actually ran; wired into every request, with the user and the task profile — until 2026-11 it existed and nothing used it |
 | API identity: Firebase token → execution context | Done | a user without a valid role gets a 403, never a default role |
 | SSE streaming | Done | tool events before the answer; citations before the approval prompt |
-| Approval endpoints | Done | the proposer cannot approve their own action; approving sends no arguments |
-| Cloud Run image and deployment | In progress | multi-stage image and ADR-0006 written; `docker build` still pending |
-| Web console | Done | chat, inspectable citations and the approval inbox |
+| Approval endpoints | Done | the proposer cannot approve their own action; approving sends no arguments; of two simultaneous approvals only one runs |
+| Conversation ownership | Done | only whoever opened a thread can continue it — before, writing into someone else's thread bypassed separation of duties |
+| Cloud Run image and deployment | Done | multi-stage image built with Cloud Build; service running in `southamerica-east1` |
+| Web console | Done | chat, inspectable citations, the approval inbox and the cost dashboard |
 | Deployment | Done | live; headers, the API rewrite and the 401s verified against what is served |
 
 The [action map](docs/06-mapa-de-accion.md) breaks the work into eight phases,
 each with its dependencies, deliverables and — most importantly — how it gets
 verified. All eight are done, and all five design commitments are operative.
 
-**What was not built**, stated plainly because a working system is not a
-finished product: the ontology explorer was reduced to a
-single "my role" screen showing the compiled catalogue, and the cost dashboard
-was not built at all — `llm_usage` is written and has no reader.
-[Deployment](docs/05-despliegue.md) is written down and checked against the
-config, but never executed.
+**What is still missing**, stated plainly because a working system is not a
+finished product: the ontology explorer was reduced to a single "my role"
+screen showing the compiled catalogue; the audit log does not yet record
+executed actions or emitted answers; the `actions` agent does not have
+`historial_inspecciones`, so it can propose with an inspection id it cannot
+check — the domain action refuses it, but the proposal should not happen; and
+the API accepts unauthenticated invocations at the network level, because
+Firebase Hosting has no identity to grant `run.invoker` — its own token check is
+what protects it. `python -m scripts.estado` lists all of this.
 
 **If you're picking up development**, start at [`docs/plan/`](docs/plan/), which
 holds the same roadmap broken down commit by commit. Don't guess where the
@@ -332,30 +340,30 @@ emitir_orden_trabajo   write   id_ot                                           r
 ### Tests
 
 ```bash
-# No external dependencies: work-plan consistency.
-pytest -m "not emulator"
+# No external dependencies: no emulator, no API key, no network.
+pytest -m "not emulator and not live_llm"
 
 # The whole suite. Needs the Firestore emulator in another terminal.
 firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> The suite has 863 tests. **776 need nothing installed — no API key, no
-> network:** 95 cover the agent graph — routing, the verifier cycle, the
-> structural gate property — 93 the LLM gateway, registry, fake model and cost
-> accounting, 129 the API — identity, the SSE stream, the approval endpoints and
-> the Cloud Run image —
-> 91 governance, 84 the eval suite and its regression CI, 59 the deterministic
-> calculation and the compiled tool catalogue, 56 ingestion, citations and the
-> groundedness verifier, 45 properties of the generated data and the standards
-> corpus, 35 the ontology and the CLI, 72 the console — its client-side boundary, its event contract with
-> the API, the approval inbox and the deployment configuration — and 17 that the
-> work plan is followable. The console adds 11 of its
-> own, in `vitest`, over the only non-trivial client-side logic: the SSE reader.
-> Of the rest, 82 run
-> against the Firestore emulator — including the full P-2101-A journey — and 5
-> call a real provider; those last ones are marked `live_llm` and are **not**
-> part of `pytest`'s default run in CI.
+> The suite has 959 tests. **868 need nothing installed — no API key, no
+> network**; 86 run against the Firestore emulator — including the full
+> P-2101-A journey — and 5 call a real provider. Those last ones are marked
+> `live_llm` and are excluded by default, in CI too: `pytest -m live_llm` runs
+> them on demand. The console adds 21 of its own, in `vitest`, over its only
+> non-trivial client-side logic: the SSE reader and the cost dashboard's
+> figures.
+>
+> The per-area breakdown this paragraph used to carry drifted out of date with
+> every commit. The current numbers come from
+> `pytest --collect-only -q -m "<marker>"`.
+>
+> A test that touches Firestore without the `emulator` marker fails
+> immediately with its own name in the error. That guard exists because CI was
+> red from August to November over one such test, which retried for five
+> minutes before failing with a message that did not say why.
 
 Four of the ontology tests run a **real agent** — `create_agent` with
 `HumanInTheLoopMiddleware` — against gates derived from the YAML, driven by a
@@ -395,11 +403,14 @@ services/api/
   main.py                FastAPI app; the graph is built per user, not per process
   streaming.py           astream_events → SSE; one terminal event, always
   aprobaciones.py        the inbox and Command(resume=); what was approved is what runs
+  hilos.py               each conversation has an owner, and only they continue it
+  costos.py              cost per request, written as it passes and summarised for the dashboard
   Dockerfile             multi-stage; dependencies before code, no credentials inside
 apps/web/
   src/firebase.ts        the SDK's only door: Auth, never Firestore
   src/api.ts             the only place the Authorization header is built
   src/sse.ts             SSE reader over fetch: EventSource takes no headers
+  src/Costos.tsx         cost dashboard: what task, model and person take the budget
   src/Chat.tsx           tool events as they happen, citations with their currency
   src/Aprobaciones.tsx   exact arguments, buttons from the ontology, ageing shown
 scripts/
@@ -440,6 +451,7 @@ verified. The ADRs are written in Spanish.
 | [0003](docs/adr/0003-ontologia-declarativa-en-yaml.md) | The domain ontology is declarative and lives outside the code |
 | [0004](docs/adr/0004-gateway-provider-agnostic.md) | Model gateway with an explicit data boundary |
 | [0005](docs/adr/0005-hitl-con-interrupt-de-langgraph.md) | Approval gates use LangGraph's `interrupt()` |
+| [0006](docs/adr/0006-cloud-run-sobre-cloud-functions.md) | The API is deployed on Cloud Run, not Cloud Functions |
 
 ## Scope and honesty
 

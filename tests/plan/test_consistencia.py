@@ -83,3 +83,18 @@ def test_los_enlaces_relativos_resuelven(documento: Path) -> None:
         if not (documento.parent / destino).resolve().exists()
     ]
     assert not rotos, f"enlaces rotos en {documento.name}: {rotos}"
+
+
+@pytest.mark.parametrize("readme", ["README.md", "README.es.md"])
+def test_cada_adr_figura_en_la_tabla_del_readme(readme: str) -> None:
+    """Los dos READMEs listaron cinco ADRs durante meses cuando ya había seis.
+
+    Un ADR que no aparece en la tabla no lo lee nadie que llegue por el README,
+    que es por donde llega todo el mundo.
+    """
+    texto = (RAIZ / readme).read_text(encoding="utf-8")
+    adrs = sorted(p.name for p in (RAIZ / "docs" / "adr").glob("[0-9][0-9][0-9][0-9]-*.md"))
+
+    faltantes = [adr for adr in adrs if f"(docs/adr/{adr})" not in texto]
+    assert adrs, "no se encontró ningún ADR: el patrón de búsqueda dejó de coincidir"
+    assert not faltantes, f"{readme} no lista: {faltantes}"

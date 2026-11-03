@@ -687,24 +687,40 @@ def _por_id(commit_id: str) -> Commit | None:
 
 
 # Lo que el plan no dejó hecho, y que ninguna señal del repositorio puede
-# detectar porque no ocurre acá adentro.
+# detectar porque no ocurre acá adentro o porque es una ausencia.
 #
 # Va en el detector y no solo en el README porque este comando es lo primero que
 # corre quien retoma el proyecto: «todas las fases completas» a secas le haría
-# creer que el sistema está desplegado, y no lo está. Un estado que oculta lo que
-# falta es peor que no tener estado.
+# creer que no queda nada. Un estado que oculta lo que falta es peor que no tener
+# estado.
+#
+# Esta lista también se mantiene a mano, y ya mintió una vez: dijo durante tres
+# meses que las colecciones del dominio estaban vacías, cuando la base tenía 60
+# activos y 292 inspecciones desde agosto. Cada ítem lleva cómo comprobarlo.
 PENDIENTE_AFUERA: tuple[tuple[str, str], ...] = (
-    (
-        "Las colecciones del dominio están vacías",
-        "el ADC local es de otra cuenta: `gcloud auth application-default login`",
-    ),
     (
         "El explorador de la ontología quedó en la pantalla «Mi rol»",
         "muestra el catálogo compilado; navegar entidades y relaciones no se hizo",
     ),
     (
+        "El log de auditoría no registra acciones ejecutadas ni respuestas",
+        "propuestas, aprobaciones y accesos denegados sí; ver evento_de_accion",
+    ),
+    (
+        "El agente de acciones no tiene historial_inspecciones",
+        "propone con un id de inspección que no puede verificar; docs/05-despliegue.md",
+    ),
+    (
         "La API acepta invocaciones sin autenticar",
         "Hosting no tiene identidad para run.invoker; la protege su propio token",
+    ),
+    (
+        "El precio de gemini-3.6-flash se duplica el 2027-01-01",
+        "actualizar models.yaml ese día; el test de frescura no lo va a avisar a tiempo",
+    ),
+    (
+        "Python 3.11 pierde soporte de google-api-core el 2027-10-24",
+        "migrar imagen, CI y entorno a 3.12 y borrar el filtro en pyproject.toml",
     ),
 )
 

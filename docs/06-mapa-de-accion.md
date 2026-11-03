@@ -16,7 +16,7 @@ proyecto: **qué falta**, **en qué orden** y **cómo se sabe que una fase termi
 > ```
 
 - **Estado del documento:** vigente
-- **Última revisión:** 2026-08-06 (F0 y F1 completas; fase actual F2)
+- **Última revisión:** 2026-11-03 (plan completo; correcciones posteriores en el CHANGELOG)
 
 ---
 
@@ -55,10 +55,10 @@ packages/synapseflow/
 evals/                 datasets · evaluadores · run.py con línea base
 scripts/               estado.py · generar_datos.py · seed.py
 data/corpus/           seis documentos de normativa, uno derogado
-tests/                 662 tests; 575 sin dependencia externa
+tests/                 959 tests; 868 sin dependencia externa
 ```
 
-No existen todavía: `services/api/`, `apps/web/`.
+La API (`services/api/`) y la consola (`apps/web/`) están construidas y desplegadas.
 
 > **Los cinco compromisos están cumplidos.** El sistema hace el recorrido
 > completo y frena esperando a un humano. Lo que falta —evals, API y consola— lo
@@ -115,7 +115,7 @@ Estado verificado contra el proyecto `synapseflow-5fc52` el **2026-08-06**:
 | **API key de Gemini** | Verificar en vivo F1, F3, F5, F8 | resuelto — `GOOGLE_API_KEY` en `.env` |
 | **Cuenta de facturación abierta** | Construir la imagen y desplegar F6 y F7 | resuelto el 2026-08-12 — reabierta, imagen construida y sistema desplegado |
 | **Firestore en la nube** | Salir del emulador: ingesta real de F3, y F6 | resuelto — base en `nam5`, reglas e índices desplegados |
-| **ADC apuntando a la cuenta correcta** | Escribir en la base real desde la máquina local | **pendiente** — requiere un login interactivo |
+| **ADC apuntando a la cuenta correcta** | Escribir en la base real desde la máquina local | **pendiente** — requiere un login interactivo. Ya no bloquea nada: los datos se sembraron en agosto y la línea base de evals se genera en el CI |
 
 **El código de todas las fases se puede escribir y testear sin ninguno de los
 cuatro**, usando el modelo falso y el emulador de Firestore. La suite completa
@@ -478,9 +478,12 @@ del despliegue, **que ya ocurrió**: consola en <https://synapseflow-5fc52.web.a
 y API en Cloud Run. Lo comprobado sobre lo servido está en
 [docs/05-despliegue.md](05-despliegue.md).
 
-Lo que sigue faltando es la **siembra del dominio**: las colecciones están
-vacías, así que el agente todavía no tiene sobre qué contestar. Necesita el login
-de ADC que esta misma sección declara pendiente desde el inicio.
+La siembra del dominio **está hecha** desde agosto: 6 instalaciones, 60
+activos, 292 inspecciones, 41 órdenes y 42 fragmentos del corpus, verificado
+contra la base el 2026-11-03. Este párrafo dijo lo contrario durante tres meses.
+
+El panel de costos **se construyó** el 2026-11-03, junto con la conexión de la
+contabilidad que lo alimenta y que tampoco existía.
 
 ---
 

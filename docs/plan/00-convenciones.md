@@ -460,6 +460,11 @@ No los repitas.
 | Documentar código inexistente | Un manual describía módulos no construidos sin avisarlo | Marcar siempre qué está implementado y qué es diseño |
 | Firma de `description` en el gate | El compilador la escribía con un argumento y el middleware la llama con tres. El gate lanzaba `TypeError` en la primera acción irreversible. La capa de ontología figuraba como Hecho en el README y no tenía un solo test. | Una fila marcada Hecho sin test es una afirmación, no un hecho |
 | Lista blanca de placeholders en `approval_prompt` | Se admitían `{tag}` y `{prioridad}` «aportados por la entidad objetivo». Nada los aportaba: el gate mostraba «no informado» donde iba el equipo. | Una degradación silenciosa no la reporta nadie |
+| Un test sin la marca `emulator` que leía Firestore | Pasaba en local, con el emulador corriendo. En el paso unitario del CI reintentaba cinco minutos y fallaba: el CI estuvo en rojo de agosto a noviembre y nadie lo miró. | El arnés ahora falla al instante si un test sin la marca toca `AsyncClient`. Un CI rojo que nadie atiende no protege de nada |
+| `-m` en la línea de comandos «además» del de `addopts` | No se suma: lo reemplaza. Los tests `live_llm` corrían en el paso de integración con una clave de mentira. | Cada invocación del workflow repite la exclusión, y un test lo vigila |
+| Señal del detector que mira que la clase exista | `ContabilidadDeCosto` figuró como hecha tres meses sin que nada la conectara; `llm_usage` tenía cero documentos en producción. | Una señal tiene que comprobar que el código se usa, no que existe |
+| Precios «a verificar» bajo una fecha de verificación | `verified_on` decía agosto y los precios de Gemini se habían arrastrado de la familia anterior: el router se subestimaba seis veces. | La fecha solo se toca después de contrastar cada precio con la página oficial |
+| Leer, chequear y escribir un pendiente sin precondición | Dos aprobaciones simultáneas pasaban las dos el chequeo y ejecutaban dos veces una acción irreversible. | Toda transición de estado que habilita un efecto se escribe con precondición sobre la versión leída |
 
 ---
 

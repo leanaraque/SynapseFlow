@@ -34,8 +34,13 @@ Sobre LangGraph y LangChain 1.x · desplegada en Firebase
 > `en_servicio`, el supervisor ve la propuesta, el proponente no, y al proponente
 > le da 403 intentar aprobar la suya.
 >
-> Dos funciones de la consola que el mapa listaba no se hicieron; están dichas
-> abajo en lugar de pasadas por alto.
+> **Cerrado después del plan, el 2026-11-03**: el CI vuelve a estar en verde,
+> después de fallar desde agosto; ya no se puede tomar el hilo de conversación
+> de otra persona para aprobar una propuesta propia; dos aprobaciones
+> simultáneas ya no se ejecutan las dos; el log de auditoría registra propuestas
+> e intentos denegados, no solo aprobaciones; y la contabilidad de costos por fin
+> está conectada, con un panel que la lee. Lo que sigue faltando está dicho
+> abajo en lugar de pasado por alto.
 
 ---
 
@@ -240,7 +245,7 @@ si no, la garantía podría estar pasando sin probar nada.
 | RAG híbrido con citas | Hecho | vectorial + BM25; el filtro de vigencia vale en **las dos** ramas |
 | Verificador de fundamento | Hecho | tres veredictos; una cita inventada se rechaza sin llamar al modelo |
 | Middleware de gobernanza | Hecho | tokenización reversible de PII, gates desde la ontología, techo de llamadas |
-| Log de auditoría inmutable | Hecho | append-only; guarda `thread_id` y `checkpoint_id` para reconstruir el razonamiento |
+| Log de auditoría inmutable | Hecho | append-only; guarda `thread_id` y `checkpoint_id` para reconstruir el razonamiento; registra propuestas, aprobaciones e intentos denegados — las acciones ejecutadas y las respuestas todavía no |
 | Separación de funciones en la aprobación | Hecho | el proponente no puede aprobar su propia acción |
 | Grafo de agentes: supervisor, especialistas, verificador | Hecho | el recorrido completo de P-2101-A frena en el gate y el activo sigue en servicio |
 | Gates aplicados sobre el grafo en ejecución | Hecho | test estructural sobre todos los roles: ninguna acción irreversible es alcanzable sin gate |
@@ -248,24 +253,29 @@ si no, la garantía podría estar pasando sin probar nada.
 | Firestore aprovisionado en la nube | Hecho | `nam5`, reglas e índices desplegados, búsqueda vectorial de 768 dim verificada contra la base real |
 | Política de zero-training aplicada en el gateway | Hecho | un proveedor que el catálogo no respalda se rechaza al arrancar |
 | Un solo camino de salida, garantizado por estructura | Hecho | se recorre el AST de cada módulo; un segundo camino rompe el build |
-| Contabilidad de costo por llamada | Hecho | se tarifa por el modelo que corrió de verdad, no por el perfil pedido |
+| Contabilidad de costo por llamada | Hecho | se tarifa por el modelo que corrió de verdad; conectada en cada request, con la persona y el perfil de tarea — hasta 2026-11 existía y nada la usaba |
 | Identidad de la API: token de Firebase → contexto de ejecución | Hecho | un usuario sin rol válido recibe un 403, nunca un rol por defecto |
 | Streaming por SSE | Hecho | eventos de herramienta antes de la respuesta; citas antes del pedido de aprobación |
-| Endpoints de aprobación | Hecho | el proponente no aprueba lo suyo; aprobar no manda argumentos |
-| Imagen y despliegue en Cloud Run | En curso | imagen multietapa y ADR-0006 escritos; falta correr `docker build` |
-| Consola web | Hecho | chat, citas inspeccionables y bandeja de aprobaciones |
+| Endpoints de aprobación | Hecho | el proponente no aprueba lo suyo; aprobar no manda argumentos; de dos aprobaciones simultáneas solo una se ejecuta |
+| Dueño de cada conversación | Hecho | solo quien abrió un hilo lo continúa — antes, escribir en el hilo de otra persona salteaba la separación de funciones |
+| Imagen y despliegue en Cloud Run | Hecho | imagen multietapa construida con Cloud Build; servicio corriendo en `southamerica-east1` |
+| Consola web | Hecho | chat, citas inspeccionables, bandeja de aprobaciones y panel de costos |
 | Despliegue | Hecho | en vivo; headers, rewrite de la API y los 401 verificados sobre lo servido |
 
 El [mapa de acción](docs/06-mapa-de-accion.md) desglosa el trabajo en ocho fases,
 cada una con sus dependencias, sus entregables y —sobre todo— cómo se verifica.
 Las ocho están hechas y los cinco compromisos de diseño están operativos.
 
-**Lo que no se construyó**, dicho sin vueltas porque un sistema que funciona no
-es un producto terminado: el explorador de la ontología
-quedó reducido a una pantalla «mi rol» con el catálogo compilado, y el panel de
-costos no se hizo: `llm_usage` se escribe y no tiene quien lo lea. El
-[despliegue](docs/05-despliegue.md) está escrito y verificado contra la
-configuración, pero nunca se ejecutó.
+**Lo que sigue faltando**, dicho sin vueltas porque un sistema que funciona no
+es un producto terminado: el explorador de la ontología quedó reducido a una
+pantalla «mi rol» con el catálogo compilado; el log de auditoría todavía no
+registra las acciones ejecutadas ni las respuestas emitidas; el agente de
+`acciones` no tiene `historial_inspecciones`, así que puede proponer con un id
+de inspección que no puede verificar —la acción del dominio lo rechaza, pero la
+propuesta no debería ocurrir—; y la API acepta invocaciones sin autenticar a
+nivel de red, porque Firebase Hosting no tiene identidad a la que darle
+`run.invoker`: la protege su propia validación de token.
+`python -m scripts.estado` lo lista todo.
 
 **Si vas a retomar el desarrollo**, empezá por [`docs/plan/`](docs/plan/), que
 tiene el mismo mapa desglosado commit por commit. No adivines en qué estado está
@@ -329,28 +339,28 @@ emitir_orden_trabajo   write   id_ot                                           r
 ### Tests
 
 ```bash
-# Sin dependencias externas: consistencia del plan de trabajo.
-pytest -m "not emulator"
+# Sin dependencias externas: ni emulador, ni API key, ni red.
+pytest -m "not emulator and not live_llm"
 
 # La suite completa. Necesita el emulador de Firestore en otra terminal.
 firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> La suite tiene 863 tests. **776 no necesitan nada instalado —ni API key, ni
-> red—:** 95 cubren el grafo de agentes —ruteo, ciclo del verificador, propiedad
-> estructural de los gates—, 93 el gateway de LLM, el registry, el modelo falso y
-> la contabilidad de costo, 129 la API —identidad, flujo SSE, endpoints de
-> aprobación e imagen de Cloud Run—, 91 la gobernanza, 84 la suite de evals y su CI de regresión, 59 el
-> cálculo determinístico y el catálogo de herramientas compilado, 56 la ingesta,
-> las citas y el verificador de fundamento, 45 propiedades de los datos generados
-> y del corpus, 35 la ontología y la CLI, 72 la consola —su frontera de cliente, su contrato de eventos con la
-> API, la bandeja de aprobaciones y la configuración de despliegue— y 17 que el
-> plan de trabajo sea seguible. La consola suma 11 propios,
-> en `vitest`, sobre su única lógica no trivial: el lector de SSE. De los demás, 82 corren
-> contra el emulador de Firestore —incluido el recorrido completo de P-2101-A— y 5
-> llaman a un proveedor real; estos últimos llevan `live_llm` y **no** entran en
-> la corrida por defecto del CI.
+> La suite tiene 959 tests. **868 no necesitan nada instalado —ni API key, ni
+> red—**; 86 corren contra el emulador de Firestore —incluido el recorrido
+> completo de P-2101-A— y 5 llaman a un proveedor real. Estos últimos llevan
+> `live_llm` y quedan excluidos por defecto, también en el CI: `pytest -m
+> live_llm` los corre a pedido. La consola suma 21 propios, en `vitest`, sobre su
+> única lógica no trivial: el lector de SSE y las cifras del panel de costos.
+>
+> El desglose por área que este párrafo llevaba antes se desactualizaba con cada
+> commit. Los números vigentes salen de `pytest --collect-only -q -m "<marca>"`.
+>
+> Un test que toca Firestore sin la marca `emulator` falla al instante, con su
+> nombre en el error. Esa barrera existe porque el CI estuvo en rojo de agosto a
+> noviembre por un test así, que reintentaba cinco minutos antes de fallar con un
+> mensaje que no decía por qué.
 
 Cuatro de los tests de ontología corren un **agente real** —`create_agent` con
 `HumanInTheLoopMiddleware`— contra los gates derivados del YAML, gobernado por
@@ -389,11 +399,14 @@ services/api/
   main.py                app de FastAPI; el grafo se arma por usuario, no por proceso
   streaming.py           astream_events → SSE; siempre un evento terminal
   aprobaciones.py        la bandeja y Command(resume=); lo aprobado es lo ejecutado
+  hilos.py               cada conversación tiene dueño, y solo él la continúa
+  costos.py              costo de cada request, registrado al pasar y resumido para el panel
   Dockerfile             multietapa; dependencias antes del código, sin credenciales
 apps/web/
   src/firebase.ts        única puerta al SDK: Auth, nunca Firestore
   src/api.ts             el único lugar donde se arma la cabecera de identidad
   src/sse.ts             lector de SSE sobre fetch: EventSource no admite cabeceras
+  src/Costos.tsx         panel de costos: qué tarea, modelo y persona se llevan el presupuesto
   src/Chat.tsx           eventos de herramienta en vivo, citas con su vigencia
   src/Aprobaciones.tsx   argumentos exactos, botones desde la ontología, antigüedad
 scripts/
@@ -433,6 +446,7 @@ se descartaron y por qué, las consecuencias en contra y cómo se verifica.
 | [0003](docs/adr/0003-ontologia-declarativa-en-yaml.md) | La ontología del dominio es declarativa y vive fuera del código |
 | [0004](docs/adr/0004-gateway-provider-agnostic.md) | Gateway de modelos con frontera de datos explícita |
 | [0005](docs/adr/0005-hitl-con-interrupt-de-langgraph.md) | Los gates de aprobación usan `interrupt()` de LangGraph |
+| [0006](docs/adr/0006-cloud-run-sobre-cloud-functions.md) | La API se despliega en Cloud Run, no en Cloud Functions |
 
 ## Alcance y honestidad
 

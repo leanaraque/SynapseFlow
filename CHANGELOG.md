@@ -5,6 +5,59 @@ El proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+### Cerrado después del plan · 2026-11-03
+
+Un análisis del repositorio contra el sistema desplegado encontró que el CI
+estaba en rojo desde agosto, dos agujeros en las aprobaciones y dos funciones
+que figuraban como hechas sin estar conectadas.
+
+**CI**
+
+- Un test del pipeline de gobernanza leía Firestore sin la marca `emulator`. En
+  el paso unitario reintentaba cinco minutos y fallaba: fue la causa del rojo
+  desde el 2026-08-06. Ahora usa un repositorio falso, y el arnés hace fallar al
+  instante, con su nombre, a cualquier test que toque Firestore sin la marca.
+- `google-api-core` 2.33 avisa por `FutureWarning` el fin de soporte de
+  Python 3.11, y con `filterwarnings = error` la suite entera dejó de arrancar.
+  Se filtra ese aviso puntual hasta migrar a 3.12.
+- Los tests `live_llm` corrían en el paso de integración con una clave de
+  mentira. Se excluyen por defecto y en cada invocación del workflow.
+- Precios contrastados con las páginas oficiales antes de que venciera el test
+  de frescura. `gemini-3.5-flash-lite` costaba tres a seis veces lo que decía el
+  catálogo; `synthesis` pasa a `gemini-3.6-flash`, que es el modelo al que Google
+  redirige; `claude-sonnet-5` cuesta 2/10 y no 3/15.
+
+**Gobernanza**
+
+- Cada hilo de conversación tiene dueño. Antes, un supervisor podía escribir en
+  el hilo de un inspector, hacer que el agente propusiera a nombre de ese
+  inspector y aprobarlo él mismo.
+- Una propuesta se aprueba una sola vez: la marca de resuelta se escribe con
+  precondición, y de dos aprobaciones simultáneas una recibe 409. Antes podían
+  ejecutarse las dos.
+- El log de auditoría registra propuestas e intentos denegados. En producción
+  tenía tres aprobaciones y ninguna propuesta.
+
+**Costos**
+
+- `ContabilidadDeCosto` se conecta en cada request y vuelca a `llm_usage`, con
+  la persona y el perfil de tarea. Existía desde F1 y nada la usaba.
+- `GET /api/costos` y el panel de costos en la consola. Los ve quien alcance el
+  nivel `confidential` de la ontología.
+
+**Evals**
+
+- El workflow corre también en cada push a `main`. Solo con el disparador de PR,
+  y con los cambios entrando directo a `main`, no había corrido nunca, y la
+  línea base no se habría actualizado.
+
+**Documentación**
+
+- Los READMEs, el mapa de acción y el detector de estado decían que el
+  despliegue no se había ejecutado, que las colecciones estaban vacías y que el
+  panel de costos no existía. Las tres cosas habían dejado de ser ciertas, o lo
+  dejaron de ser hoy. El detector lista ahora lo que realmente falta.
+
 ### Agregado
 
 **Datos del dominio — fase F0 completa**
