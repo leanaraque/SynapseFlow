@@ -47,7 +47,13 @@ from services.api.aprobaciones import (
     registrar_al_pasar,
 )
 from services.api.auth import ErrorDeIdentidad, roles_del_dominio, usuario_actual
-from services.api.costos import DIAS_POR_DEFECTO, contabilizar, resumen
+from services.api.costos import (
+    DIAS_POR_DEFECTO,
+    SinAccesoACostosError,
+    contabilizar,
+    exigir_acceso,
+    resumen,
+)
 from services.api.hilos import HiloAjenoError, reclamar_hilo
 from services.api.streaming import Evento, eventos, flujo_sse
 from synapseflow.agents.graph import construir_grafo
@@ -219,10 +225,19 @@ async def yo(ctx: ExecutionContext = Depends(usuario_actual)) -> dict[str, Any]:
     """
     herramientas = compile_tools(get_ontology(), ctx.rol, context=ctx)
 
+    # La consola pregunta acá si ofrecer el panel de costos, en lugar de deducirlo
+    # del rol: la regla es la misma que aplica `GET /api/costos`.
+    try:
+        exigir_acceso(ctx)
+        puede_ver_costos = True
+    except SinAccesoACostosError:
+        puede_ver_costos = False
+
     return {
         "usuario": ctx.usuario,
         "nombre": ctx.nombre,
         "rol": ctx.rol,
+        "puede_ver_costos": puede_ver_costos,
         "acciones": [
             {
                 "nombre": h.name,

@@ -343,3 +343,25 @@ async def test_el_filtro_por_fecha_funciona_en_firestore(requiere_emulador: None
     hilos = {g["clave"] for g in cuerpo["por_usuario"]}
     assert INSPECTOR.usuario in hilos
     assert cuerpo["totales"]["costo_usd"] > 0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Lo que la consola necesita saber para ofrecer el panel
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("ctx", "esperado"),
+    [(SUPERVISOR, True), (AUDITOR, True), (TECNICO, False), (CONSULTA, False)],
+    ids=lambda v: getattr(v, "rol", str(v)),
+)
+async def test_yo_dice_si_el_rol_puede_ver_los_costos(
+    cliente: Any, api: Any, ctx: ExecutionContext, esperado: bool
+) -> None:
+    """La consola no deduce del rol qué mostrar: se lo pregunta a la API, que
+    aplica la misma regla que `GET /api/costos`."""
+    api(ctx)
+
+    cuerpo = (await cliente.get("/api/yo")).json()
+
+    assert cuerpo["puede_ver_costos"] is esperado
