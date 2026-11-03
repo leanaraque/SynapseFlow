@@ -106,6 +106,16 @@ filterwarnings = [
     "default::pytest.PytestUnraisableExceptionWarning",
     "ignore:coroutine .* was never awaited:RuntimeWarning",
     "ignore::DeprecationWarning:google.*",
+    # `google-api-core` avisa al importarse que Python 3.11 deja de recibir
+    # soporte de sus versiones nuevas el 2027-10-24. Con `error` arriba, ese
+    # aviso rompía la colección de cualquier test que importara Firestore: la
+    # suite entera dejó de arrancar sin que cambiara una línea del proyecto.
+    #
+    # Se ignora este aviso puntual y no la categoría completa: un FutureWarning
+    # de LangChain o de LangGraph sí tiene que seguir rompiendo. La migración a
+    # 3.12 —imagen, CI y entorno local juntos— queda pendiente para antes de esa
+    # fecha, y este filtro es lo que hay que borrar al hacerla.
+    "ignore:You are using a Python version:FutureWarning:google.api_core._python_version_support",
 ]
 
 [tool.ruff]
