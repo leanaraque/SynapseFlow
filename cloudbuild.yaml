@@ -43,9 +43,11 @@ images:
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGEN}:latest
 
 options:
-  # El árbol de dependencias es grande y la máquina por defecto alarga el build
-  # sin necesidad. Es tiempo de máquina, no de nadie esperando.
-  machineType: E2_HIGHCPU_8
+  # Máquina por defecto, a propósito. `E2_HIGHCPU_8` acortaba el build pero no
+  # entra en los minutos gratuitos de Cloud Build: cada despliegue costaba. La
+  # por defecto sí entra. El build tarda más —cada uno arranca en una máquina
+  # nueva y reinstala las dependencias—, pero es tiempo de máquina, no de alguien
+  # esperando.
   logging: CLOUD_LOGGING_ONLY
 
 timeout: 1800s
