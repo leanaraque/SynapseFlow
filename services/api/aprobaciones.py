@@ -24,6 +24,18 @@ sido quien propuso.
 Las dos las aplica `governance.rbac`, no este módulo: la API decide **cuándo**
 preguntar, no **qué** responder.
 
+## Una propuesta se resuelve una sola vez
+
+Leer el pendiente, comprobar que siga abierto y marcarlo resuelto eran tres pasos
+separados. Dos supervisores que aprobaban a la vez podían pasar los dos el
+chequeo y reanudar los dos el grafo: **una acción irreversible ejecutada dos
+veces**. El 409 de «alguien llegó antes» solo protegía a quien llegaba después
+de que el primero terminara.
+
+La marca de resuelto se escribe ahora con una precondición: solo se aplica si el
+documento no cambió desde que se leyó. De dos aprobaciones simultáneas, una
+escribe y la otra recibe 409, sin transacción ni bloqueo.
+
 ## Por qué hay una colección y no se derivan del checkpointer
 
 Un pendiente hay que poder **listarlo sin saber el hilo**: la bandeja de un
@@ -41,12 +53,14 @@ Ver docs/plan/fases/F6-api.md § F6.3
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 from collections.abc import AsyncIterator, Mapping
 from enum import StrEnum
 from typing import Any
 
 from fastapi import HTTPException, status
+from google.api_core.exceptions import FailedPrecondition
 from google.cloud.firestore_v1.base_query import FieldFilter
 from langgraph.types import Command
 from pydantic import BaseModel, Field
@@ -192,7 +206,14 @@ async def registrar_al_pasar(
     el checkpoint ya está guardado; perder la fila de la bandeja es un problema
     de comodidad, y romper la respuesta por eso sería un problema de verdad. El
     fallo se anuncia como un `error` propio para que no pase inadvertido.
+
+    Cada propuesta queda además en el log de auditoría, con **quien hizo la
+    consulta que la produjo**. Antes solo se auditaba la aprobación, así que el
+    log no permitía reconstruir quién había propuesto qué: el proponente vivía
+    únicamente en la bandeja, que se puede limpiar.
     """
+    onto = ontologia or get_ontology()
+
     async for evento in fuente:
         yield evento
 
@@ -207,7 +228,19 @@ async def registrar_al_pasar(
                     accion,
                     checkpoint_id=checkpoint_id,
                     cliente=cliente,
-                    ontologia=ontologia,
+                    ontologia=onto,
+                )
+                nombre = str(accion.get("herramienta") or "")
+                declarada = _accion_de_la_ontologia(onto, nombre)
+                await auditoria.registrar(
+                    auditoria.evento_de_accion(
+                        ctx,
+                        declarada.id if declarada else nombre,
+                        argumentos=dict(accion.get("argumentos") or {}),
+                        checkpoint_id=checkpoint_id,
+                        propuesta=True,
+                    ),
+                    cliente=cliente,
                 )
         except Exception as exc:
             yield Evento(
@@ -313,9 +346,19 @@ async def decidir(
         )
 
     # Las dos validaciones. Las aplica la gobernanza, no la API.
-    exigir_autoridad_de_aprobacion(
-        ctx, accion, propuesta_por=str(pendiente.get("propuesta_por") or "")
-    )
+    try:
+        exigir_autoridad_de_aprobacion(
+            ctx, accion, propuesta_por=str(pendiente.get("propuesta_por") or "")
+        )
+    except AutoridadInsuficienteError as exc:
+        # Un intento de aprobar sin autoridad es la señal que un auditor de
+        # seguridad busca. Si registrarlo falla, el 403 sale igual.
+        with contextlib.suppress(Exception):
+            await auditoria.registrar(
+                auditoria.evento_de_acceso_denegado(ctx, accion.id, motivo=str(exc)),
+                cliente=db,
+            )
+        raise
 
     permitidas = pendiente.get("decisiones") or []
     tipo = _TIPOS[pedido.decision]
@@ -335,7 +378,17 @@ async def decidir(
         )
 
     comando = _a_comando(pedido, pendiente)
-    await _resolver(referencia, ctx, pedido, pendiente, accion.id, cliente=db)
+    await _resolver(
+        referencia,
+        ctx,
+        pedido,
+        pendiente,
+        accion.id,
+        cliente=db,
+        # La versión que se leyó. Si otro la resolvió mientras tanto, la escritura
+        # falla en lugar de pisarla. Ver el encabezado del módulo.
+        precondicion=db.write_option(last_update_time=documento.update_time),
+    )
 
     return comando, pendiente
 
@@ -377,16 +430,48 @@ async def _resolver(
     action_id: str,
     *,
     cliente: Any = None,
+    precondicion: Any = None,
 ) -> None:
     """Cierra el pendiente y lo registra en el log de auditoría.
 
-    El log se escribe **antes** de reanudar el grafo. Si se escribiera después,
-    una caída entre la ejecución y el registro dejaría una acción irreversible
-    ejecutada y sin rastro de quién la aprobó — que es exactamente lo que este
-    proyecto existe para que no pase. Al revés, el peor caso es un registro de
-    una aprobación que no llegó a ejecutarse, y eso el `thread_id` lo explica.
+    **Primero se cierra el pendiente, con precondición, y después se audita.**
+    Al revés, quien pierde la carrera dejaría en el log una aprobación que no
+    ocurrió. Las dos escrituras pasan antes de reanudar el grafo: una caída entre
+    la ejecución y el registro dejaría una acción irreversible ejecutada y sin
+    rastro de quién la aprobó, que es exactamente lo que este proyecto existe
+    para que no pase. El peor caso posible ahora es un pendiente cerrado sin su
+    evento —una caída entre las dos escrituras—, y en ese caso el grafo nunca se
+    reanuda: nada se ejecuta sin quedar registrado.
+
+    Raises:
+        ErrorDeAprobacion: 409 si otra persona resolvió el pendiente entre la
+            lectura y esta escritura.
     """
     concedida = pedido.decision is not Decision.RECHAZAR
+
+    try:
+        await referencia.update(
+            {
+                "estado": str(pedido.decision),
+                "decidida_por": ctx.usuario,
+                "rol_decisor": ctx.rol,
+                "decidida_en": dt.datetime.now(dt.UTC).isoformat(),
+                "motivo": pedido.motivo,
+                # Lo que se ejecuta cuando se edita. Vacío en aprobar y rechazar,
+                # que es lo que hace legible el log: si hay algo acá, alguien
+                # cambió la propuesta.
+                "argumentos_finales": dict(pedido.argumentos) if pedido.argumentos else {},
+            },
+            option=precondicion,
+        )
+    except FailedPrecondition as exc:
+        raise ErrorDeAprobacion(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"la propuesta del hilo '{ctx.thread_id}' se resolvió mientras la "
+                "decidías. Recargá la bandeja."
+            ),
+        ) from exc
 
     await auditoria.registrar(
         auditoria.evento_de_aprobacion(
@@ -398,20 +483,6 @@ async def _resolver(
             checkpoint_id=pendiente.get("checkpoint_id"),
         ),
         cliente=cliente,
-    )
-
-    await referencia.update(
-        {
-            "estado": str(pedido.decision),
-            "decidida_por": ctx.usuario,
-            "rol_decisor": ctx.rol,
-            "decidida_en": dt.datetime.now(dt.UTC).isoformat(),
-            "motivo": pedido.motivo,
-            # Lo que se ejecuta cuando se edita. Vacío en aprobar y rechazar, que
-            # es lo que hace legible el log: si hay algo acá, alguien cambió la
-            # propuesta.
-            "argumentos_finales": dict(pedido.argumentos) if pedido.argumentos else {},
-        }
     )
 
 

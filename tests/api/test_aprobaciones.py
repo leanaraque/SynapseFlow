@@ -822,3 +822,171 @@ async def test_el_primer_gate_de_un_hilo_si_registra_a_quien_pregunta(
     await registrar_pendiente(INSPECTOR, gate(), cliente=db, ontologia=ONTOLOGIA)
 
     assert db.contenido(Collections.APPROVALS)[HILO]["propuesta_por"] == INSPECTOR.usuario
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dos aprobaciones simultáneas
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Leer, comprobar que siga pendiente y marcarlo resuelto eran pasos separados.
+# Dos supervisores que aprobaban a la vez pasaban los dos el chequeo y reanudaban
+# los dos el grafo: la parada se ejecutaba dos veces.
+
+
+async def test_de_dos_aprobaciones_simultaneas_solo_una_se_ejecuta() -> None:
+    """**La carrera, reproducida.**
+
+    El doble devuelve el control al event loop después de cada lectura, así que
+    los dos supervisores leen el pendiente abierto antes de que cualquiera
+    escriba. Sin la precondición, los dos obtenían un `Command` para reanudar.
+    """
+    import asyncio
+
+    db = ClienteEnMemoria(ceder_al_leer=True)
+    await registrar_pendiente(
+        INSPECTOR, gate(), checkpoint_id="ckpt-1", cliente=db, ontologia=ONTOLOGIA
+    )
+
+    resultados = await asyncio.gather(
+        aprobar(SUPERVISOR, db), aprobar(OTRO_SUPERVISOR, db), return_exceptions=True
+    )
+
+    comandos = [r for r in resultados if not isinstance(r, BaseException)]
+    errores = [r for r in resultados if isinstance(r, ErrorDeAprobacion)]
+    assert len(comandos) == 1, resultados
+    assert [e.status_code for e in errores] == [409]
+
+
+async def test_quien_pierde_la_carrera_no_deja_una_aprobacion_en_el_log() -> None:
+    """Se cierra el pendiente antes de auditar: al revés, el log mostraría dos
+    aprobaciones de una acción que se aprobó una vez."""
+    import asyncio
+
+    db = ClienteEnMemoria(ceder_al_leer=True)
+    await registrar_pendiente(
+        INSPECTOR, gate(), checkpoint_id="ckpt-1", cliente=db, ontologia=ONTOLOGIA
+    )
+
+    await asyncio.gather(
+        aprobar(SUPERVISOR, db), aprobar(OTRO_SUPERVISOR, db), return_exceptions=True
+    )
+
+    aprobaciones = [
+        e
+        for e in db.contenido(Collections.AUDIT_LOG).values()
+        if e["tipo"] == TipoEvento.APROBACION_CONCEDIDA
+    ]
+    assert len(aprobaciones) == 1
+
+
+@pytest.mark.emulator
+async def test_una_version_vieja_no_pisa_una_decision_en_firestore(
+    requiere_emulador: None,
+) -> None:
+    """El doble imita la precondición; esto confirma que Firestore la aplica y
+    que su excepción es la que el módulo traduce a 409."""
+    import uuid
+
+    from services.api.aprobaciones import _resolver
+    from synapseflow.persistence.client import get_client
+
+    db = get_client()
+    hilo = f"test-carrera-{uuid.uuid4()}"
+    ctx = SUPERVISOR.model_copy(update={"thread_id": hilo})
+    referencia = db.collection(Collections.APPROVALS).document(hilo)
+
+    await referencia.set({"estado": "pendiente", "propuesta_por": INSPECTOR.usuario})
+    leido = await referencia.get()
+    # Otro supervisor resuelve entre la lectura y la escritura.
+    await referencia.update({"estado": "rechazar"})
+
+    with pytest.raises(ErrorDeAprobacion) as error:
+        await _resolver(
+            referencia,
+            ctx,
+            PedidoDeDecision(decision=Decision.APROBAR),
+            leido.to_dict() or {},
+            ACCION,
+            cliente=db,
+            precondicion=db.write_option(last_update_time=leido.update_time),
+        )
+
+    assert error.value.status_code == 409
+    assert ((await referencia.get()).to_dict() or {})["estado"] == "rechazar"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Lo que el log de auditoría tiene que permitir reconstruir
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+async def test_la_propuesta_queda_en_el_log_con_quien_pregunto(db: ClienteEnMemoria) -> None:
+    """**Antes solo se auditaba la aprobación.** El proponente vivía únicamente
+    en la bandeja, que se puede limpiar: en producción, el log tenía tres
+    aprobaciones y ninguna propuesta."""
+    from services.api.streaming import Evento
+
+    fuente = flujo(Evento(tipo=APROBACION_REQUERIDA, datos={"acciones": [gate()]}))
+    _ = [
+        e
+        async for e in registrar_al_pasar(
+            INSPECTOR, GrafoConEstado(), fuente, cliente=db, ontologia=ONTOLOGIA
+        )
+    ]
+
+    eventos = list(db.contenido(Collections.AUDIT_LOG).values())
+    assert [e["tipo"] for e in eventos] == [TipoEvento.ACCION_PROPUESTA]
+    assert eventos[0]["user_id"] == INSPECTOR.usuario
+    assert eventos[0]["action_id"] == ACCION
+    assert eventos[0]["argumentos"] == ARGUMENTOS
+    # La llave del razonamiento: con hilo y checkpoint se reconstruye el estado.
+    assert eventos[0]["thread_id"] == HILO
+    assert eventos[0]["checkpoint_id"] == "ckpt-9"
+
+
+async def test_propuesta_y_aprobacion_comparten_el_hilo(db: ClienteEnMemoria) -> None:
+    """El paso 5 del circuito de docs/05-despliegue.md: los dos eventos, con el
+    mismo `thread_id`. Es lo que hoy no se cumplía en producción."""
+    from services.api.streaming import Evento
+
+    fuente = flujo(Evento(tipo=APROBACION_REQUERIDA, datos={"acciones": [gate()]}))
+    _ = [
+        e
+        async for e in registrar_al_pasar(
+            INSPECTOR, GrafoConEstado(), fuente, cliente=db, ontologia=ONTOLOGIA
+        )
+    ]
+    await aprobar(SUPERVISOR, db)
+
+    eventos = sorted(db.contenido(Collections.AUDIT_LOG).values(), key=lambda e: e["ts"])
+    assert [(e["tipo"], e["user_id"], e["thread_id"]) for e in eventos] == [
+        (TipoEvento.ACCION_PROPUESTA, INSPECTOR.usuario, HILO),
+        (TipoEvento.APROBACION_CONCEDIDA, SUPERVISOR.usuario, HILO),
+    ]
+
+
+async def test_un_intento_de_aprobar_sin_autoridad_queda_en_el_log(
+    propuesto: ClienteEnMemoria,
+) -> None:
+    with pytest.raises(AutoridadInsuficienteError):
+        await aprobar(TECNICO, propuesto)
+
+    denegados = [
+        e
+        for e in propuesto.contenido(Collections.AUDIT_LOG).values()
+        if e["tipo"] == TipoEvento.ACCESO_DENEGADO
+    ]
+    assert len(denegados) == 1
+    assert denegados[0]["user_id"] == TECNICO.usuario
+    assert denegados[0]["action_id"] == ACCION
+
+
+async def test_el_proponente_que_intenta_aprobar_tambien_queda_registrado(
+    propuesto: ClienteEnMemoria,
+) -> None:
+    """La separación de funciones vista desde el log: el intento existe."""
+    with pytest.raises(AutoridadInsuficienteError):
+        await aprobar(INSPECTOR, propuesto)
+
+    tipos = [e["tipo"] for e in propuesto.contenido(Collections.AUDIT_LOG).values()]
+    assert TipoEvento.ACCESO_DENEGADO in tipos
