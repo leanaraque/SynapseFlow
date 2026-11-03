@@ -7,6 +7,13 @@
 #
 # La razón de seguridad es la misma que la del `.dockerignore`: `.env` tiene
 # claves de proveedores, y el contexto de build queda en un bucket del proyecto.
+#
+# Además se hereda `.gitignore` entero, con la directiva de abajo. Esta lista
+# nombraba `.env` pero no los tokens de Firebase de las pruebas (`.token-*.tmp`),
+# los volcados de curl con cabeceras (`apr.txt`, `cab*.txt`, `sse*.txt`) ni los
+# documentos personales que `.gitignore` sí excluye: todos viajaban al bucket en
+# cada build. Una lista que repite a mano lo que otra ya dice se queda atrás.
+#!include:.gitignore
 
 .venv/
 venv/
