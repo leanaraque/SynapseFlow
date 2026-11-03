@@ -67,6 +67,9 @@ class Consumo(BaseModel):
     run_id: str
     parent_run_id: str | None = None
     thread_id: str | None = None
+    # Quién hizo la consulta. Es lo que permite responder «cuánto cuesta cada
+    # persona», que el panel necesita para detectar un uso anómalo.
+    usuario: str | None = None
 
     perfil: str
     modelo: str
@@ -109,16 +112,25 @@ class ContabilidadDeCosto(AsyncCallbackHandler):
     # salir igual. Perder una fila del panel de costos es preferible a tirar
     # abajo una conversación por un problema de instrumentación.
 
-    def __init__(self, *, thread_id: str | None = None, perfil: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        thread_id: str | None = None,
+        perfil: str | None = None,
+        usuario: str | None = None,
+    ) -> None:
         """
         Args:
             thread_id: hilo con el que correlacionar, si no viene en la metadata
                 de cada invocación.
             perfil: perfil por defecto, para call sites que hacen una sola clase
                 de llamada y no quieren declararlo en cada una.
+            usuario: quién hizo la consulta. Un handler vive lo que dura un
+                request, así que es uno solo para todas sus llamadas.
         """
         self.thread_id = thread_id
         self.perfil_por_defecto = perfil
+        self.usuario = usuario
         self.consumos: list[Consumo] = []
         # Lo que se sabe al empezar una llamada, indexado por run_id, esperando
         # a que termine. Ver el docstring del módulo.
@@ -176,6 +188,7 @@ class ContabilidadDeCosto(AsyncCallbackHandler):
                 run_id=str(run_id),
                 parent_run_id=inicio.parent_run_id,
                 thread_id=inicio.thread_id,
+                usuario=self.usuario,
                 perfil=inicio.perfil,
                 modelo=inicio.modelo,
                 proveedor=spec.proveedor if spec else "desconocido",
@@ -220,17 +233,18 @@ class ContabilidadDeCosto(AsyncCallbackHandler):
 
     # ── Persistencia ─────────────────────────────────────────────────────────
 
-    async def volcar(self, *, limpiar: bool = True) -> int:
+    async def volcar(self, *, limpiar: bool = True, cliente: Any = None) -> int:
         """Escribe lo acumulado en `llm_usage` y devuelve cuántas filas escribió.
 
         Args:
             limpiar: vaciar el acumulador después de escribir. En falso, un
                 segundo volcado duplicaría las filas.
+            cliente: cliente de Firestore. Inyectable para los tests.
         """
         if not self.consumos:
             return 0
 
-        cliente = get_client()
+        cliente = cliente or get_client()
         coleccion = cliente.collection(Collections.USAGE)
         escritos = 0
 

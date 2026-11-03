@@ -276,9 +276,21 @@ COMMITS: list[Commit] = [
         "F1.4",
         "F1",
         "Contabilidad de tokens y costo",
-        (Senal(f"{P}/llm/callbacks.py", ("class ContabilidadDeCosto",)),),
-        verificar="pytest tests/llm/test_callbacks.py -v",
-        notas="BaseCallbackHandler propio; escribe a la colección llm_usage.",
+        # La clase sola no alcanza. Esta señal miraba únicamente que existiera,
+        # y el detector dio el commit por hecho durante tres meses en los que
+        # nada la conectaba: `llm_usage` tenía cero documentos en producción.
+        # Ahora exige además que la API la pase al recorrido y un test que lo
+        # compruebe de punta a punta.
+        (
+            Senal(f"{P}/llm/callbacks.py", ("class ContabilidadDeCosto",)),
+            Senal("services/api/main.py", ("ContabilidadDeCosto(", '"callbacks": [contabilidad]')),
+            Senal(
+                "tests/api/test_costos.py",
+                ("def test_una_consulta_por_la_api_deja_su_costo_en_llm_usage",),
+            ),
+        ),
+        verificar="pytest tests/llm/test_callbacks.py tests/api/test_costos.py -v",
+        notas="BaseCallbackHandler propio; la API lo pasa a cada recorrido y vuelca a llm_usage.",
     ),
     Commit(
         "F1.5",

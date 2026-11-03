@@ -34,7 +34,7 @@ import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
@@ -47,11 +47,13 @@ from services.api.aprobaciones import (
     registrar_al_pasar,
 )
 from services.api.auth import ErrorDeIdentidad, roles_del_dominio, usuario_actual
+from services.api.costos import DIAS_POR_DEFECTO, contabilizar, resumen
 from services.api.hilos import HiloAjenoError, reclamar_hilo
 from services.api.streaming import Evento, eventos, flujo_sse
 from synapseflow.agents.graph import construir_grafo
 from synapseflow.governance.pii import Tokenizador
 from synapseflow.governance.rbac import ExecutionContext
+from synapseflow.llm.callbacks import ContabilidadDeCosto
 from synapseflow.llm.gateway import Gateway
 from synapseflow.ontology import compile_tools, get_ontology
 from synapseflow.persistence.checkpointer import FirestoreSaver
@@ -265,14 +267,17 @@ async def consultar(
     await reclamar_hilo(contexto, thread_id)
 
     grafo = grafo_para(contexto)
+    contabilidad = ContabilidadDeCosto(thread_id=thread_id, usuario=contexto.usuario)
 
     flujo = eventos(
         grafo,
         {"messages": [{"role": "user", "content": consulta.pregunta}]},
-        {"configurable": {"thread_id": thread_id}},
+        _config_del_recorrido(thread_id, contabilidad),
     )
 
-    return _respuesta_sse(registrar_al_pasar(contexto, grafo, flujo), thread_id)
+    return _respuesta_sse(
+        contabilizar(registrar_al_pasar(contexto, grafo, flujo), contabilidad), thread_id
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -309,10 +314,43 @@ async def decidir_aprobacion(
     contexto = ctx.model_copy(update={"thread_id": thread_id})
     comando, _ = await decidir(contexto, thread_id, pedido)
     grafo = grafo_para(contexto)
+    # El resto del recorrido lo paga quien aprobó: es su request el que lo corre.
+    contabilidad = ContabilidadDeCosto(thread_id=thread_id, usuario=contexto.usuario)
 
-    flujo = eventos(grafo, comando, {"configurable": {"thread_id": thread_id}})
+    flujo = eventos(grafo, comando, _config_del_recorrido(thread_id, contabilidad))
 
-    return _respuesta_sse(registrar_al_pasar(contexto, grafo, flujo), thread_id)
+    return _respuesta_sse(
+        contabilizar(registrar_al_pasar(contexto, grafo, flujo), contabilidad), thread_id
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Costos
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@app.get("/api/costos")
+async def costos(
+    dias: int = Query(default=DIAS_POR_DEFECTO, ge=1, le=365),
+    ctx: ExecutionContext = Depends(usuario_actual),
+) -> dict[str, Any]:
+    """Costo de los últimos `dias`: totales y por perfil, modelo, persona y día.
+
+    El acceso lo decide la clasificación de la ontología, no una lista de roles
+    escrita acá. Ver services/api/costos.py.
+    """
+    return await resumen(ctx, dias=dias)
+
+
+def _config_del_recorrido(thread_id: str, contabilidad: ContabilidadDeCosto) -> dict[str, Any]:
+    """El config de un recorrido: el hilo que lo hace reanudable y la contabilidad.
+
+    El callback va en el config y no en el modelo porque LangChain lo propaga a
+    cada llamada del recorrido —supervisor y especialistas— y porque es uno por
+    request: en el modelo, que se comparte por proceso, mezclaría el costo de
+    consultas de personas distintas.
+    """
+    return {"configurable": {"thread_id": thread_id}, "callbacks": [contabilidad]}
 
 
 def _respuesta_sse(flujo: AsyncIterator[Evento], thread_id: str) -> StreamingResponse:

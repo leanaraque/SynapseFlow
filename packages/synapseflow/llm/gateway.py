@@ -44,6 +44,7 @@ from pydantic import BaseModel, SecretStr
 from synapseflow.config import Provider, Settings, get_settings
 from synapseflow.governance.politica import PoliticaVioladaError, exigir_zero_training
 from synapseflow.llm import registry
+from synapseflow.llm.callbacks import CLAVE_PERFIL
 from synapseflow.llm.fake import FakeChatModel, FakeEmbeddings
 
 if TYPE_CHECKING:  # pragma: no cover - solo para el tipado
@@ -228,12 +229,33 @@ class Gateway:
 
     def _construir_chat(self, perfil: str) -> ModeloDeChat:
         spec = registry.resolver(self.proveedor, perfil)
-        modelo = self._adapter_de_chat(self.proveedor, spec)
+        modelo = self._etiquetar(self._adapter_de_chat(self.proveedor, spec), perfil)
 
         respaldo = self._respaldo_de_chat(perfil)
         if respaldo is None:
             return modelo
-        return modelo.with_fallbacks([respaldo])
+        return modelo.with_fallbacks([self._etiquetar(respaldo, perfil)])
+
+    def _etiquetar(self, modelo: BaseChatModel, perfil: str) -> BaseChatModel:
+        """Marca el modelo con su perfil, para la contabilidad de costo.
+
+        LangChain mezcla la `metadata` del modelo con la de la invocación y se la
+        entrega a los callbacks, así que la etiqueta llega a `ContabilidadDeCosto`
+        sin que cada agente tenga que declararla. Sin esto, todas las filas de
+        `llm_usage` decían perfil «desconocido» y el panel no podía responder qué
+        tarea se lleva el presupuesto. Verificado contra langchain-core 1.5.2.
+
+        Se usa la metadata y no `with_config()`: este último devuelve un
+        envoltorio que ya no es un `BaseChatModel`.
+
+        El modelo falso inyectado se deja sin etiquetar: es **una** instancia
+        compartida por los tres perfiles, y marcarla haría que todas las
+        llamadas dijeran el último perfil pedido.
+        """
+        if modelo is self._falso:
+            return modelo
+        modelo.metadata = {**(modelo.metadata or {}), CLAVE_PERFIL: perfil}
+        return modelo
 
     def _respaldo_de_chat(self, perfil: str) -> BaseChatModel | None:
         """Modelo alternativo al que degradar, si hay uno configurado y usable.

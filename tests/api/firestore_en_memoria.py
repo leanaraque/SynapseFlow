@@ -218,6 +218,8 @@ def _cumple(datos: dict[str, Any], campo: str, operador: str, valor: Any) -> boo
         return bool(actual == valor)
     if operador == "in":
         return actual in valor
+    if operador == ">=":
+        return actual is not None and actual >= valor
     if operador == "array_contains":
         return valor in (actual or [])
     raise NotImplementedError(
