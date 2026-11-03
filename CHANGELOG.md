@@ -47,9 +47,11 @@ que figuraban como hechas sin estar conectadas.
 
 **Evals**
 
-- El workflow corre también en cada push a `main`. Solo con el disparador de PR,
-  y con los cambios entrando directo a `main`, no había corrido nunca, y la
-  línea base no se habría actualizado.
+- El workflow no había corrido nunca: solo se disparaba en PR, y los cambios
+  entran directo a `main`. Se probó dispararlo en cada push a `main`, que
+  mantenía viva la línea base, y se revirtió: cada corrida llama a Gemini real
+  y el gasto pasaba a ser recurrente. Corre a mano y en PR; la línea base se
+  actualiza corriéndolo a mano sobre `main`, y el workflow lo dice.
 
 **Documentación**
 

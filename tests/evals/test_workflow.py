@@ -112,21 +112,16 @@ def test_se_dispara_al_tocar_lo_que_cambia_la_calidad(
     assert ruta in disparadores["pull_request"]["paths"]
 
 
-def test_corre_en_cada_push_a_main_para_mantener_la_linea_base(
-    definicion: dict[str, Any],
+def test_no_corre_en_cada_push_porque_cada_corrida_se_factura(
+    definicion: dict[str, Any], texto: str
 ) -> None:
-    """La línea base es la última corrida de `main`, y una corrida de PR se
-    etiqueta con la rama del PR. Sin este disparador, la línea base no se
-    actualizaba nunca."""
+    """Decisión de costo, no un olvido: sin este test, alguien «arreglaría» la
+    línea base agregando el disparador y el gasto pasaría a ser recurrente."""
     disparadores = definicion.get("on") or definicion.get(True)
-    assert disparadores["push"]["branches"] == ["main"]
-
-
-def test_push_y_pull_request_vigilan_las_mismas_rutas(definicion: dict[str, Any]) -> None:
-    """Si divergieran, un cambio podría entrar a `main` sin actualizar la línea
-    base, o actualizarla sin haberse evaluado en su PR."""
-    disparadores = definicion.get("on") or definicion.get(True)
-    assert disparadores["push"]["paths"] == disparadores["pull_request"]["paths"]
+    assert "push" not in disparadores
+    assert "workflow_dispatch" in disparadores
+    # Y lo que eso implica tiene que estar dicho donde se lee.
+    assert "solo se actualiza cuando alguien corre este workflow a mano" in texto
 
 
 def test_tiene_techo_de_tiempo(definicion: dict[str, Any]) -> None:

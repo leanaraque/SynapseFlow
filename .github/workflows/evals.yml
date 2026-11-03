@@ -37,29 +37,23 @@ name: Evals
 # El job se saltea en lugar de fallar. Un CI que falla por infraestructura que
 # nadie configuró todavía enseña a ignorar el rojo, y entonces deja de proteger
 # de lo que sí importa.
+#
+# ── Por qué no corre en cada push a `main` ────────────────────────────────────
+#
+# Cada corrida llama a un proveedor real y se factura. Correr en cada push a
+# `main` mantendría la línea base al día sola, pero convierte cada cambio en un
+# gasto recurrente, y la decisión fue no tenerlo.
+#
+# La consecuencia hay que saberla: el corredor compara contra la última corrida
+# etiquetada `main`, y una corrida de PR se etiqueta con la rama del PR. **La
+# línea base solo se actualiza cuando alguien corre este workflow a mano sobre
+# `main`** (Actions → Evals → Run workflow). Hay que hacerlo después de cada
+# cambio que mueva la calidad a propósito; si no, los PR se miden contra una
+# foto vieja.
 # ═════════════════════════════════════════════════════════════════════════════
 
-# ── Cuándo corre ──────────────────────────────────────────────────────────────
-#
-# En los PR, para frenar la regresión antes del merge. Y en cada push a `main`,
-# que es lo que mantiene viva la línea base: el corredor compara contra la
-# última corrida etiquetada `main`, y una corrida de PR se etiqueta con la rama
-# del PR. Solo con el disparador de PR, la línea base quedaba congelada en la
-# primera corrida y cada PR se medía contra una foto cada vez más vieja.
-#
-# Las dos listas de rutas tienen que ser iguales; un test lo verifica.
 on:
   pull_request:
-    branches: [main]
-    paths:
-      - "packages/synapseflow/agents/**"
-      - "packages/synapseflow/rag/**"
-      - "packages/synapseflow/governance/**"
-      - "packages/synapseflow/llm/**"
-      - "packages/synapseflow/domain/**"
-      - "evals/**"
-      - "data/corpus/**"
-  push:
     branches: [main]
     paths:
       - "packages/synapseflow/agents/**"
