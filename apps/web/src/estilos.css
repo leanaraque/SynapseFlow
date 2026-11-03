@@ -450,3 +450,129 @@ code {
   font-family: inherit;
   margin: 0.4rem 0 0;
 }
+
+/* ── Panel de costos ──────────────────────────────────────────────────────── */
+
+.costos {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.4rem 1.2rem;
+  max-width: 60rem;
+}
+
+.ventanas {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.ventanas button[aria-pressed="true"] {
+  border-color: var(--acento);
+  color: var(--acento);
+}
+
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.8rem;
+  margin: 1.2rem 0;
+}
+
+.tarjeta {
+  background: var(--fondo-suave);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+}
+
+.tarjeta dt {
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.tarjeta dd {
+  margin: 0.3rem 0 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tarjeta .valor {
+  font-size: 1.35rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.tarjeta .detalle {
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.tabla-costos {
+  margin-top: 1.4rem;
+  overflow-x: auto;
+}
+
+.tabla-costos h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.tabla-costos table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.tabla-costos th,
+.tabla-costos td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--borde);
+  font-weight: normal;
+}
+
+.tabla-costos thead th {
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.tabla-costos .numero {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dias {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.dias li {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+}
+
+.dias .fecha {
+  color: var(--texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.dias .pista {
+  height: 0.7rem;
+  background: var(--fondo-suave);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.dias .relleno {
+  display: block;
+  height: 100%;
+  background: var(--acento);
+}

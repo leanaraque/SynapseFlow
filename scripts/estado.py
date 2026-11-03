@@ -703,10 +703,6 @@ PENDIENTE_AFUERA: tuple[tuple[str, str], ...] = (
         "muestra el catálogo compilado; navegar entidades y relaciones no se hizo",
     ),
     (
-        "El panel de costos no se construyó",
-        "`llm_usage` se escribe desde F1 y no tiene ningún consumidor",
-    ),
-    (
         "La API acepta invocaciones sin autenticar",
         "Hosting no tiene identidad para run.invoker; la protege su propio token",
     ),

@@ -24,9 +24,10 @@ import { useCallback, useEffect, useState } from "react";
 import { ErrorDeApi, identidad, type Identidad } from "./api";
 import { Aprobaciones } from "./Aprobaciones";
 import { Chat } from "./Chat";
+import { Costos } from "./Costos";
 import { alCambiarLaSesion, cerrarSesion, iniciarSesion, type Usuario } from "./firebase";
 
-type Pantalla = "consulta" | "aprobaciones" | "catalogo";
+type Pantalla = "consulta" | "aprobaciones" | "costos" | "catalogo";
 
 export function App() {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
@@ -90,7 +91,7 @@ export function App() {
     <div className="consola">
       <header className="barra">
         <strong>SynapseFlow</strong>
-        {/* Sin rol no hay nada que navegar: las tres pantallas necesitan el
+        {/* Sin rol no hay nada que navegar: todas las pantallas necesitan el
             catálogo. Mostrar el menú igual invita a clickearlo y no pasa nada,
             que es peor que no ofrecerlo. */}
         <nav hidden={!quien}>
@@ -108,6 +109,17 @@ export function App() {
           >
             Aprobaciones
           </button>
+          {/* Solo si la API dice que este rol alcanza el nivel que exige el
+              panel. Esconderlo es comodidad; la barrera es el 403 del backend. */}
+          {quien?.puede_ver_costos ? (
+            <button
+              type="button"
+              aria-current={pantalla === "costos" ? "page" : undefined}
+              onClick={() => setPantalla("costos")}
+            >
+              Costos
+            </button>
+          ) : null}
           <button
             type="button"
             aria-current={pantalla === "catalogo" ? "page" : undefined}
@@ -140,6 +152,8 @@ export function App() {
         <Chat />
       ) : pantalla === "aprobaciones" ? (
         <Aprobaciones />
+      ) : pantalla === "costos" && quien.puede_ver_costos ? (
+        <Costos />
       ) : (
         <Catalogo identidad={quien} />
       )}

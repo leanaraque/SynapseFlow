@@ -92,6 +92,39 @@ export interface Identidad {
   nombre: string | null;
   rol: string;
   acciones: AccionDisponible[];
+  /** Lo decide la API con la clasificación de la ontología, no la consola. */
+  puede_ver_costos: boolean;
+}
+
+/** Costo, llamadas y tokens de un valor de agrupación: un perfil, un modelo… */
+export interface GrupoDeCosto {
+  clave: string;
+  costo_usd: number;
+  llamadas: number;
+  tokens: number;
+}
+
+export interface ResumenDeCostos {
+  desde: string;
+  hasta: string;
+  dias: number;
+  /** Hubo más filas que el tope: los totales son de una parte. */
+  truncado: boolean;
+  totales: {
+    costo_usd: number;
+    llamadas: number;
+    tokens_entrada: number;
+    tokens_salida: number;
+    conversaciones: number;
+    costo_por_conversacion_usd: number;
+    latencia_p95_ms: number;
+    llamadas_sin_precio: number;
+  };
+  por_perfil: GrupoDeCosto[];
+  por_modelo: GrupoDeCosto[];
+  por_usuario: GrupoDeCosto[];
+  por_dia: GrupoDeCosto[];
+  nota: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -188,4 +221,14 @@ export async function decidir(
   });
   if (!respuesta.ok) await fallar(respuesta);
   return respuesta;
+}
+
+/**
+ * Costo de los últimos `dias`, agrupado para el panel.
+ *
+ * Un rol sin el nivel que exige la ontología recibe 403: la consola ni siquiera
+ * ofrece la pantalla, pero la barrera es la del backend.
+ */
+export function costos(dias: number): Promise<ResumenDeCostos> {
+  return json<ResumenDeCostos>(`/api/costos?dias=${encodeURIComponent(String(dias))}`);
 }
