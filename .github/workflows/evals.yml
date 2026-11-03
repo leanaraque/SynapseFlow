@@ -39,8 +39,27 @@ name: Evals
 # de lo que sí importa.
 # ═════════════════════════════════════════════════════════════════════════════
 
+# ── Cuándo corre ──────────────────────────────────────────────────────────────
+#
+# En los PR, para frenar la regresión antes del merge. Y en cada push a `main`,
+# que es lo que mantiene viva la línea base: el corredor compara contra la
+# última corrida etiquetada `main`, y una corrida de PR se etiqueta con la rama
+# del PR. Solo con el disparador de PR, la línea base quedaba congelada en la
+# primera corrida y cada PR se medía contra una foto cada vez más vieja.
+#
+# Las dos listas de rutas tienen que ser iguales; un test lo verifica.
 on:
   pull_request:
+    branches: [main]
+    paths:
+      - "packages/synapseflow/agents/**"
+      - "packages/synapseflow/rag/**"
+      - "packages/synapseflow/governance/**"
+      - "packages/synapseflow/llm/**"
+      - "packages/synapseflow/domain/**"
+      - "evals/**"
+      - "data/corpus/**"
+  push:
     branches: [main]
     paths:
       - "packages/synapseflow/agents/**"

@@ -112,6 +112,23 @@ def test_se_dispara_al_tocar_lo_que_cambia_la_calidad(
     assert ruta in disparadores["pull_request"]["paths"]
 
 
+def test_corre_en_cada_push_a_main_para_mantener_la_linea_base(
+    definicion: dict[str, Any],
+) -> None:
+    """La línea base es la última corrida de `main`, y una corrida de PR se
+    etiqueta con la rama del PR. Sin este disparador, la línea base no se
+    actualizaba nunca."""
+    disparadores = definicion.get("on") or definicion.get(True)
+    assert disparadores["push"]["branches"] == ["main"]
+
+
+def test_push_y_pull_request_vigilan_las_mismas_rutas(definicion: dict[str, Any]) -> None:
+    """Si divergieran, un cambio podría entrar a `main` sin actualizar la línea
+    base, o actualizarla sin haberse evaluado en su PR."""
+    disparadores = definicion.get("on") or definicion.get(True)
+    assert disparadores["push"]["paths"] == disparadores["pull_request"]["paths"]
+
+
 def test_tiene_techo_de_tiempo(definicion: dict[str, Any]) -> None:
     """Un proveedor que no responde no puede dejar el job consumiendo minutos."""
     assert definicion["jobs"]["evaluar"]["timeout-minutes"] <= 30
