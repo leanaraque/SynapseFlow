@@ -77,6 +77,62 @@ def _entorno_de_test() -> Iterator[None]:
     reset_client_cache()
 
 
+class FirestoreSinMarcaError(RuntimeError):
+    """Un test sin la marca `emulator` intentó hablar con Firestore."""
+
+
+# Puntos de entrada del cliente asíncrono. Todo acceso a la base pasa por uno de
+# ellos, así que interceptarlos alcanza para detectar cualquier lectura o
+# escritura sin depender de cómo cada módulo importó el cliente.
+_ENTRADAS_DE_FIRESTORE = (
+    "collection",
+    "collection_group",
+    "collections",
+    "document",
+    "get_all",
+    "batch",
+    "transaction",
+)
+
+
+@pytest.fixture(autouse=True)
+def _firestore_solo_con_marca(request: pytest.FixtureRequest) -> Iterator[None]:
+    """Un test que toca Firestore sin la marca `emulator` falla al instante.
+
+    **Esto existe porque el CI estuvo en rojo tres meses por un caso así.** Un
+    test del pipeline de gobernanza llegaba a `consultar_activo` y leía la base.
+    Con el emulador corriendo en la máquina de desarrollo pasaba; en el paso
+    «Tests unitarios» del CI, que corre `-m "not emulator"` sin emulador, el
+    cliente reintentaba durante cinco minutos y fallaba con un `RetryError` que
+    no nombraba el problema.
+
+    Se intercepta la clase y no `get_client`: los módulos importan el cliente
+    con `from ... import get_client`, así que parchear el nombre del módulo no
+    alcanzaría a los que ya lo importaron. Los fakes en memoria no heredan de
+    `AsyncClient` y no se ven afectados.
+    """
+    if request.node.get_closest_marker("emulator") is not None:
+        yield
+        return
+
+    from google.cloud.firestore import AsyncClient
+
+    def _prohibido(nombre: str) -> object:
+        def _falla(*_: object, **__: object) -> object:
+            raise FirestoreSinMarcaError(
+                f"{request.node.nodeid} llamó a AsyncClient.{nombre}() sin la marca "
+                "`@pytest.mark.emulator`. Marcalo, o reemplazá el acceso a la base "
+                "con un fake si lo que se prueba no es la persistencia."
+            )
+
+        return _falla
+
+    with pytest.MonkeyPatch.context() as parche:
+        for nombre in _ENTRADAS_DE_FIRESTORE:
+            parche.setattr(AsyncClient, nombre, _prohibido(nombre))
+        yield
+
+
 @pytest.fixture(scope="session")
 def requiere_emulador() -> None:
     """Saltea el test si el emulador no está.

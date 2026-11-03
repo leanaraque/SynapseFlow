@@ -31,6 +31,7 @@ from synapseflow.agents.especialistas import (
     especialistas_disponibles,
 )
 from synapseflow.config import Provider, Settings
+from synapseflow.domain.repository import RepositorioDominio
 from synapseflow.governance.rbac import ExecutionContext
 from synapseflow.llm.fake import FakeChatModel, Llamada, Respuesta
 from synapseflow.llm.gateway import Gateway
@@ -178,13 +179,27 @@ async def test_el_legajo_no_cruza_desde_un_especialista() -> None:
     assert "LEG-00042" not in modelo.texto_recibido
 
 
-async def test_una_consulta_normal_atraviesa_las_tres_capas() -> None:
+async def test_una_consulta_normal_atraviesa_las_tres_capas(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """El pipeline no puede romper el bucle de herramientas.
 
     Tres middlewares encadenados sobre `wrap_model_call` son tres oportunidades
     de perder un `tool_call_id` y dejar al agente con una invocación sin
     respuesta. Se verifica que el turno cierre.
+
+    El repositorio se reemplaza por uno que no encuentra nada. Lo que se prueba
+    es el cableado de los middlewares, no la lectura de Firestore, y con la base
+    real el test dejaba el CI en rojo: sin emulador, el cliente reintentaba
+    cinco minutos y fallaba. Marcarlo `emulator` lo habría sacado de la corrida
+    unitaria, que es donde esta propiedad tiene que vigilarse.
     """
+
+    async def _ninguno(self: object, tag: str) -> None:
+        return None
+
+    monkeypatch.setattr(RepositorioDominio, "activo_por_tag", _ninguno)
+
     modelo = FakeChatModel(
         respuestas=[
             Respuesta(herramientas=[Llamada(nombre="consultar_activo", argumentos={"tag": "X"})]),
