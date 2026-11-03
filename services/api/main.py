@@ -47,6 +47,7 @@ from services.api.aprobaciones import (
     registrar_al_pasar,
 )
 from services.api.auth import ErrorDeIdentidad, roles_del_dominio, usuario_actual
+from services.api.hilos import HiloAjenoError, reclamar_hilo
 from services.api.streaming import Evento, eventos, flujo_sse
 from synapseflow.agents.graph import construir_grafo
 from synapseflow.governance.pii import Tokenizador
@@ -172,6 +173,12 @@ async def _aprobacion(_: Any, exc: ErrorDeAprobacion) -> JSONResponse:
     return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
 
 
+@app.exception_handler(HiloAjenoError)
+async def _hilo_ajeno(_: Any, exc: HiloAjenoError) -> JSONResponse:
+    """Con la forma que espera la consola, como los demás errores."""
+    return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
+
+
 @app.exception_handler(PermissionError)
 async def _permisos(_: Any, exc: PermissionError) -> JSONResponse:
     """Las negativas de la gobernanza son 403, no 500.
@@ -252,6 +259,11 @@ async def consultar(
     """
     thread_id = consulta.thread_id or ctx.thread_id or str(uuid.uuid4())
     contexto = ctx.model_copy(update={"thread_id": thread_id})
+
+    # Antes de armar el grafo: continuar la conversación de otra persona
+    # permitía proponer a su nombre y aprobarlo uno mismo. Ver services/api/hilos.py.
+    await reclamar_hilo(contexto, thread_id)
+
     grafo = grafo_para(contexto)
 
     flujo = eventos(

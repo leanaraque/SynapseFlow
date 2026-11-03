@@ -6,9 +6,10 @@ poder ejecutarse: los tests que más importan de este proyecto son los negativos
 de autoridad, y un test que solo corre con infraestructura es un test que
 alguien va a saltear.
 
-Implementa exactamente lo que usan `services/api/aprobaciones.py` y
-`governance/auditoria.py` — `set`, `get`, `update`, `where`, `order_by`, `limit`,
-`stream` y `batch` — y nada más. Un doble que implementa de más invita a
+Implementa exactamente lo que usan `services/api/aprobaciones.py`,
+`services/api/hilos.py` y `governance/auditoria.py` — `set`, `create`, `get`,
+`update` con precondición, `where`, `order_by`, `limit`, `stream` y `batch` — y
+nada más. Un doble que implementa de más invita a
 escribir tests que dependen de comportamiento que nadie verificó contra el
 servicio real.
 
@@ -19,18 +20,33 @@ tipo no serializa.
 
 from __future__ import annotations
 
+import asyncio
 import copy
 from collections.abc import AsyncIterator
 from typing import Any
 
+from google.api_core.exceptions import AlreadyExists, FailedPrecondition
+
 
 class Instantanea:
-    """Lo que devuelve un `get()`."""
+    """Lo que devuelve un `get()`.
 
-    def __init__(self, id_: str, datos: dict[str, Any] | None, referencia: Documento) -> None:
+    `update_time` es un contador de versión y no una marca de tiempo: lo único
+    que el código hace con él es pasarlo de vuelta como precondición, y para eso
+    alcanza con que cambie en cada escritura.
+    """
+
+    def __init__(
+        self,
+        id_: str,
+        datos: dict[str, Any] | None,
+        referencia: Documento,
+        update_time: int | None = None,
+    ) -> None:
         self.id = id_
         self._datos = datos
         self.reference = referencia
+        self.update_time = update_time
 
     @property
     def exists(self) -> bool:
@@ -40,21 +56,52 @@ class Instantanea:
         return copy.deepcopy(self._datos) if self._datos is not None else None
 
 
+class OpcionDeEscritura:
+    """Lo que devuelve `write_option(last_update_time=...)`."""
+
+    def __init__(self, last_update_time: Any) -> None:
+        self.last_update_time = last_update_time
+
+
 class Documento:
     def __init__(self, coleccion: Coleccion, id_: str) -> None:
         self._coleccion = coleccion
         self.id = id_
 
+    def _escribir(self, datos: dict[str, Any]) -> None:
+        self._coleccion.datos[self.id] = datos
+        self._coleccion.versiones[self.id] = self._coleccion.versiones.get(self.id, 0) + 1
+
     async def set(self, datos: dict[str, Any]) -> None:
-        self._coleccion.datos[self.id] = copy.deepcopy(datos)
+        self._escribir(copy.deepcopy(datos))
+
+    async def create(self, datos: dict[str, Any]) -> None:
+        """Como en Firestore: falla si el documento ya existe."""
+        if self.id in self._coleccion.datos:
+            raise AlreadyExists(f"el documento '{self.id}' ya existe")
+        self._escribir(copy.deepcopy(datos))
 
     async def get(self) -> Instantanea:
-        return Instantanea(self.id, self._coleccion.datos.get(self.id), self)
+        instantanea = Instantanea(
+            self.id,
+            copy.deepcopy(self._coleccion.datos.get(self.id)),
+            self,
+            self._coleccion.versiones.get(self.id),
+        )
+        if self._coleccion.ceder_al_leer:
+            # Devuelve el control al event loop después de leer: es lo que
+            # permite que dos corrutinas lean el mismo documento antes de que
+            # cualquiera escriba, que es la carrera que hay que reproducir.
+            await asyncio.sleep(0)
+        return instantanea
 
-    async def update(self, cambios: dict[str, Any]) -> None:
+    async def update(self, cambios: dict[str, Any], option: Any = None) -> None:
         if self.id not in self._coleccion.datos:
             raise KeyError(f"no existe el documento '{self.id}'")
-        self._coleccion.datos[self.id].update(copy.deepcopy(cambios))
+        if option is not None and option.last_update_time != self._coleccion.versiones.get(self.id):
+            raise FailedPrecondition(f"el documento '{self.id}' cambió desde que se leyó")
+        actualizado = {**self._coleccion.datos[self.id], **copy.deepcopy(cambios)}
+        self._escribir(actualizado)
 
     async def delete(self) -> None:
         self._coleccion.datos.pop(self.id, None)
@@ -99,12 +146,22 @@ class Consulta:
             filas = filas[: self._tope]
 
         for id_, datos in filas:
-            yield Instantanea(id_, datos, Documento(self._coleccion, id_))
+            yield Instantanea(
+                id_, datos, Documento(self._coleccion, id_), self._coleccion.versiones.get(id_)
+            )
 
 
 class Coleccion(Consulta):
-    def __init__(self, datos: dict[str, dict[str, Any]]) -> None:
+    def __init__(
+        self,
+        datos: dict[str, dict[str, Any]],
+        versiones: dict[str, int] | None = None,
+        *,
+        ceder_al_leer: bool = False,
+    ) -> None:
         self.datos = datos
+        self.versiones = versiones if versiones is not None else {}
+        self.ceder_al_leer = ceder_al_leer
         super().__init__(self)
 
     def document(self, id_: str) -> Documento:
@@ -129,14 +186,25 @@ class Lote:
 class ClienteEnMemoria:
     """Lo mínimo de `firestore.AsyncClient` que este proyecto invoca."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, ceder_al_leer: bool = False) -> None:
         self._colecciones: dict[str, dict[str, dict[str, Any]]] = {}
+        self._versiones: dict[str, dict[str, int]] = {}
+        # Solo para los tests de concurrencia: ver `Documento.get`.
+        self.ceder_al_leer = ceder_al_leer
 
     def collection(self, nombre: str) -> Coleccion:
-        return Coleccion(self._colecciones.setdefault(nombre, {}))
+        return Coleccion(
+            self._colecciones.setdefault(nombre, {}),
+            self._versiones.setdefault(nombre, {}),
+            ceder_al_leer=self.ceder_al_leer,
+        )
 
     def batch(self) -> Lote:
         return Lote()
+
+    @staticmethod
+    def write_option(*, last_update_time: Any) -> OpcionDeEscritura:
+        return OpcionDeEscritura(last_update_time)
 
     # ── Ayudas para los tests ────────────────────────────────────────────────
 

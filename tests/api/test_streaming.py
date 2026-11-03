@@ -685,6 +685,16 @@ def grafo_grabado(monkeypatch: pytest.MonkeyPatch) -> Any:
     )
     monkeypatch.setattr(main, "grafo_para", lambda _ctx: grabado)
 
+    # El dueño de cada hilo se registra en memoria: lo que se prueba acá es el
+    # transporte, y la propiedad de los hilos tiene sus tests en test_hilos.py.
+    from services.api.hilos import reclamar_hilo
+    from tests.api.firestore_en_memoria import ClienteEnMemoria
+
+    hilos = ClienteEnMemoria()
+    monkeypatch.setattr(
+        main, "reclamar_hilo", lambda ctx, hilo: reclamar_hilo(ctx, hilo, cliente=hilos)
+    )
+
     async def _inspector() -> ExecutionContext:
         return ExecutionContext(usuario="uid-1", rol="inspector")
 

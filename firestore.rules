@@ -61,6 +61,11 @@ service cloud.firestore {
     // regla duplicada es una regla que se desincroniza.
     match /approvals/{doc} { allow read, write: if false; }
 
+    // ── Dueño de cada conversación ───────────────────────────────────────────
+    // Quién abrió cada hilo. Lo consulta la API antes de dejar que alguien lo
+    // continúe; leerlo desde el cliente revelaría hilos ajenos.
+    match /threads/{doc} { allow read, write: if false; }
+
     // ── Todo lo demás ────────────────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;

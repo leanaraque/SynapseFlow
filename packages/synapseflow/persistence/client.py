@@ -58,6 +58,7 @@ class Collections:
     MEMORY_STORE = "lg_store"
     AUDIT_LOG = "audit_log"
     APPROVALS = "approvals"
+    THREADS = "threads"
     USAGE = "llm_usage"
     PROMPTS = "prompt_registry"
     EVAL_RUNS = "eval_runs"

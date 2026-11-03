@@ -232,13 +232,16 @@ def evento_de_respuesta(
 
 
 def evento_de_acceso_denegado(
-    ctx: ExecutionContext, action_id: str, *, motivo: str
+    ctx: ExecutionContext, action_id: str | None, *, motivo: str
 ) -> EventoAuditoria:
     """Un intento que la capa de permisos frenó.
 
     Se registra porque un patrón de intentos denegados es exactamente la señal
     que un auditor de seguridad busca, y no existe si solo se loguea lo que
     salió bien.
+
+    `action_id` es `None` cuando lo denegado no es una acción del dominio sino,
+    por ejemplo, continuar la conversación de otra persona.
     """
     return EventoAuditoria(
         ts=_ahora(),
