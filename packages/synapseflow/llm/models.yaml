@@ -20,11 +20,15 @@
 # `text-embedding-004` directamente no existe. Un catálogo que nombra modelos
 # retirados no falla al cargar: falla en la primera llamada, en producción.
 #
-# ATENCIÓN: LOS PRECIOS DE ESTA REVISIÓN NO ESTÁN CONTRASTADOS. Se arrastran de la
-# familia anterior como estimación de orden de magnitud. Antes de usar la
-# contabilidad de costos para decidir algo, contrastarlos contra
-# ai.google.dev/pricing y actualizar esta fecha.
-verified_on: 2026-08-06
+# Precios contrastados el 2026-11-03 contra las páginas oficiales:
+# aistudio.google.com/docs/pricing, developers.openai.com/api/docs/pricing y la
+# tabla de precios de Anthropic. La revisión anterior arrastraba los precios de
+# Gemini de la familia previa sin contrastarlos, y estaban mal por mucho:
+# `gemini-3.5-flash-lite` figuraba a 0,10/0,40 y cuesta 0,30/2,50. El router y
+# el verificador —las dos llamadas más frecuentes— se subestimaban entre tres y
+# seis veces. Es exactamente la mentira silenciosa que este test existe para
+# evitar, y la fecha de verificación la había tapado.
+verified_on: 2026-11-03
 
 # Dimensión del índice vectorial declarado en firestore.indexes.json.
 #
@@ -48,8 +52,8 @@ providers:
     profiles:
       router:
         model: gemini-3.5-flash-lite
-        input_per_1m: 0.10
-        output_per_1m: 0.40
+        input_per_1m: 0.30
+        output_per_1m: 2.50
         context_window: 1048576
         note: >
           Clasificación y ruteo. Es la llamada más frecuente del sistema, así
@@ -59,15 +63,21 @@ providers:
           determinismo de este perfil depende del proveedor. Verificado el
           2026-08-06.
       synthesis:
-        model: gemini-3.5-flash
-        input_per_1m: 0.30
-        output_per_1m: 2.50
+        model: gemini-3.6-flash
+        input_per_1m: 0.75
+        output_per_1m: 3.75
         context_window: 1048576
         note: >
           Redacción fundamentada con citas. La llamada que define la calidad.
           Se eligió flash y no un modelo pro porque los pro devuelven cuota
           excedida en el tier de arranque: un perfil que no responde no sirve
           por más capaz que sea.
+          Era `gemini-3.5-flash`, que Google sacó de la página de precios y
+          redirige a `gemini-3.6-flash` sin fecha de baja. Se nombra el modelo
+          que corre de verdad: con el viejo, la contabilidad tarifaba un modelo
+          que ya no atendía las llamadas.
+          ATENCIÓN: el precio publicado se DUPLICA el 2027-01-01 (1,50 / 7,50).
+          Hay que actualizarlo ese día, antes de que venza `verified_on`.
       verifier:
         model: gemini-3.5-flash-lite
         input_per_1m: 0.10
@@ -102,6 +112,9 @@ providers:
         context_window: 1047576
       synthesis:
         model: gpt-4.1
+        # Los snapshots `gpt-4.1-2025-04-14` y `gpt-4.1-mini-2025-04-14` se
+        # dan de baja el 2027-01-14, con `gpt-6-luna` como reemplazo. Los alias
+        # siguen resolviendo hoy; antes de esa fecha hay que elegir sucesor.
         input_per_1m: 2.00
         output_per_1m: 8.00
         context_window: 1047576
@@ -170,9 +183,9 @@ providers:
         context_window: 200000
       synthesis:
         model: claude-sonnet-5
-        input_per_1m: 3.00
-        output_per_1m: 15.00
-        context_window: 200000
+        input_per_1m: 2.00
+        output_per_1m: 10.00
+        context_window: 1000000
       verifier:
         model: claude-haiku-4-5-20251001
         input_per_1m: 1.00

@@ -28,7 +28,7 @@ from synapseflow.persistence.client import Collections, get_client
 
 # Un modelo con precio distinto de cero en el catálogo. El proveedor falso
 # cotiza a cero a propósito, así que no serviría para verificar el cálculo.
-MODELO_TARIFADO = "gemini-3.5-flash"
+MODELO_TARIFADO = "gemini-3.6-flash"
 
 
 def modelo_falso(**kwargs: Any) -> FakeChatModel:
