@@ -260,6 +260,8 @@ pass by proving nothing.
 | SSE streaming | Done | tool events before the answer; citations before the approval prompt |
 | Approval endpoints | Done | the proposer cannot approve their own action; approving sends no arguments; of two simultaneous approvals only one runs |
 | Conversation ownership | Done | only whoever opened a thread can continue it — before, writing into someone else's thread bypassed separation of duties |
+| Per-user quota | Done | 30 graph runs per person per hour, counted in Firestore with a precondition so a burst cannot slip past it; 429 with `Retry-After` |
+| Closed sign-up and restricted browser key | Done | only an administrator creates users; the console's key only works from its own domains; Cloud Run capped at 3 instances |
 | Cloud Run image and deployment | Done | multi-stage image built with Cloud Build; service running in `southamerica-east1` |
 | Web console | Done | chat, inspectable citations, the approval inbox and the cost dashboard |
 | Deployment | Done | live; headers, the API rewrite and the 401s verified against what is served |
@@ -348,8 +350,8 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> The suite has 960 tests. **869 need nothing installed — no API key, no
-> network**; 86 run against the Firestore emulator — including the full
+> The suite has 971 tests. **879 need nothing installed — no API key, no
+> network**; 87 run against the Firestore emulator — including the full
 > P-2101-A journey — and 5 call a real provider. Those last ones are marked
 > `live_llm` and are excluded by default, in CI too: `pytest -m live_llm` runs
 > them on demand. The console adds 21 of its own, in `vitest`, over its only

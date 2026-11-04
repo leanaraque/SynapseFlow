@@ -258,6 +258,8 @@ si no, la garantía podría estar pasando sin probar nada.
 | Streaming por SSE | Hecho | eventos de herramienta antes de la respuesta; citas antes del pedido de aprobación |
 | Endpoints de aprobación | Hecho | el proponente no aprueba lo suyo; aprobar no manda argumentos; de dos aprobaciones simultáneas solo una se ejecuta |
 | Dueño de cada conversación | Hecho | solo quien abrió un hilo lo continúa — antes, escribir en el hilo de otra persona salteaba la separación de funciones |
+| Cuota por persona | Hecho | 30 recorridos del grafo por persona y por hora, contados en Firestore con precondición para que una ráfaga no se cuele; 429 con `Retry-After` |
+| Registro cerrado y clave del navegador restringida | Hecho | solo un administrador crea usuarios; la clave de la consola solo funciona desde sus dominios; Cloud Run con techo de 3 instancias |
 | Imagen y despliegue en Cloud Run | Hecho | imagen multietapa construida con Cloud Build; servicio corriendo en `southamerica-east1` |
 | Consola web | Hecho | chat, citas inspeccionables, bandeja de aprobaciones y panel de costos |
 | Despliegue | Hecho | en vivo; headers, rewrite de la API y los 401 verificados sobre lo servido |
@@ -347,8 +349,8 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> La suite tiene 960 tests. **869 no necesitan nada instalado —ni API key, ni
-> red—**; 86 corren contra el emulador de Firestore —incluido el recorrido
+> La suite tiene 971 tests. **879 no necesitan nada instalado —ni API key, ni
+> red—**; 87 corren contra el emulador de Firestore —incluido el recorrido
 > completo de P-2101-A— y 5 llaman a un proveedor real. Estos últimos llevan
 > `live_llm` y quedan excluidos por defecto, también en el CI: `pytest -m
 > live_llm` los corre a pedido. La consola suma 21 propios, en `vitest`, sobre su

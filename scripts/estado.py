@@ -711,6 +711,10 @@ PENDIENTE_AFUERA: tuple[tuple[str, str], ...] = (
         "propone con un id de inspección que no puede verificar; docs/05-despliegue.md",
     ),
     (
+        "La clave de Gemini es de un proyecto sin facturación",
+        "tier gratuito: entrena con los datos y contradice zero-training; ver models.yaml",
+    ),
+    (
         "La API acepta invocaciones sin autenticar",
         "Hosting no tiene identidad para run.invoker; la protege su propio token",
     ),

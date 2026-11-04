@@ -300,6 +300,56 @@ que una segunda corrida sobreescribe en lugar de duplicar.
 
 ---
 
+## Endurecimiento contra el abuso · aplicado el 2026-11-03
+
+La consola es pública y tiene que serlo. Lo que se cuida es quién puede usar la
+API y cuánto puede costar. Sin rol no se llega al modelo —eso ya lo hacía
+`auth.py`—; esto cierra lo que quedaba alrededor.
+
+**Registro cerrado.** Solo un administrador crea usuarios. Se pidió por la API
+de Identity Platform, porque la consola de Firebase no siempre muestra la opción:
+
+```bash
+curl -X PATCH "https://identitytoolkit.googleapis.com/admin/v2/projects/PROJECT/config?updateMask=client.permissions.disabledUserSignup" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "X-Goog-User-Project: PROJECT" \
+  -H "Content-Type: application/json" -d '{"client":{"permissions":{"disabledUserSignup":true}}}'
+```
+
+Verificado: un `accounts:signUp` con la clave pública responde
+`ADMIN_ONLY_OPERATION`.
+
+**Clave del navegador atada a los dominios de la consola.** La clave de Firebase
+viaja en el bundle a propósito, pero sin restricción de origen se podía usar
+desde cualquier sitio. Se agregaron `web.app`, `firebaseapp.com` —el login con
+Google pasa por ahí— y `localhost:5173`. **Por la API REST con
+`updateMask=restrictions` y las 27 APIs permitidas incluidas en el cuerpo**: el
+`gcloud` de este entorno solo trae el comando en `beta` y no está claro que
+conserve las APIs al cambiar los orígenes. Verificado: sin Referer o desde otro
+sitio responde `PERMISSION_DENIED`; desde los tres permitidos, OK.
+
+**Techo de instancias.** De 20 a 3:
+
+```bash
+gcloud run services update synapseflow-api --max-instances=3 --region southamerica-east1
+```
+
+Acota el costo de una inundación de requests sin token, que responden 401 pero
+igual ocupan el contenedor. No la frena: eso es Cloud Armor, que tiene costo.
+
+**Cuota por persona** en la API: ver `services/api/cuota.py`.
+
+**Lo que no se cerró:**
+
+- Las cuentas demo con rol (`inspector.demo` y `supervisor.demo`) siguen
+  activas. Deshabilitarlas es un `accounts:update` con `disableUser: true`.
+- La clave de Gemini es del proyecto `gen-lang-client-0012300646`, que **no tiene
+  facturación habilitada**. No genera costo, pero el tier gratuito usa los datos
+  para entrenar, y la política de zero-training que el README declara no se
+  cumple en producción. Los datos son sintéticos; con datos reales, habilitar la
+  facturación en ese proyecto sería obligatorio.
+
+---
+
 ## Rollback
 
 ```bash

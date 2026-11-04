@@ -53,6 +53,19 @@ que figuraban como hechas sin estar conectadas.
   y el gasto pasaba a ser recurrente. Corre a mano y en PR; la línea base se
   actualiza corriéndolo a mano sobre `main`, y el workflow lo dice.
 
+**Contra el abuso**
+
+- Registro de usuarios cerrado: solo un administrador crea cuentas.
+- La clave de Firebase del navegador solo funciona desde los dominios de la
+  consola.
+- Cloud Run con techo de 3 instancias, en lugar de 20.
+- Cuota de 30 recorridos del grafo por persona y por hora, con 429 y
+  `Retry-After`. Contada en Firestore con precondición, para que una ráfaga
+  simultánea no se cuele.
+- Se encontró que la clave de Gemini es de un proyecto sin facturación: el tier
+  gratuito entrena con los datos y contradice la política de zero-training.
+  Queda declarado como pendiente.
+
 **Documentación**
 
 - Los READMEs, el mapa de acción y el detector de estado decían que el
