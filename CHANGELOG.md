@@ -59,6 +59,7 @@ que figuraban como hechas sin estar conectadas.
 - La clave de Firebase del navegador solo funciona desde los dominios de la
   consola.
 - Cloud Run con techo de 3 instancias, en lugar de 20.
+- Las cuentas demo con rol, deshabilitadas.
 - Cuota de 30 recorridos del grafo por persona y por hora, con 429 y
   `Retry-After`. Contada en Firestore con precondición, para que una ráfaga
   simultánea no se cuele.

@@ -338,10 +338,13 @@ igual ocupan el contenedor. No la frena: eso es Cloud Armor, que tiene costo.
 
 **Cuota por persona** en la API: ver `services/api/cuota.py`.
 
-**Lo que no se cerró:**
+**Lo que quedó:**
 
-- Las cuentas demo con rol (`inspector.demo` y `supervisor.demo`) siguen
-  activas. Deshabilitarlas es un `accounts:update` con `disableUser: true`.
+- Las cuentas demo con rol (`inspector.demo` y `supervisor.demo`) se
+  **deshabilitaron** el 2026-11-04 con un `accounts:update` y
+  `disableUser: true`: es reversible y su historial de auditoría queda intacto.
+  `sinrol.demo` sigue activa a propósito, porque no tiene rol y sirve para
+  verificar el 403.
 - La clave de Gemini es del proyecto `gen-lang-client-0012300646`, que **no tiene
   facturación habilitada**. No genera costo, pero el tier gratuito usa los datos
   para entrenar, y la política de zero-training que el README declara no se
