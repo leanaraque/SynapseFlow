@@ -54,6 +54,7 @@ from services.api.costos import (
     exigir_acceso,
     resumen,
 )
+from services.api.cuota import CuotaAgotadaError, consumir_cuota
 from services.api.hilos import HiloAjenoError, reclamar_hilo
 from services.api.streaming import Evento, eventos, flujo_sse
 from synapseflow.agents.graph import construir_grafo
@@ -181,6 +182,14 @@ async def _aprobacion(_: Any, exc: ErrorDeAprobacion) -> JSONResponse:
     return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
 
 
+@app.exception_handler(CuotaAgotadaError)
+async def _cuota(_: Any, exc: CuotaAgotadaError) -> JSONResponse:
+    """429 con `Retry-After`: dice cuándo vuelve a haber cupo, no solo que no hay."""
+    return JSONResponse(
+        status_code=exc.status_code, content={"error": exc.detail}, headers=exc.headers or {}
+    )
+
+
 @app.exception_handler(HiloAjenoError)
 async def _hilo_ajeno(_: Any, exc: HiloAjenoError) -> JSONResponse:
     """Con la forma que espera la consola, como los demás errores."""
@@ -280,6 +289,9 @@ async def consultar(
     # Antes de armar el grafo: continuar la conversación de otra persona
     # permitía proponer a su nombre y aprobarlo uno mismo. Ver services/api/hilos.py.
     await reclamar_hilo(contexto, thread_id)
+    # Después del hilo y antes del grafo: un intento sobre un hilo ajeno no gasta
+    # cupo, y una consulta sin cupo no llega al modelo.
+    await consumir_cuota(contexto)
 
     grafo = grafo_para(contexto)
     contabilidad = ContabilidadDeCosto(thread_id=thread_id, usuario=contexto.usuario)
@@ -327,6 +339,9 @@ async def decidir_aprobacion(
     imposible de reconstruir.
     """
     contexto = ctx.model_copy(update={"thread_id": thread_id})
+    # Antes de decidir y no después: `decidir` cierra el pendiente, y si la cuota
+    # rechazara recién ahí, la aprobación quedaría registrada sin ejecutarse.
+    await consumir_cuota(contexto)
     comando, _ = await decidir(contexto, thread_id, pedido)
     grafo = grafo_para(contexto)
     # El resto del recorrido lo paga quien aprobó: es su request el que lo corre.

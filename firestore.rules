@@ -66,6 +66,11 @@ service cloud.firestore {
     // continúe; leerlo desde el cliente revelaría hilos ajenos.
     match /threads/{doc} { allow read, write: if false; }
 
+    // ── Cuota de consultas por persona ───────────────────────────────────────
+    // Un contador por persona y por hora. Lo escribe solo la API; si el cliente
+    // pudiera tocarlo, podría ponerse el contador en cero.
+    match /quotas/{doc} { allow read, write: if false; }
+
     // ── Todo lo demás ────────────────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;

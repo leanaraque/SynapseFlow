@@ -55,6 +55,13 @@ class Settings(BaseSettings):
     # activa nombrándolo, no por omisión.
     fallback_provider: Provider | None = Field(default=None, alias="SYNAPSEFLOW_FALLBACK_PROVIDER")
 
+    # Tope de recorridos del grafo por persona y por hora: consultas más
+    # aprobaciones, que también corren el grafo. Cada recorrido llama al modelo
+    # unas diez veces, así que esto es lo que acota cuánto puede gastar una
+    # cuenta con rol si la contraseña se filtra o alguien automatiza consultas.
+    # Ver services/api/cuota.py.
+    consultas_por_hora: int = Field(default=30, ge=1, alias="SYNAPSEFLOW_CONSULTAS_POR_HORA")
+
     google_api_key: str | None = Field(default=None, alias="GOOGLE_API_KEY")
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")

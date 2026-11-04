@@ -59,6 +59,7 @@ class Collections:
     AUDIT_LOG = "audit_log"
     APPROVALS = "approvals"
     THREADS = "threads"
+    QUOTAS = "quotas"
     USAGE = "llm_usage"
     PROMPTS = "prompt_registry"
     EVAL_RUNS = "eval_runs"
