@@ -21,6 +21,15 @@ siguiente: las dos pasan y el contador sube uno. Con la precondición sobre la
 versión leída, la que pierde reintenta con el valor nuevo. Es el mismo mecanismo
 que impide aprobar dos veces una propuesta (ver aprobaciones.py).
 
+## Por qué también se reintenta `Aborted`
+
+Firestore puede abortar una escritura con contención sobre el mismo documento
+sin aplicarla: el emulador lo hace como «Transaction lock timeout» y el servicio
+real lo documenta como ABORTED. No es un error de la persona: es la misma
+carrera que la precondición, y se reintenta igual. Sin esto, una ráfaga salía
+como un 500 en lugar de contarse o de rechazarse con 429. Entre reintentos se
+espera un poco, al azar, para que las que chocaron no vuelvan a chocar juntas.
+
 ## Qué cuenta
 
 Las consultas y las aprobaciones: las dos corren el grafo y llaman al modelo. Se
@@ -35,11 +44,13 @@ guardar cada consulta en lugar de un contador. Para acotar el gasto alcanza.
 
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
+import random
 from typing import Any
 
 from fastapi import HTTPException, status
-from google.api_core.exceptions import AlreadyExists, FailedPrecondition
+from google.api_core.exceptions import Aborted, AlreadyExists, FailedPrecondition
 
 from synapseflow.config import get_settings
 from synapseflow.governance.rbac import ExecutionContext
@@ -49,6 +60,10 @@ from synapseflow.persistence.client import Collections, get_client
 # casi nunca hace falta el segundo; si se agotan, es que hay una ráfaga
 # automatizada, y rechazarla es correcto.
 REINTENTOS = 5
+
+# Espera base entre reintentos, en segundos. Crece al doble en cada uno y se
+# toma al azar entre cero y ese valor.
+ESPERA_BASE = 0.02
 
 
 class CuotaAgotadaError(HTTPException):
@@ -83,43 +98,14 @@ async def consumir_cuota(
     momento = ahora or dt.datetime.now(dt.UTC)
     referencia = db.collection(Collections.QUOTAS).document(f"{ctx.usuario}_{_ventana(momento)}")
 
-    for _ in range(REINTENTOS):
-        instantanea = await referencia.get()
-
-        if not instantanea.exists:
-            try:
-                await referencia.create(
-                    {
-                        "usuario": ctx.usuario,
-                        "ventana": _ventana(momento),
-                        "usados": 1,
-                        "limite": tope,
-                    }
-                )
-                return 1
-            except AlreadyExists:
-                # Otra consulta de la misma persona estrenó la hora a la vez.
-                continue
-
-        usados = int((instantanea.to_dict() or {}).get("usados") or 0)
-        if usados >= tope:
-            raise CuotaAgotadaError(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=(
-                    f"llegaste al tope de {tope} consultas por hora. Cada consulta "
-                    "llama varias veces al modelo, y el tope existe para acotar el "
-                    "gasto. Se libera al comenzar la hora siguiente."
-                ),
-                headers={"Retry-After": str(_segundos_hasta_la_proxima_hora(momento))},
-            )
-
+    for intento in range(REINTENTOS):
+        if intento:
+            # Separar los reintentos al azar, no es criptografía.
+            await asyncio.sleep(random.uniform(0, ESPERA_BASE * 2**intento))  # noqa: S311
         try:
-            await referencia.update(
-                {"usados": usados + 1},
-                option=db.write_option(last_update_time=instantanea.update_time),
-            )
-            return usados + 1
-        except FailedPrecondition:
+            return await _intentar(db, referencia, ctx, tope, momento)
+        except (AlreadyExists, FailedPrecondition, Aborted):
+            # Otra consulta de la misma persona escribió a la vez: se relee.
             continue
 
     raise CuotaAgotadaError(
@@ -127,3 +113,47 @@ async def consumir_cuota(
         detail="demasiadas consultas simultáneas desde la misma cuenta. Probá de nuevo.",
         headers={"Retry-After": "5"},
     )
+
+
+async def _intentar(
+    db: Any, referencia: Any, ctx: ExecutionContext, tope: int, momento: dt.datetime
+) -> int:
+    """Un intento de leer, comparar y escribir.
+
+    Raises:
+        AlreadyExists, FailedPrecondition, Aborted: otra escritura ganó; el que
+            llama reintenta con el valor nuevo.
+        CuotaAgotadaError: la persona ya usó todo el cupo de esta hora.
+    """
+    instantanea = await referencia.get()
+
+    if not instantanea.exists:
+        # `create()` falla si otra consulta de la misma persona estrenó la hora
+        # a la vez.
+        await referencia.create(
+            {
+                "usuario": ctx.usuario,
+                "ventana": _ventana(momento),
+                "usados": 1,
+                "limite": tope,
+            }
+        )
+        return 1
+
+    usados = int((instantanea.to_dict() or {}).get("usados") or 0)
+    if usados >= tope:
+        raise CuotaAgotadaError(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                f"llegaste al tope de {tope} consultas por hora. Cada consulta "
+                "llama varias veces al modelo, y el tope existe para acotar el "
+                "gasto. Se libera al comenzar la hora siguiente."
+            ),
+            headers={"Retry-After": str(_segundos_hasta_la_proxima_hora(momento))},
+        )
+
+    await referencia.update(
+        {"usados": usados + 1},
+        option=db.write_option(last_update_time=instantanea.update_time),
+    )
+    return usados + 1

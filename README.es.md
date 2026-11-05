@@ -349,7 +349,7 @@ firebase emulators:start --only firestore --project synapseflow-5fc52
 pytest
 ```
 
-> La suite tiene 971 tests. **879 no necesitan nada instalado —ni API key, ni
+> La suite tiene 977 tests. **885 no necesitan nada instalado —ni API key, ni
 > red—**; 87 corren contra el emulador de Firestore —incluido el recorrido
 > completo de P-2101-A— y 5 llaman a un proveedor real. Estos últimos llevan
 > `live_llm` y quedan excluidos por defecto, también en el CI: `pytest -m

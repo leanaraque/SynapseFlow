@@ -231,6 +231,49 @@ async def test_sin_cupo_la_aprobacion_no_cierra_el_pendiente(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Cuando Firestore aborta por contención
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def sin_espera(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Los reintentos esperan al azar; en los tests, cero."""
+    monkeypatch.setattr("services.api.cuota.ESPERA_BASE", 0)
+
+
+async def test_un_abort_al_estrenar_la_hora_se_reintenta(
+    db: ClienteEnMemoria, sin_espera: None
+) -> None:
+    """**El error que tuvo el CI en rojo.** El emulador nuevo aborta escrituras
+    con contención («Transaction lock timeout») en lugar de aplicarlas, y
+    Firestore real puede hacer lo mismo. Antes salía como un 500."""
+    db.abortar_proximas(1)
+
+    assert await consumir_cuota(INSPECTOR, cliente=db, limite=3, ahora=A_LAS_10_45) == 1
+
+
+async def test_un_abort_al_incrementar_se_reintenta(db: ClienteEnMemoria, sin_espera: None) -> None:
+    await consumir_cuota(INSPECTOR, cliente=db, limite=3, ahora=A_LAS_10_45)
+    db.abortar_proximas(2)
+
+    assert await consumir_cuota(INSPECTOR, cliente=db, limite=3, ahora=A_LAS_10_45) == 2
+    (fila,) = db.contenido(Collections.QUOTAS).values()
+    assert fila["usados"] == 2
+
+
+async def test_si_aborta_siempre_es_429_y_no_500(db: ClienteEnMemoria, sin_espera: None) -> None:
+    """Agotados los reintentos se rechaza como ráfaga, con un error que la API
+    sabe responder, y sin contar nada."""
+    db.abortar_proximas(100)
+
+    with pytest.raises(CuotaAgotadaError) as error:
+        await consumir_cuota(INSPECTOR, cliente=db, limite=3, ahora=A_LAS_10_45)
+
+    assert error.value.status_code == 429
+    assert db.contenido(Collections.QUOTAS) == {}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Contra Firestore de verdad
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -246,5 +289,7 @@ async def test_el_contador_funciona_contra_firestore(requiere_emulador: None) ->
     )
 
     aceptadas = [r for r in resultados if isinstance(r, int)]
+    otras = [r for r in resultados if not isinstance(r, int | CuotaAgotadaError)]
     assert sorted(aceptadas) == [1, 2, 3]
-    assert all(isinstance(r, CuotaAgotadaError) for r in resultados if not isinstance(r, int))
+    # El mensaje dice qué llegó: sin él, el CI solo decía «assert False».
+    assert not otras, f"excepciones que no son un 429: {otras!r}"

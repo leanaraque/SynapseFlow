@@ -5,6 +5,27 @@ El proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+### `Aborted` de Firestore se trata como contención · 2026-11-05
+
+El CI volvió a rojo con el tope por hora: `test_el_contador_funciona_contra_firestore`
+fallaba en las tres corridas y localmente pasaba. El CI instala la última
+`firebase-tools` (15.35, emulador 1.22) y la máquina local tenía la 14.9: el
+emulador nuevo aborta escrituras con contención sobre el mismo documento
+—`Aborted('Transaction lock timeout.')`— en lugar de aplicarlas. Firestore real
+documenta el mismo código, así que no era un problema del test: en producción
+una ráfaga habría respondido 500.
+
+- `cuota.py` reintenta `Aborted` igual que la precondición fallida, con una
+  espera corta y al azar entre intentos. Con el emulador del CI, 120 ráfagas de
+  hasta 24 consultas simultáneas: antes, 102 errores inesperados; ahora, cero.
+- `aprobaciones.py` responde 409 ante `Aborted`, igual que a la carrera
+  perdida: la escritura no se aplicó, así que no queda nada a medias.
+- `hilos.py` reintenta el `create()`; si se agotan los reintentos responde 503 y
+  no 403, porque no se sabe de quién es el hilo.
+- El doble en memoria puede abortar escrituras (`abortar_proximas`), y hay un
+  test por cada uno de los tres casos. El test contra el emulador ahora dice qué
+  excepción llegó: antes el CI solo mostraba `assert False`.
+
 ### Cerrado después del plan · 2026-11-03
 
 Un análisis del repositorio contra el sistema desplegado encontró que el CI

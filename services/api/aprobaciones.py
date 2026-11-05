@@ -60,7 +60,7 @@ from enum import StrEnum
 from typing import Any
 
 from fastapi import HTTPException, status
-from google.api_core.exceptions import FailedPrecondition
+from google.api_core.exceptions import Aborted, FailedPrecondition
 from google.cloud.firestore_v1.base_query import FieldFilter
 from langgraph.types import Command
 from pydantic import BaseModel, Field
@@ -464,7 +464,10 @@ async def _resolver(
             },
             option=precondicion,
         )
-    except FailedPrecondition as exc:
+    # `Aborted` es la otra forma en que Firestore dice que hubo una escritura
+    # concurrente: la nuestra no se aplicó, así que no hay nada a medias. Se
+    # responde igual que a la carrera perdida, y no con un 500.
+    except (FailedPrecondition, Aborted) as exc:
         raise ErrorDeAprobacion(
             status_code=status.HTTP_409_CONFLICT,
             detail=(

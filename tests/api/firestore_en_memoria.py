@@ -25,7 +25,7 @@ import copy
 from collections.abc import AsyncIterator
 from typing import Any
 
-from google.api_core.exceptions import AlreadyExists, FailedPrecondition
+from google.api_core.exceptions import Aborted, AlreadyExists, FailedPrecondition
 
 
 class Instantanea:
@@ -68,6 +68,13 @@ class Documento:
         self._coleccion = coleccion
         self.id = id_
 
+    def _abortar_si_corresponde(self) -> None:
+        # Firestore aborta una escritura con contención sin aplicarla: lo que
+        # devolvió el emulador en CI como «Transaction lock timeout».
+        if self._coleccion.abortos[0] > 0:
+            self._coleccion.abortos[0] -= 1
+            raise Aborted("Transaction lock timeout.")
+
     def _escribir(self, datos: dict[str, Any]) -> None:
         self._coleccion.datos[self.id] = datos
         self._coleccion.versiones[self.id] = self._coleccion.versiones.get(self.id, 0) + 1
@@ -77,6 +84,7 @@ class Documento:
 
     async def create(self, datos: dict[str, Any]) -> None:
         """Como en Firestore: falla si el documento ya existe."""
+        self._abortar_si_corresponde()
         if self.id in self._coleccion.datos:
             raise AlreadyExists(f"el documento '{self.id}' ya existe")
         self._escribir(copy.deepcopy(datos))
@@ -96,6 +104,7 @@ class Documento:
         return instantanea
 
     async def update(self, cambios: dict[str, Any], option: Any = None) -> None:
+        self._abortar_si_corresponde()
         if self.id not in self._coleccion.datos:
             raise KeyError(f"no existe el documento '{self.id}'")
         if option is not None and option.last_update_time != self._coleccion.versiones.get(self.id):
@@ -158,10 +167,12 @@ class Coleccion(Consulta):
         versiones: dict[str, int] | None = None,
         *,
         ceder_al_leer: bool = False,
+        abortos: list[int] | None = None,
     ) -> None:
         self.datos = datos
         self.versiones = versiones if versiones is not None else {}
         self.ceder_al_leer = ceder_al_leer
+        self.abortos = abortos if abortos is not None else [0]
         super().__init__(self)
 
     def document(self, id_: str) -> Documento:
@@ -191,12 +202,16 @@ class ClienteEnMemoria:
         self._versiones: dict[str, dict[str, int]] = {}
         # Solo para los tests de concurrencia: ver `Documento.get`.
         self.ceder_al_leer = ceder_al_leer
+        # Cuántas de las próximas escrituras abortan. Una lista para que todas
+        # las colecciones compartan el mismo contador.
+        self._abortos = [0]
 
     def collection(self, nombre: str) -> Coleccion:
         return Coleccion(
             self._colecciones.setdefault(nombre, {}),
             self._versiones.setdefault(nombre, {}),
             ceder_al_leer=self.ceder_al_leer,
+            abortos=self._abortos,
         )
 
     def batch(self) -> Lote:
@@ -207,6 +222,10 @@ class ClienteEnMemoria:
         return OpcionDeEscritura(last_update_time)
 
     # ── Ayudas para los tests ────────────────────────────────────────────────
+
+    def abortar_proximas(self, cuantas: int) -> None:
+        """Las próximas `cuantas` escrituras (`create`/`update`) lanzan `Aborted`."""
+        self._abortos[0] = cuantas
 
     def contenido(self, nombre: str) -> dict[str, dict[str, Any]]:
         return self._colecciones.setdefault(nombre, {})

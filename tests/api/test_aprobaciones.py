@@ -291,6 +291,23 @@ async def test_no_se_puede_aprobar_dos_veces(propuesto: ClienteEnMemoria) -> Non
     assert SUPERVISOR.usuario in excinfo.value.detail
 
 
+async def test_un_abort_de_firestore_es_409_y_no_deja_nada_a_medias(
+    propuesto: ClienteEnMemoria,
+) -> None:
+    """Firestore puede abortar el cierre del pendiente por contención. La
+    escritura no se aplicó: el pendiente sigue abierto, nada se audita y el
+    supervisor recibe lo mismo que en la carrera perdida, no un 500."""
+    eventos_antes = len(propuesto.contenido(Collections.AUDIT_LOG))
+    propuesto.abortar_proximas(1)
+
+    with pytest.raises(ErrorDeAprobacion) as excinfo:
+        await aprobar(SUPERVISOR, propuesto)
+
+    assert excinfo.value.status_code == 409
+    assert propuesto.contenido(Collections.APPROVALS)[HILO]["estado"] == PENDIENTE
+    assert len(propuesto.contenido(Collections.AUDIT_LOG)) == eventos_antes
+
+
 async def test_un_hilo_sin_propuesta_es_404(db: ClienteEnMemoria) -> None:
     with pytest.raises(ErrorDeAprobacion) as excinfo:
         await aprobar(SUPERVISOR, db)

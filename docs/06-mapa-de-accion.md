@@ -55,7 +55,7 @@ packages/synapseflow/
 evals/                 datasets · evaluadores · run.py con línea base
 scripts/               estado.py · generar_datos.py · seed.py
 data/corpus/           seis documentos de normativa, uno derogado
-tests/                 971 tests; 879 sin dependencia externa
+tests/                 977 tests; 885 sin dependencia externa
 ```
 
 La API (`services/api/`) y la consola (`apps/web/`) están construidas y desplegadas.

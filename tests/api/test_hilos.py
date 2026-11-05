@@ -14,6 +14,7 @@ import uuid
 from typing import Any
 
 import pytest
+from fastapi import HTTPException
 
 from services.api.hilos import HiloAjenoError, reclamar_hilo
 from synapseflow.governance.auditoria import TipoEvento
@@ -58,6 +59,33 @@ async def test_otra_persona_no_puede_continuar_el_hilo(db: ClienteEnMemoria) -> 
     assert error.value.status_code == 403
     # Y el dueño no cambió por el intento.
     assert db.contenido(Collections.THREADS)[HILO]["propietario"] == INSPECTOR.usuario
+
+
+async def test_un_abort_al_estrenar_el_hilo_se_reintenta(
+    db: ClienteEnMemoria, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Firestore puede abortar el `create()` por contención sin aplicarlo."""
+    monkeypatch.setattr("services.api.hilos.ESPERA_BASE", 0)
+    db.abortar_proximas(1)
+
+    await reclamar_hilo(INSPECTOR, HILO, cliente=db)
+
+    assert db.contenido(Collections.THREADS)[HILO]["propietario"] == INSPECTOR.usuario
+
+
+async def test_si_aborta_siempre_es_503_y_no_403(
+    db: ClienteEnMemoria, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """**No se sabe de quién es el hilo, así que no se puede decir que es ajeno.**
+    Un 403 acusaría a la persona de entrar a una conversación que no es suya."""
+    monkeypatch.setattr("services.api.hilos.ESPERA_BASE", 0)
+    db.abortar_proximas(100)
+
+    with pytest.raises(HTTPException) as error:
+        await reclamar_hilo(INSPECTOR, HILO, cliente=db)
+
+    assert error.value.status_code == 503
+    assert not isinstance(error.value, HiloAjenoError)
 
 
 async def test_el_intento_queda_en_el_log_de_auditoria(db: ClienteEnMemoria) -> None:

@@ -41,16 +41,23 @@ Ver docs/05-despliegue.md § El circuito completo
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import datetime as dt
+import random
 from typing import Any
 
 from fastapi import HTTPException, status
-from google.api_core.exceptions import AlreadyExists
+from google.api_core.exceptions import Aborted, AlreadyExists
 
 from synapseflow.governance import auditoria
 from synapseflow.governance.rbac import ExecutionContext
 from synapseflow.persistence.client import Collections, get_client
+
+# `create()` puede abortar por contención sin aplicarse (ver cuota.py): se
+# reintenta. Si se agotan, se responde 503 y no 403: no se sabe de quién es.
+REINTENTOS = 4
+ESPERA_BASE = 0.02
 
 
 class HiloAjenoError(HTTPException):
@@ -71,15 +78,29 @@ async def reclamar_hilo(ctx: ExecutionContext, thread_id: str, *, cliente: Any =
     db = cliente or get_client()
     referencia = db.collection(Collections.THREADS).document(thread_id)
 
-    with contextlib.suppress(AlreadyExists):
-        await referencia.create(
-            {
-                "propietario": ctx.usuario,
-                "rol": ctx.rol,
-                "creado_en": dt.datetime.now(dt.UTC).isoformat(),
-            }
+    for intento in range(REINTENTOS):
+        if intento:
+            # Separar los reintentos al azar, no es criptografía.
+            await asyncio.sleep(random.uniform(0, ESPERA_BASE * 2**intento))  # noqa: S311
+        try:
+            await referencia.create(
+                {
+                    "propietario": ctx.usuario,
+                    "rol": ctx.rol,
+                    "creado_en": dt.datetime.now(dt.UTC).isoformat(),
+                }
+            )
+            return
+        except AlreadyExists:
+            break
+        except Aborted:
+            continue
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="no se pudo registrar la conversación por escrituras simultáneas. Probá de nuevo.",
+            headers={"Retry-After": "2"},
         )
-        return
 
     propietario = ((await referencia.get()).to_dict() or {}).get("propietario")
     if propietario == ctx.usuario:

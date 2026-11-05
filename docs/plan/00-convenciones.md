@@ -465,6 +465,7 @@ No los repitas.
 | Señal del detector que mira que la clase exista | `ContabilidadDeCosto` figuró como hecha tres meses sin que nada la conectara; `llm_usage` tenía cero documentos en producción. | Una señal tiene que comprobar que el código se usa, no que existe |
 | Precios «a verificar» bajo una fecha de verificación | `verified_on` decía agosto y los precios de Gemini se habían arrastrado de la familia anterior: el router se subestimaba seis veces. | La fecha solo se toca después de contrastar cada precio con la página oficial |
 | Leer, chequear y escribir un pendiente sin precondición | Dos aprobaciones simultáneas pasaban las dos el chequeo y ejecutaban dos veces una acción irreversible. | Toda transición de estado que habilita un efecto se escribe con precondición sobre la versión leída |
+| Manejar solo `FailedPrecondition` y `AlreadyExists` en una escritura con contención | El emulador del CI (más nuevo que el local) devolvía `Aborted('Transaction lock timeout.')`: el test del tope fallaba en el CI y pasaba en la máquina. En producción, una ráfaga habría sido un 500. | `Aborted` es contención igual que las otras dos: se reintenta, o se responde como la carrera perdida. Ante un CI rojo que no se reproduce, comparar primero las versiones que instala el CI con las locales. |
 
 ---
 
