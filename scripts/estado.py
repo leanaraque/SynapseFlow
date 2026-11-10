@@ -194,6 +194,14 @@ FASES: dict[str, Fase] = {
         "docs/plan/fases/F8-evals.md",
         depende_de=("F5",),
     ),
+    "F9": Fase(
+        "F9",
+        "Recuperación y evaluación, medidas",
+        "docs/plan/fases/F9-recuperacion-medida.md",
+        depende_de=("F3", "F8"),
+        compromiso="Ninguno nuevo; mide con números lo que F3 y F8 sostienen con argumentos",
+        bloqueo_externo="Servicios pagos (re-ranker gestionado, LangSmith pago) requieren aprobación del dueño",
+    ),
 }
 
 P = "packages/synapseflow"
@@ -658,6 +666,95 @@ COMMITS: list[Commit] = [
         (Senal("docs/05-despliegue.md"),),
         verificar="firebase deploy --only hosting && curl -I <url>",
         notas="Verificar los headers SERVIDOS, no los escritos. Ver docs/05-despliegue.md.",
+    ),
+    # ── F9 · Recuperación y evaluación, medidas ─────────────────────────────
+    # Cuatro preguntas que el RAG tiene que poder contestar con números: qué
+    # hacer con información muy similar, con qué métricas se mide el LLM, cómo
+    # rinde el híbrido con BM25 y cuánto ahorra cuantizar. F9.1 y F9.2 son la
+    # base para medir las cuatro.
+    Commit(
+        "F9.1",
+        "F9",
+        "Corpus con documentos casi gemelos",
+        (
+            Senal("data/corpus/PROC-INT-030.md"),
+            Senal("data/corpus/PROC-INT-031.md"),
+            Senal("data/corpus/API-570-2009.md"),
+            Senal(f"{P}/rag/ingesta.py", ('"instalacion"',)),
+        ),
+        verificar="pytest tests/rag -v && python -m scripts.seed --dry-run",
+        notas="Datos sintéticos, nunca texto real. API-570-2009 va como derogado.",
+    ),
+    Commit(
+        "F9.2",
+        "F9",
+        "Set de evaluación de la recuperación: recall@k y MRR",
+        (
+            Senal("evals/datasets/recuperacion.jsonl"),
+            Senal("evals/recuperacion.py", ("def recall_en_k", "def mrr")),
+        ),
+        verificar="pytest tests/evals -k recuperacion -v && python -m evals.recuperacion",
+        notas="Al menos 30 preguntas, de cuatro tipos: concepto, identificador, gemelo, derogado.",
+    ),
+    Commit(
+        "F9.3",
+        "F9",
+        "Comparación medida de las ramas vectorial, léxica e híbrida",
+        (
+            Senal("evals/recuperacion.py", ("--rama",)),
+            Senal("docs/07-recuperacion.md", ("## Comparación de ramas",)),
+        ),
+        verificar="python -m evals.recuperacion --rama hibrida",
+        notas="Si otros pesos ganan, cambiar PESOS y justificar con el número.",
+    ),
+    Commit(
+        "F9.4",
+        "F9",
+        "Extractor de filtros de la pregunta",
+        (Senal(f"{P}/rag/extractor.py", ("def extraer_filtros",)),),
+        verificar="pytest tests/rag -k extractor -v && python -m evals.recuperacion",
+        notas="Primero determinístico; el LLM solo si hace falta. Sin certeza, devolver {}.",
+    ),
+    Commit(
+        "F9.5",
+        "F9",
+        "Umbral de relevancia en la rama vectorial",
+        (Senal(f"{P}/rag/retrievers.py", ("UMBRAL_RELEVANCIA",)),),
+        verificar="pytest tests/rag -v && python -m evals.recuperacion && python -m evals.run",
+        notas="Calibrarlo con F9.2 y vigilar que no suba el rechazo indebido.",
+    ),
+    Commit(
+        "F9.6",
+        "F9",
+        "Re-ranker después de la fusión",
+        (
+            Senal(f"{P}/rag/reranker.py", ("class Reranker",)),
+            Senal("docs/adr/0007-reranker.md"),
+        ),
+        verificar="pytest tests/rag -k reranker -v && python -m evals.recuperacion",
+        notas="Corpus en español: el modelo tiene que ser multilingüe. Un servicio pago requiere aprobación.",
+    ),
+    Commit(
+        "F9.7",
+        "F9",
+        "Métricas con Ragas y trazas",
+        (
+            Senal("evals/ragas_corrida.py", ("ragas",)),
+            Senal("docs/07-recuperacion.md", ("## Métricas con Ragas",)),
+        ),
+        verificar="python -m evals.ragas_corrida",
+        notas="Grupo de dependencias opcional; no debe arrastrar langchain-community. No entra al CI.",
+    ),
+    Commit(
+        "F9.8",
+        "F9",
+        "Experimento de cuantización de embeddings",
+        (
+            Senal("scripts/experimento_cuantizacion.py", ("float16", "int8", "binari")),
+            Senal("docs/07-recuperacion.md", ("## Cuantización",)),
+        ),
+        verificar="python -m scripts.experimento_cuantizacion",
+        notas="Firestore no cuantiza su índice: es un experimento fuera de la base, no un cambio de producción.",
     ),
 ]
 

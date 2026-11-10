@@ -17,6 +17,8 @@ proyecto: **qué falta**, **en qué orden** y **cómo se sabe que una fase termi
 
 - **Estado del documento:** vigente
 - **Última revisión:** 2026-11-03 (plan completo; correcciones posteriores en el CHANGELOG)
+- **Después:** el 2026-11-10 se sumó la fase F9, para medir la recuperación
+  (`docs/plan/fases/F9-recuperacion-medida.md`). Está planificada, sin código.
 
 ---
 

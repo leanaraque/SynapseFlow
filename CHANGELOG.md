@@ -5,6 +5,21 @@ El proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+### Fase F9 planificada: medir la recuperación · 2026-11-10
+
+El RAG funciona pero nunca se midió. Se agregó al plan una fase nueva, sin
+código todavía, para contestar con números cuatro preguntas que hoy se contestan
+con argumentos: qué hacer cuando muchos fragmentos dicen casi lo mismo, con qué
+métricas se mide el LLM, cuánto rinde el híbrido con BM25 y cuánto ahorra
+cuantizar los embeddings.
+
+- `docs/plan/fases/F9-recuperacion-medida.md`: ocho commits, de F9.1 a F9.8,
+  con instrucciones, verificación y trampas conocidas.
+- `scripts/estado.py` declara la fase y sus señales: `python -m scripts.estado`
+  ya no informa «plan completo» sino F9.1 como siguiente commit.
+- La fase empieza ampliando el corpus (6 documentos, 42 fragmentos): con tan
+  poco, casi cualquier búsqueda acierta y ninguna mejora se nota.
+
 ### `Aborted` de Firestore se trata como contención · 2026-11-05
 
 El CI volvió a rojo con el tope por hora: `test_el_contador_funciona_contra_firestore`

@@ -58,6 +58,7 @@ docs/plan/
     F6-api.md          API en Cloud Run
     F7-consola.md      consola web
     F8-evals.md        evaluación y CI
+    F9-recuperacion-medida.md   medir la recuperación: gemelos, ramas, re-ranker, Ragas, cuantización
 scripts/estado.py      el detector de estado
 ```
 
@@ -73,7 +74,12 @@ F5 Grafo        (necesita F1, F2, F3, F4)   ← HITO PRINCIPAL
 F8 Evals        (necesita F5)
 F6 API          (necesita F5)
 F7 Consola      (necesita F6)
+F9 Medición     (necesita F3 y F8)   ← agregada después de cerrar F0–F8
 ```
+
+**F9 se sumó con el plan original ya completo.** No corrige nada de lo
+anterior: mide con números lo que F3 y F8 sostienen con argumentos. Su
+documento explica qué preguntas responde y por qué empieza ampliando el corpus.
 
 **F5 es el hito que importa.** Ahí el sistema deja de ser piezas sueltas y hace
 el recorrido completo: pregunta sobre un activo, cálculo determinístico,
